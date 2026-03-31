@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.25">
+    <title>Symbolic Matrix - Operational History</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/algebrite@1.4.0/dist/algebrite.bundle-for-browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background-color: #f8f9fa; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .controls { margin-bottom: 20px; background: #e9ecef; padding: 15px; border-radius: 8px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        
+        .quick-input-group { display: flex; align-items: center; gap: 10px; width: 100%; border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 5px; }
+        .quick-input-label { font-weight: bold; font-size: 0.9em; color: #444; }
+        #quick-input-field { width: 300px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-family: monospace; text-align: left; }
+
+        input[type="text"], input[type="number"] { padding: 6px; border: 1px solid #ced4da; border-radius: 4px; text-align: center; }
+        button { cursor: pointer; padding: 8px 15px; border: none; border-radius: 5px; background: #0d6efd; color: white; font-weight: bold; }
+        button:hover { background: #0b5ed7; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .btn-success { background: #198754; margin-left: 10px; }
+        .btn-info { background: #198754; margin-left: auto; }
+
+        .cell-ops { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffeeba; }
+
+        .cell-group { display: flex; align-items: center; gap: 4px; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid #eee; }
+        .matrix-input { width: 65px; border: 1px solid #ddd !important; text-align: center !important; }
+
+        /* Per-cell color button */
+        .cell-color-btn {
+            width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.25);
+            cursor: pointer; flex-shrink: 0; padding: 0; background: #000;
+        }
+
+        /* Floating color dropdown */
+        .color-dropdown {
+            position: fixed; z-index: 99999;
+            background: white; border: 1px solid #ccc; border-radius: 8px;
+            padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            display: none; flex-wrap: wrap; gap: 5px; width: 148px;
+        }
+        .color-dropdown .swatch {
+            width: 26px; height: 26px; border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.15); cursor: pointer;
+        }
+        .color-dropdown .swatch:hover { transform: scale(1.15); }
+        .color-dropdown .swatch-custom {
+            width: 26px; height: 26px; border-radius: 4px;
+            border: 2px dashed #999; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: #666; overflow: hidden; position: relative;
+        }
+        .color-dropdown .swatch-custom input[type="color"] {
+            position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;
+        }
+        
+        .matrix-row-ops { background: #6c757d; font-size: 0.8em; margin-left: 10px; }
+        .history-controls { display: flex; align-items: center; gap: 15px; margin-top: 20px; justify-content: center; position: relative; }
+        .history-btn { background: #212529; font-size: 1.2em; width: 45px; z-index: 10; }
+        
+        .latex-container { 
+            margin-top: 20px; padding: 20px; border: 2px solid #dee2e6; border-radius: 10px; 
+            text-align: center; flex-grow: 1; position: relative; background: #fff; min-height: 250px;
+        }
+        
+        .mini-preview {
+            position: absolute; top: 10px; right: 10px; width: 200px; height: 140px;
+            padding: 15px; background: rgba(255, 255, 255, 0.5); 
+            border: 2px solid #0d6efd; border-radius: 8px; resize: both; overflow: hidden; z-index: 1000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: move; box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .mini-preview-label { font-size: 0.6rem; font-weight: bold; color: #0d6efd; position: absolute; top: 5px; left: 8px; text-transform: uppercase; pointer-events: none; }
+
+        #math-box { font-size: 1.8rem; min-height: 100px; display: flex; justify-content: center; align-items: center; }
+        #op-log { margin-top: 10px; font-style: italic; color: #555; border-top: 1px solid #eee; padding-top: 10px; }
+
+        #history-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #history-content {
+            background: white; width: 95%; max-width: 900px; height: 90%; border-radius: 12px;
+            padding: 20px; overflow-y: auto; position: relative;
+        }
+        .close-history { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; font-weight: bold; }
+        
+        .history-row { display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 8px 0; }
+        .history-desc { flex: 0 0 320px; font-size: 1.1em; color: #444; text-align: right; padding-right: 20px; border-left: 2px solid #0d6efd; }
+        .history-matrix { flex: 1; display: flex; justify-content: center; align-items: center; padding-left: 20px; }
+
+        /* Row operation modal */
+        #rowop-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #rowop-modal {
+            background: white; border-radius: 12px; padding: 24px; width: 95%; max-width: 620px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25); position: relative;
+        }
+        #rowop-modal h3 { margin: 0 0 18px 0; font-size: 1.1em; color: #333; }
+        .rowop-cols { display: flex; gap: 12px; }
+        .rowop-col {
+            flex: 1; border: 2px solid #dee2e6; border-radius: 8px; padding: 14px 12px;
+            cursor: pointer; transition: border-color 0.15s, background 0.15s;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .rowop-col.active   { border-color: #0d6efd; background: #f0f5ff; }
+        .rowop-col.inactive { background: #f8f9fa; opacity: 0.5; }
+        .rowop-col-title {
+            display: flex; align-items: center; gap: 8px;
+            font-weight: bold; font-size: 1em; color: #333;
+        }
+        .rowop-col-title input[type="radio"] { accent-color: #0d6efd; width: 16px; height: 16px; cursor: pointer; }
+        .rowop-col label { font-size: 0.82em; color: #555; margin-bottom: 2px; display: block; }
+        .rowop-col input[type="text"] {
+            width: 100%; box-sizing: border-box; padding: 6px 8px;
+            border: 1px solid #ced4da; border-radius: 4px; font-size: 0.95em;
+            text-align: center; font-family: monospace;
+        }
+        .rowop-col input[type="text"]:disabled { background: #e9ecef; color: #aaa; cursor: not-allowed; }
+        .rowop-confirm {
+            margin-top: 18px; display: flex; justify-content: center; gap: 12px;
+        }
+        .rowop-confirm button { min-width: 100px; }
+        .close-rowop { position: absolute; top: 10px; right: 15px; font-size: 22px; cursor: pointer; font-weight: bold; color: #666; background: none; border: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div style="display: flex; align-items: center;">
+        <h2>Symbolic Matrix Operations</h2>
+        <button id="viewHistoryBtn" class="btn-info" onclick="openHistoryOverlay()" style="display:none;">View Full History</button>
+        <button id="downloadBtn" class="btn-success" onclick="downloadHistory()" style="display:none;">Text Log</button>
+    </div>
+    
+    <div class="controls">
+        <div class="quick-input-group">
+            <span class="quick-input-label">Quick input</span>
+            <input type="text" id="quick-input-field" placeholder="a,b;c,d">
+            <button onclick="confirmQuickInput()">Confirm</button>
+            <button onclick="importToQuickInput()">Import</button>
+        </div>
+        Rows: <input type="number" id="rows" value="3" min="1" style="width: 45px;"> 
+        Cols: <input type="number" id="cols" value="3" min="1" style="width: 45px;">
+        <button onclick="initializeMatrix()">Initialize Matrix</button>
+        <label style="font-weight: bold; font-size: 0.9em; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="checkbox" id="showAugmented" onchange="updateUI(false)"> Show Augmented Line
+        </label>
+    </div>
+
+    <!-- Shared floating color dropdown, one instance for all cells -->
+    <div id="color-dropdown" class="color-dropdown">
+        <!-- swatches injected by JS -->
+    </div>
+
+
+    <div class="cell-ops" id="cellOps" style="display:none;">
+        <button onclick="modifyActiveCell('expand')">Expand</button>
+        <button onclick="modifyActiveCell('simplify')">Tidy Up</button>
+    </div>
+
+    <table id="matrix-input-table" style="margin: auto;"></table>
+
+    <div id="display-area" style="display:none;">
+        <div class="history-controls">
+            <button class="history-btn" id="undoBtn" onclick="undo()">&#10094;</button>
+            <div class="latex-container">
+                <div id="mini-box" class="mini-preview">
+                    <span class="mini-preview-label">Previous state</span>
+                    <div id="mini-math"></div>
+                </div>
+                <div id="math-box"></div>
+                <div id="op-log"></div>
+            </div>
+            <button class="history-btn" id="redoBtn" onclick="redo()">&#10095;</button>
+        </div>
+    </div>
+</div>
+
+<div id="history-overlay">
+    <div id="history-content">
+        <span class="close-history" onclick="closeHistoryOverlay()">&times;</span>
+        <button style="margin: 10px;" onclick="window.print()">Print / PDF</button>
+        <div id="history-list"></div>
+    </div>
+</div>
+
+<div id="rowop-overlay">
+    <div id="rowop-modal">
+        <button class="close-rowop" onclick="closeRowOpModal()">&times;</button>
+        <h3 id="rowop-title">Row operations</h3>
+        <div class="rowop-cols">
+            <!-- Swap -->
+            <div class="rowop-col" id="col-swap" onclick="selectRowOpCol('swap')">
+                <div class="rowop-col-title">
+                    <input type="radio" name="rowop" id="radio-swap" value="swap" onchange="selectRowOpCol('swap')">
+                    <span>Swap</span>
+                </div>
+                <div>
+                    <label for="swap-with">Swap with row</label>
+                    <input type="text" id="swap-with" placeholder="e.g. 2" disabled>
+                </div>
+            </div>
+            <!-- Scalar -->
+            <div class="rowop-col inactive" id="col-scalar" onclick="selectRowOpCol('scalar')">
+                <div class="rowop-col-title">
+                    <input type="radio" name="rowop" id="radio-scalar" value="scalar" onchange="selectRowOpCol('scalar')">
+                    <span>Scalar</span>
+                </div>
+                <div>
+                    <label for="scalar-k">Multiply by</label>
+                    <input type="text" id="scalar-k" placeholder="e.g. 1/2" disabled>
+                </div>
+            </div>
+            <!-- Combine -->
+            <div class="rowop-col inactive" id="col-combine" onclick="selectRowOpCol('combine')">
+                <div class="rowop-col-title">
+                    <input type="radio" name="rowop" id="radio-combine" value="combine" onchange="selectRowOpCol('combine')">
+                    <span>Combine</span>
+                </div>
+                <div>
+                    <label for="combine-k">Multiply by</label>
+                    <input type="text" id="combine-k" placeholder="e.g. -2" disabled>
+                </div>
+                <div>
+                    <label for="combine-row">Add to row</label>
+                    <input type="text" id="combine-row" placeholder="e.g. 3" disabled>
+                </div>
+            </div>
+        </div>
+        <div class="rowop-confirm">
+            <button onclick="confirmRowOp()">Confirm</button>
+            <button style="background:#6c757d;" onclick="closeRowOpModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let history = [];
+    let historyStep = -1;
+    let activeCellId = null;
+
+    function customLatexFormatter(str) {
+        let formatted = str;
+        let prev;
+        do { prev = formatted; formatted = formatted.replace(/([a-zA-Z0-9().^]+)\/([a-zA-Z0-9().^]+)/g, "\\frac{$1}{$2}"); } while (formatted !== prev);
+        return formatted.replace(/\*/g, " ");
+    }
+
+    function formatOpDescription(type, rDest, rSrc, k) {
+        let dest = `R_{${rDest + 1}}`;
+        let src = `R_{${rSrc + 1}}`;
+        if (type === 'swap') return `${dest} \\leftrightarrow ${src}`;
+        let kTex = customLatexFormatter(k);
+        let isPoly = k.substring(1).includes('+') || k.substring(1).includes('-');
+        if (type === 'multiply') {
+            if (k === "1") return `${dest} \\rightarrow ${dest}`;
+            if (k === "-1") return `${dest} \\rightarrow -${dest}`;
+            return isPoly ? `${dest} \\rightarrow (${kTex})${dest}` : `${dest} \\rightarrow ${kTex}${dest}`;
+        }
+        if (type === 'add') {
+            if (k === "1") return `${dest} \\rightarrow ${dest} + ${src}`;
+            if (k === "-1") return `${dest} \\rightarrow ${dest} - ${src}`;
+            if (k.startsWith('-')) {
+                let positiveK = k.substring(1);
+                let posKTex = customLatexFormatter(positiveK);
+                let posIsPoly = positiveK.includes('+') || positiveK.includes('-');
+                return posIsPoly ? `${dest} \\rightarrow ${dest} - (${posKTex})${src}` : `${dest} \\rightarrow ${dest} - ${posKTex}${src}`;
+            }
+            return isPoly ? `${dest} \\rightarrow ${dest} + (${kTex})${src}` : `${dest} \\rightarrow ${dest} + ${kTex}${src}`;
+        }
+    }
+
+    function reorderPolynomial(str) {
+        let terms = []; let currentTerm = ""; let parenLevel = 0;
+        for (let i = 0; i < str.length; i++) {
+            let char = str[i];
+            if (char === '(') parenLevel++; if (char === ')') parenLevel--;
+            if ((char === '+' || char === '-') && parenLevel === 0 && i !== 0) {
+                terms.push(currentTerm.trim()); currentTerm = char;
+            } else { currentTerm += char; }
+        }
+        terms.push(currentTerm.trim());
+        const getPower = (t) => { if (!/[a-zA-Z]/.test(t)) return -1; let m = t.match(/\^(\d+)/); return m ? parseInt(m[1]) : 1; };
+        terms.sort((a, b) => getPower(b) - getPower(a));
+        let res = "";
+        terms.forEach((t, i) => {
+            if (i > 0 && !t.startsWith('+') && !t.startsWith('-')) res += "+" + t;
+            else if (i === 0 && t.startsWith('+')) res += t.substring(1);
+            else res += t;
+        });
+        return res;
+    }
+
+    function generateMatrixLatex(gridData, colorData) {
+        const isAugmented = document.getElementById('showAugmented').checked;
+        const rows = gridData.length, cols = gridData[0].length;
+        let latex = isAugmented && cols > 1 ? "\\left( \\begin{array}{" + "c".repeat(cols - 1) + "|" + "c} " : "\\begin{pmatrix} ";
+        for (let i = 0; i < rows; i++) {
+            let rowEntries = gridData[i].map((val, j) => {
+                let tex = customLatexFormatter(val);
+                let color = colorData[i][j];
+                return (color && color !== "#000000") ? `\\color{${color}}{${tex}}` : tex;
+            });
+            latex += rowEntries.join(" & ") + (i < rows - 1 ? " \\\\ " : "");
+        }
+        return latex + (isAugmented && cols > 1 ? " \\end{array} \\right)" : " \\end{pmatrix}");
+    }
+
+    function readGridFromDOM() {
+        const rows = document.getElementById('rows').value, cols = document.getElementById('cols').value;
+        let gridData = [], colorData = [];
+        for (let i = 0; i < rows; i++) {
+            let rowVals = [], rowCols = [];
+            for (let j = 0; j < cols; j++) {
+                rowVals.push(document.getElementById(`cell-${i}-${j}`).value);
+                // color is stored as the button's background style (hex string set by us)
+                rowCols.push(document.getElementById(`colorbtn-${i}-${j}`).style.background || '#000000');
+            }
+            gridData.push(rowVals); colorData.push(rowCols);
+        }
+        return { gridData, colorData };
+    }
+
+    function saveState(description) {
+        const { gridData, colorData } = readGridFromDOM();
+        if (historyStep < history.length - 1) history = history.slice(0, historyStep + 1);
+        history.push({ data: gridData, colors: colorData, log: description });
+        historyStep++; updateUI(true);
+    }
+
+    // Overwrites the current history entry in place (used for manual cell edits:
+    // no new step is created, but stored data stays in sync with what is on screen).
+    function overwriteCurrentState() {
+        if (historyStep < 0) return;
+        const { gridData, colorData } = readGridFromDOM();
+        history[historyStep].data = gridData;
+        history[historyStep].colors = colorData;
+        updateUI(false);
+    }
+
+    function updateUI(syncInputs = true) {
+        const state = history[historyStep]; if (!state) return;
+        if (syncInputs) {
+            state.data.forEach((r, i) => r.forEach((v, j) => {
+                const cell = document.getElementById(`cell-${i}-${j}`);
+                const btn  = document.getElementById(`colorbtn-${i}-${j}`);
+                if (cell) cell.value = v;
+                if (btn)  btn.style.background = state.colors[i][j];
+            }));
+        }
+        document.getElementById('math-box').innerHTML = `$$ ${generateMatrixLatex(state.data, state.colors)} $$`;
+        document.getElementById('op-log').innerHTML = `$$ \\text{Operation: } ${state.log} $$`;
+        
+        const miniBox = document.getElementById('mini-box'), miniMath = document.getElementById('mini-math');
+        if (historyStep > 0) {
+            miniBox.style.display = "flex";
+            miniMath.innerHTML = `$$ ${generateMatrixLatex(history[historyStep-1].data, history[historyStep-1].colors)} $$`;
+        } else { miniBox.style.display = "none"; }
+        
+        if (window.MathJax) MathJax.typesetPromise().then(() => fitMiniMath());
+        document.getElementById('undoBtn').disabled = historyStep <= 0;
+        document.getElementById('redoBtn').disabled = historyStep >= history.length - 1;
+        document.getElementById('viewHistoryBtn').style.display = "block";
+    }
+
+    let _rowOpIdx = null;
+
+    function doRowOp(rIdx) {
+        _rowOpIdx = rIdx;
+        document.getElementById('rowop-title').textContent = `Row ${rIdx + 1} — choose operation`;
+        // Reset to swap selected, all fields cleared
+        selectRowOpCol('swap');
+        document.getElementById('swap-with').value = '';
+        document.getElementById('scalar-k').value = '';
+        document.getElementById('combine-k').value = '';
+        document.getElementById('combine-row').value = '';
+        document.getElementById('rowop-overlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('swap-with').focus(), 50);
+    }
+
+    function selectRowOpCol(type) {
+        ['swap','scalar','combine'].forEach(t => {
+            const col = document.getElementById(`col-${t}`);
+            const radio = document.getElementById(`radio-${t}`);
+            const inputs = col.querySelectorAll('input[type="text"]');
+            if (t === type) {
+                col.classList.add('active');
+                col.classList.remove('inactive');
+                radio.checked = true;
+                inputs.forEach(i => i.disabled = false);
+            } else {
+                col.classList.remove('active');
+                col.classList.add('inactive');
+                radio.checked = false;
+                inputs.forEach(i => i.disabled = true);
+            }
+        });
+    }
+
+    function closeRowOpModal() {
+        document.getElementById('rowop-overlay').style.display = 'none';
+        _rowOpIdx = null;
+    }
+
+    function confirmRowOp() {
+        const rIdx = _rowOpIdx;
+        if (rIdx === null) return;
+        const rows = parseInt(document.getElementById('rows').value);
+        const cols = parseInt(document.getElementById('cols').value);
+        const type = document.querySelector('input[name="rowop"]:checked').value;
+
+        if (type === 'swap') {
+            const t = parseInt(document.getElementById('swap-with').value) - 1;
+            if (isNaN(t) || t < 0 || t >= rows) { alert('Invalid row number.'); return; }
+            for (let j = 0; j < cols; j++) {
+                const c1 = document.getElementById(`cell-${rIdx}-${j}`), c2 = document.getElementById(`cell-${t}-${j}`);
+                const p1 = document.getElementById(`colorbtn-${rIdx}-${j}`), p2 = document.getElementById(`colorbtn-${t}-${j}`);
+                [c1.value, c2.value] = [c2.value, c1.value];
+                const tmp = p1.style.background; p1.style.background = p2.style.background; p2.style.background = tmp;
+            }
+            saveState(formatOpDescription('swap', rIdx, t));
+
+        } else if (type === 'scalar') {
+            const k = document.getElementById('scalar-k').value.trim();
+            if (!k) { alert('Enter a scalar.'); return; }
+            for (let j = 0; j < cols; j++) {
+                const el = document.getElementById(`cell-${rIdx}-${j}`);
+                el.value = reorderPolynomial(Algebrite.run(`(${k})*(${el.value})`).toString());
+            }
+            saveState(formatOpDescription('multiply', rIdx, null, k));
+
+        } else if (type === 'combine') {
+            const k = document.getElementById('combine-k').value.trim();
+            const t = parseInt(document.getElementById('combine-row').value) - 1;
+            if (!k) { alert('Enter a scalar.'); return; }
+            if (isNaN(t) || t < 0 || t >= rows) { alert('Invalid row number.'); return; }
+            for (let j = 0; j < cols; j++) {
+                const srcVal = document.getElementById(`cell-${rIdx}-${j}`).value;
+                const dest = document.getElementById(`cell-${t}-${j}`);
+                dest.value = reorderPolynomial(Algebrite.run(`(${dest.value})+(${k})*(${srcVal})`).toString());
+            }
+            saveState(formatOpDescription('add', t, rIdx, k));
+        }
+
+        closeRowOpModal();
+    }
+
+    // Close on backdrop click or touch
+    ['mousedown','touchstart'].forEach(evt =>
+        document.getElementById('rowop-overlay').addEventListener(evt, (e) => {
+            if (e.target === document.getElementById('rowop-overlay')) closeRowOpModal();
+        }, { passive: true })
+    );
+
+    // Confirm on Enter
+    document.getElementById('rowop-modal').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmRowOp();
+    });
+
+    function openHistoryOverlay() {
+        const list = document.getElementById('history-list');
+        list.innerHTML = "";
+        history.forEach((state, i) => {
+            const nextState = history[i + 1]; // Look ahead to the next item
+            const row = document.createElement('div');
+            row.className = "history-row";
+            row.innerHTML = `<div class="history-matrix"><div style="font-size: 1.8rem;">$$ ${generateMatrixLatex(state.data, state.colors)} $$</div></div>`
+            if(nextState) row.innerHTML += `<div class="history-desc">$$ \\text{Step ${i+1}: } ${nextState.log} $$</div>`;
+            else row.innerHTML += `<div class="history-desc"></div>`;
+            list.appendChild(row);
+        });
+        document.getElementById('history-overlay').style.display = "flex";
+        MathJax.typesetPromise([list]);
+    }
+
+    function closeHistoryOverlay() { document.getElementById('history-overlay').style.display = "none"; }
+    // Palette colours (same set as the old row palette)
+    const PALETTE = [
+        { hex: '#000000', title: 'Black' },
+        { hex: '#FFFFFF', title: 'White (Invisible)' },
+        { hex: '#FF0000', title: 'Red' },
+        { hex: '#00FF00', title: 'Lime' },
+        { hex: '#0000FF', title: 'Blue' },
+        { hex: '#FFFF00', title: 'Yellow' },
+        { hex: '#00FFFF', title: 'Cyan' },
+        { hex: '#FF00FF', title: 'Magenta' },
+        { hex: '#FFC0CB', title: 'Light Pink' },
+        { hex: '#C0C0C0', title: 'Silver' },
+        { hex: '#808080', title: 'Gray' },
+        { hex: '#FF8C00', title: 'Orange' },
+        { hex: '#00CC00', title: 'Bright Green' },
+    ];
+
+    // Build the dropdown once
+    (function buildDropdown() {
+        const dd = document.getElementById('color-dropdown');
+        PALETTE.forEach(({ hex, title }) => {
+            const s = document.createElement('div');
+            s.className = 'swatch';
+            s.style.background = hex;
+            if (hex === '#FFFFFF') s.style.border = '1px solid #ccc';
+            s.title = title;
+            s.addEventListener('mousedown', (e) => { e.preventDefault(); applyQuickColor(hex); closeColorDropdown(); });
+            s.addEventListener('touchstart', (e) => { e.preventDefault(); applyQuickColor(hex); closeColorDropdown(); }, { passive: false });
+            dd.appendChild(s);
+        });
+        // Custom colour swatch (wraps a hidden native picker)
+        const custom = document.createElement('div');
+        custom.className = 'swatch-custom';
+        custom.title = 'Custom colour…';
+        custom.innerHTML = '✎<input type="color" id="custom-color-input" value="#000000">';
+        custom.querySelector('input').addEventListener('input', (e) => {
+            applyQuickColor(e.target.value);
+        });
+        custom.querySelector('input').addEventListener('change', () => closeColorDropdown());
+        dd.appendChild(custom);
+    })();
+
+    let _dropdownTargetRow = null, _dropdownTargetCol = null;
+
+    function openColorDropdown(event, row, col) {
+        event.stopPropagation();
+        _dropdownTargetRow = row;
+        _dropdownTargetCol = col;
+        activeCellId = `cell-${row}-${col}`;
+
+        // Sync custom picker to current cell color
+        const currentColor = document.getElementById(`colorbtn-${row}-${col}`).style.background;
+        document.getElementById('custom-color-input').value = rgbToHex(currentColor);
+
+        const dd = document.getElementById('color-dropdown');
+        dd.style.display = 'flex';
+
+        // Position below the button, clamped to viewport
+        const rect = event.currentTarget.getBoundingClientRect();
+        let top = rect.bottom + window.scrollY + 4;
+        let left = rect.left + window.scrollX;
+        const ddW = 148, ddH = 120;
+        if (left + ddW > window.innerWidth) left = window.innerWidth - ddW - 8;
+        if (top + ddH > window.innerHeight + window.scrollY) top = rect.top + window.scrollY - ddH - 4;
+        dd.style.top  = top + 'px';
+        dd.style.left = left + 'px';
+    }
+
+    function closeColorDropdown() {
+        document.getElementById('color-dropdown').style.display = 'none';
+    }
+
+    // Close on outside click/touch
+    document.addEventListener('mousedown', (e) => {
+        const dd = document.getElementById('color-dropdown');
+        if (dd.style.display === 'flex' && !dd.contains(e.target) && !e.target.classList.contains('cell-color-btn'))
+            closeColorDropdown();
+    });
+
+    function rgbToHex(rgb) {
+        if (!rgb || rgb.startsWith('#')) return rgb || '#000000';
+        const m = rgb.match(/\d+/g);
+        if (!m || m.length < 3) return '#000000';
+        return '#' + m.slice(0,3).map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+    }
+
+    function applyQuickColor(color) {
+        const row = _dropdownTargetRow, col = _dropdownTargetCol;
+        if (row === null || col === null) return;
+        const btn = document.getElementById(`colorbtn-${row}-${col}`);
+        if (btn) btn.style.background = color;
+        overwriteCurrentState();
+    }
+    function modifyActiveCell(op) {
+        if (!activeCellId) return;
+        const [_, r, c] = activeCellId.split('-');
+        const cellInput = document.getElementById(activeCellId);
+        try {
+            let res = (op === 'expand') ? Algebrite.run(`expand(${cellInput.value})`) : Algebrite.run(`simplify(${cellInput.value})`);
+            let ordered = reorderPolynomial(res.toString());
+            cellInput.value = ordered;
+            if (history[historyStep]) history[historyStep].data[r][c] = ordered;
+            updateUI(false);
+        } catch (e) { console.error(e); }
+    }
+    function rebuildMatrixUI(dataArray) {
+        const rows = dataArray.length, cols = dataArray[0].length;
+        const table = document.getElementById('matrix-input-table');
+        table.innerHTML = "";
+        document.getElementById('downloadBtn').style.display = "block";
+        document.getElementById('cellOps').style.display = "flex";
+        for (let i = 0; i < rows; i++) {
+            const tr = document.createElement('tr');
+            for (let j = 0; j < cols; j++) {
+                const td = document.createElement('td');
+                td.innerHTML = `<div class="cell-group">
+                    <input class="matrix-input" id="cell-${i}-${j}" type="text" value="${dataArray[i][j]}" onfocus="activeCellId=this.id" onchange="overwriteCurrentState()">
+                    <button class="cell-color-btn" id="colorbtn-${i}-${j}" style="background:#000000"
+                        onclick="openColorDropdown(event,'${i}','${j}')"></button>
+                </div>`;
+                tr.appendChild(td);
+            }
+            tr.innerHTML += `<td><button class="matrix-row-ops" onclick="doRowOp(${i})">\\(R_${i+1}\\, \\) Ops</button></td>`;
+            table.appendChild(tr);
+        }
+        document.getElementById('display-area').style.display = "block";
+        history = []; historyStep = -1; saveState("\\text{Matrix Initialized}");
+    }
+    function initializeMatrix() {
+        const r = document.getElementById('rows').value, c = document.getElementById('cols').value;
+        rebuildMatrixUI(Array.from({ length: r }, () => Array(parseInt(c)).fill("0")));
+    }
+    function undo() { if (historyStep > 0) { historyStep--; updateUI(true); } }
+    function redo() { if (historyStep < history.length - 1) { historyStep++; updateUI(true); } }
+    
+    function fitMiniMath() {
+        const box = document.getElementById('mini-box'), content = document.getElementById('mini-math');
+        if (!content || !box || box.style.display === "none") return;
+        
+        content.style.transform = "scale(1)";
+        content.style.display = "inline-block"; 
+        
+        // Account for label height and padding
+        const ratio = 1; 
+        const availableW = box.clientWidth * ratio;
+        const availableH = (box.clientHeight - 20) * ratio; 
+        const contentW = content.scrollWidth;
+        const contentH = content.scrollHeight;
+        
+        if (contentW > 0 && contentH > 0) {
+            const scale = Math.max(0.1, Math.min(availableW / contentW, availableH / contentH));
+            content.style.transformOrigin = "center center";
+            content.style.transform = `scale(${scale})`;
+        }
+    }
+
+    function confirmQuickInput() {
+        const val = document.getElementById('quick-input-field').value.trim();
+        if (!val) return;
+        const rows = val.split(';').map(r => r.split(',').map(c => c.trim()));
+        document.getElementById('rows').value = rows.length;
+        document.getElementById('cols').value = rows[0].length;
+        rebuildMatrixUI(rows);
+    }
+    function importToQuickInput() {
+        let res = [];
+        for (let i = 0; i < document.getElementById('rows').value; i++) {
+            let row = [];
+            for (let j = 0; j < document.getElementById('cols').value; j++) row.push(document.getElementById(`cell-${i}-${j}`).value);
+            res.push(row.join(','));
+        }
+        document.getElementById('quick-input-field').value = res.join(';');
+    }
+    function downloadHistory() {
+        let output = history.map((s, i) => `Step ${i}: ${s.log}\nLaTeX: ${generateMatrixLatex(s.data, s.colors)}`).join('\n\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([output], {type: 'text/plain'}));
+        a.download = 'matrix_log.txt'; a.click();
+    }
+
+    (function initMiniBox(el) {
+        let p3=0, p4=0;
+
+        // --- Mouse drag ---
+        el.onmousedown = (e) => {
+            if (e.clientX > el.getBoundingClientRect().right - 25 && 
+                e.clientY > el.getBoundingClientRect().bottom - 25) return;
+            e.preventDefault(); 
+            p3 = e.clientX; 
+            p4 = e.clientY;
+            document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; };
+            document.onmousemove = (e) => {
+                el.style.top  = (el.offsetTop  - (p4 - e.clientY)) + "px";
+                el.style.left = (el.offsetLeft - (p3 - e.clientX)) + "px";
+                p3 = e.clientX; p4 = e.clientY;
+                el.style.right = "auto";
+            };
+        };
+
+        // --- Touch drag & pinch-resize ---
+        let lastTouchX = 0, lastTouchY = 0;
+        let lastPinchDist = null;
+        let startW = 0, startH = 0;
+
+        el.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                // Single finger: drag
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+                lastPinchDist = null;
+            } else if (e.touches.length === 2) {
+                // Two fingers: pinch-resize
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastPinchDist = Math.hypot(dx, dy);
+                startW = el.offsetWidth;
+                startH = el.offsetHeight;
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        el.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1 && lastPinchDist === null) {
+                // Drag
+                const dx = e.touches[0].clientX - lastTouchX;
+                const dy = e.touches[0].clientY - lastTouchY;
+                el.style.top  = (el.offsetTop  + dy) + "px";
+                el.style.left = (el.offsetLeft + dx) + "px";
+                el.style.right = "auto";
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+            } else if (e.touches.length === 2 && lastPinchDist !== null) {
+                // Pinch resize
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.hypot(dx, dy);
+                const ratio = dist / lastPinchDist;
+                el.style.width  = Math.max(80,  startW * ratio) + "px";
+                el.style.height = Math.max(60, startH * ratio) + "px";
+                fitMiniMath();
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        el.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) lastPinchDist = null;
+        });
+
+        // Trigger fitMiniMath whenever the box is resized (mouse or touch)
+        const ro = new ResizeObserver(() => fitMiniMath());
+        ro.observe(el);
+    })(document.getElementById("mini-box"));
+
+    window.onload = initializeMatrix;
+</script>
+</body>
+</html>
