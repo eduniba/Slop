@@ -6,78 +6,166 @@
     <title>Symbolic Matrix - Operational History</title>
     
     <script src="https://cdn.jsdelivr.net/npm/algebrite@1.4.0/dist/algebrite.bundle-for-browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script type="module">
+        import { toEchelonForm } from './echelon.js';
+        window.toEchelonForm = toEchelonForm;
+    </script>
 
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background-color: #f8f9fa; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .controls { margin-bottom: 20px; background: #e9ecef; padding: 15px; border-radius: 8px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-        
-        .quick-input-group { display: flex; align-items: center; gap: 10px; width: 100%; border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 5px; }
-        .quick-input-label { font-weight: bold; font-size: 0.9em; color: #444; }
-        #quick-input-field { width: 300px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-family: monospace; text-align: left; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 20px; background-color: #eef1f5; color: #2b3440; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 20px 24px 22px; border-radius: 16px; box-shadow: 0 2px 6px rgba(20,30,50,0.05), 0 12px 32px rgba(20,30,50,0.07); }
+        .page-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
+        .page-head h2 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+        .quick-input-label { font-weight: bold; font-size: 0.85em; color: #4a5462; }
+        .quick-input-field { flex: 1 1 200px; min-width: 140px; font-family: Consolas, monospace; text-align: left; }
 
-        input[type="text"], input[type="number"] { padding: 6px; border: 1px solid #ced4da; border-radius: 4px; text-align: center; }
-        button { cursor: pointer; padding: 8px 15px; border: none; border-radius: 5px; background: #0d6efd; color: white; font-weight: bold; }
+        input[type="text"], input[type="number"] { height: 28px; padding: 0 8px; border: 1px solid #d5dbe3; border-radius: 7px; text-align: center; font-size: 0.85rem; background: #fbfcfd; outline: none; box-sizing: border-box; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: #0d6efd; background: #fff; }
+        select { height: 28px; padding: 0 6px; border: 1px solid #d5dbe3; border-radius: 7px; font-size: 0.85rem; background: #fbfcfd; outline: none; font-family: inherit; color: #2b3440; }
+        select:focus { border-color: #0d6efd; background: #fff; }
+        button { cursor: pointer; height: 28px; padding: 0 13px; border: 1px solid transparent; border-radius: 7px; background: #0d6efd; color: white; font-weight: 600; font-size: 0.8rem; font-family: inherit; }
         button:hover { background: #0b5ed7; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        
+
+        .btn-ghost { background: #fff; border-color: #d5dbe3; color: #3c4652; }
+        .btn-ghost:hover { background: #f5f7fa; }
+        .btn-sm { height: 24px; padding: 0 10px; font-size: 0.72rem; }
         .btn-success { background: #198754; margin-left: 10px; }
-        .btn-info { background: #198754; margin-left: auto; }
+        .btn-success:hover { background: #157347; }
 
-        .cell-ops { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffeeba; }
+        .chips { display: flex; gap: 5px; align-items: center; }
+        .chip { border: 1px solid #f0d9a0; background: #fff9ec; color: #8a6d1f; border-radius: 999px; height: 24px; padding: 0 11px; font-size: 0.72rem; font-weight: 600; }
+        .chip:hover { background: #fdf2d7; }
 
-        .cell-group { display: flex; align-items: center; gap: 4px; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid #eee; }
-        .matrix-input { width: 65px; border: 1px solid #ddd !important; text-align: center !important; }
+        input.matrix-input { width: 56px; height: 30px; background: #fff; }
 
-        /* Per-cell color button */
-        .cell-color-btn {
-            width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.25);
-            cursor: pointer; flex-shrink: 0; padding: 0; background: #000;
+        /* Per-cell context menu (interactive History matrix) */
+        .mcm-menu {
+            position: fixed; z-index: 99999; display: none; flex-direction: column; gap: 6px;
+            background: #fff; border: 1px solid #ccc; border-radius: 8px;
+            padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.2); width: 200px;
         }
-
-        /* Floating color dropdown */
-        .color-dropdown {
-            position: fixed; z-index: 99999;
-            background: white; border: 1px solid #ccc; border-radius: 8px;
-            padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-            display: none; flex-wrap: wrap; gap: 5px; width: 148px;
-        }
-        .color-dropdown .swatch {
-            width: 26px; height: 26px; border-radius: 4px;
+        .mcm-menu .mcm-row { display: flex; align-items: center; gap: 5px; }
+        .mcm-menu .mcm-swatches { flex-wrap: wrap; }
+        .mcm-menu .mcm-swatches .swatch {
+            width: 22px; height: 22px; border-radius: 4px;
             border: 1px solid rgba(0,0,0,0.15); cursor: pointer;
         }
-        .color-dropdown .swatch:hover { transform: scale(1.15); }
-        .color-dropdown .swatch-custom {
-            width: 26px; height: 26px; border-radius: 4px;
+        .mcm-menu .mcm-swatches .swatch:hover { transform: scale(1.15); }
+        .mcm-menu .mcm-swatches .swatch-custom {
+            width: 22px; height: 22px; border-radius: 4px;
             border: 2px dashed #999; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            font-size: 16px; color: #666; overflow: hidden; position: relative;
+            font-size: 13px; color: #666; overflow: hidden; position: relative;
         }
-        .color-dropdown .swatch-custom input[type="color"] {
+        .mcm-menu .mcm-swatches .swatch-custom input[type="color"] {
             position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;
         }
-        
-        .matrix-row-ops { background: #6c757d; font-size: 0.8em; margin-left: 10px; }
-        .history-controls { display: flex; align-items: center; gap: 15px; margin-top: 20px; justify-content: center; position: relative; }
-        .history-btn { background: #212529; font-size: 1.2em; width: 45px; z-index: 10; }
-        
-        .latex-container { 
-            margin-top: 20px; padding: 20px; border: 2px solid #dee2e6; border-radius: 10px; 
-            text-align: center; flex-grow: 1; position: relative; background: #fff; min-height: 250px;
+
+        /* Interactive History matrix grid (built from det-grid/det-cell) */
+        #math-box-grid .det-cell { cursor: pointer; user-select: none;}
+        /* #math-box-grid .det-cell:hover { background: rgba(13,110,253,0.10); } */
+        /* #math-box-grid .det-cell:hover { outline: 1.5px dashed #0d6efd; outline-offset: -1.5px; border-radius: 4px; } */
+        #math-box-grid .det-cell:hover { outline: 1.5px dashed rgba(0,0,0,0.30); outline-offset: -1.5px; border-radius: 4px; }
+        /* #math-box-grid.dragging-row .det-cell:hover { background: none; } */
+        #math-box-grid.dragging-row .det-cell:hover { outline: none; }
+        /* #math-box-grid .det-cell:hover::after {
+            content: "Double click to edit\A Click for type 2 op\A Drag for type 1 or 3 op";
+            white-space: pre-line;
+            width: 120px;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff9ec;
+            border: 1px solid #f0d9a0;
+            color: #8a6d1f;
+            font-size: 0.68rem;
+            font-weight: 600;
+            line-height: 1.35;
+            padding: 6px 10px;
+            border-radius: 6px;
+            text-align: center;
+            z-index: 20;
+            pointer-events: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
         }
+        #math-box-grid .det-cell:hover::after {
+            opacity: 1;
+            transition: opacity 0.15s 2.5s;
+        }
+        #math-box-grid.dragging-row .det-cell:hover::after { display: none; } */
+
+        /* Quick-input row/col orientation toggle */
+        .qi-orient { padding: 2px; }
+        .qi-orient .tab-btn { padding: 4px 10px; font-size: 0.72rem; }
+
+        .math-row { display: flex; align-items: center; justify-content: center; gap: 14px; }
+        .rowops-stack { display: flex; flex-direction: column; justify-content: space-around; align-self: stretch; gap: 5px; padding: 8px 0; }
+        .rowops {
+            height: 25px; padding: 0 10px; border: 1px solid #d5dbe3; border-radius: 999px; background: #fff;
+            font-size: 0.72rem; font-weight: 600; color: #4a5462;
+        }
+        .rowops:hover { background: #f5f7fa; border-color: #b9c3cf; }
+        #math-box-grid .det-grid-row.row-drop-hover { outline: 1.5px dashed #0d6efd; outline-offset: -1px; border-radius: 4px; }
+        .row-drag-ghost {
+            position: fixed; z-index: 100000; pointer-events: none;
+            background: #fff; border: 2px solid #0d6efd; border-radius: 10px;
+            padding: 4px 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            opacity: 0.95;
+        }
+        .row-drag-ghost .det-grid-row { display: flex; }
+        .row-drag-ghost .det-cell { cursor: default; }
+
+        .stage-body { display: flex; align-items: stretch; gap: 10px; padding: 10px 12px; }
+        .fs-btn { border: none; background: none; cursor: pointer; height: auto; padding: 0 4px; font-size: 0.82rem; color: #8a93a0; line-height: 1; }
+        .fs-btn:hover { background: none; color: #2b3440; }
+        .panel.panel-fullscreen {
+            position: fixed; inset: 0; z-index: 5000; margin: 0;
+            border: none; border-radius: 0; background: #fff;
+            display: flex !important; flex-direction: column;
+            overflow: auto;
+        }
+        .panel.panel-fullscreen .stage-body { flex: 1; }
+        .history-btn {
+            width: 30px; height: 30px; border-radius: 50%; border: 1px solid #d5dbe3;
+            background: #fff; color: #4a5462; font-size: 0.85rem; padding: 0;
+            align-self: center; flex-shrink: 0; z-index: 10;
+        }
+        .history-btn:hover:not(:disabled) { background: #f5f7fa; }
+        .history-btn:disabled { background: #fff; opacity: 0.35; }
+        .board {
+            flex: 1; min-width: 0; position: relative; text-align: center;
+            padding: 14px 12px 8px; min-height: 190px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+
         
         .mini-preview {
-            position: absolute; top: 10px; right: 10px; width: 200px; height: 140px;
-            padding: 15px; background: rgba(255, 255, 255, 0.5); 
-            border: 2px solid #0d6efd; border-radius: 8px; resize: both; overflow: hidden; z-index: 1000;
+            position: fixed; top: 10px; right: 10px; width: 200px; height: 140px;
+            padding: 15px; background: rgba(255, 255, 255, 0.5);
+            border: 2px solid #0d6efd; border-radius: 8px; resize: both; overflow: hidden;
+            z-index: 5500; /* above .panel-fullscreen (5000) so it survives fullscreen mode */
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             cursor: move; box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
         .mini-preview-label { font-size: 0.6rem; font-weight: bold; color: #0d6efd; position: absolute; top: 5px; left: 8px; text-transform: uppercase; pointer-events: none; }
+        .mini-preview-hide {
+            position: absolute; top: 2px; right: 4px; width: 18px; height: 18px;
+            border: none; background: none; color: #0d6efd; font-size: 0.85rem; font-weight: 700;
+            cursor: pointer; line-height: 1; padding: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mini-preview-hide:hover { color: #0b5ed7; }
 
-        #math-box { font-size: 1.8rem; min-height: 100px; display: flex; justify-content: center; align-items: center; }
-        #op-log { margin-top: 10px; font-style: italic; color: #555; border-top: 1px solid #eee; padding-top: 10px; }
+        #math-box { font-size: 1.25rem; min-height: 80px; display: flex; justify-content: center; align-items: center; }
+        #math-box .katex-display { margin: 0; }
+        #op-log { margin-top: 12px; font-size: 0.85rem; color: #7a838d; border-top: 1px solid #eef1f5; padding-top: 8px; }
+        #op-log .katex-display { margin: 0; }
+        .formula-scroll { display: flex; align-items: center; overflow-x: auto; overflow-y: hidden; }
+        .formula-scroll .katex-display { margin: 0 auto; padding: 2px 0 14px; }
 
         #history-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -88,7 +176,43 @@
             padding: 20px; overflow-y: auto; position: relative;
         }
         .close-history { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; font-weight: bold; }
-        
+
+        #help-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #help-content {
+            background: white; width: 95%; max-width: 720px; max-height: 88vh; border-radius: 12px;
+            padding: 22px 26px; overflow-y: auto; position: relative;
+        }
+        .help-section { margin-bottom: 22px; }
+        .help-section:last-child { margin-bottom: 4px; }
+        .help-section h3 { margin: 0 0 3px 0; font-size: 1.08rem; color: #0d6efd; }
+        .help-section .help-tagline { margin: 0 0 10px 0; font-size: 0.85rem; color: #6c757d; }
+        .help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+        .help-list li { display: flex; align-items: baseline; gap: 8px; font-size: 0.87rem; color: #333; line-height: 1.4; }
+        .help-tag {
+            flex: 0 0 auto; display: inline-block; min-width: 78px; text-align: center; padding: 2px 8px;
+            border-radius: 5px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+            text-transform: uppercase; color: #fff;
+        }
+        .help-tag-click { background: #0d6efd; }
+        .help-tag-dblclick { background: #6610f2; }
+        .help-tag-hover { background: #20c997; }
+        .help-tag-drag { background: #fd7e14; }
+
+        #echelon-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #echelon-content {
+            background: white; width: 95%; max-width: 900px; height: 90%; border-radius: 12px;
+            padding: 20px; overflow-y: auto; position: relative;
+        }
+        .echelon-node { padding: 10px 0; border-bottom: 1px solid #eef1f5; }
+        .echelon-condition { font-weight: 600; font-size: 0.85em; color: #4a5462; margin-bottom: 6px; }
+        .echelon-matrix-wrap { display: flex; justify-content: flex-start; }
+
         .history-row { display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 8px 0; }
         .history-desc { flex: 0 0 320px; font-size: 1.1em; color: #444; text-align: right; padding-right: 20px; border-left: 2px solid #0d6efd; }
         .history-matrix { flex: 1; display: flex; justify-content: center; align-items: center; padding-left: 20px; }
@@ -123,64 +247,392 @@
             text-align: center; font-family: monospace;
         }
         .rowop-col input[type="text"]:disabled { background: #e9ecef; color: #aaa; cursor: not-allowed; }
+        .combine-field-group { display: flex; flex-direction: column; gap: 10px; }
+        .rowop-fixed-val {
+            width: 100%; height: 28px; box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center;
+            padding: 6px 8px; border: 1px solid #ced4da; border-radius: 4px;
+            font-size: 0.95em; font-family: monospace; color: #aaa; background: #e9ecef;
+        }
         .rowop-confirm {
             margin-top: 18px; display: flex; justify-content: center; gap: 12px;
         }
         .rowop-confirm button { min-width: 100px; }
         .close-rowop { position: absolute; top: 10px; right: 15px; font-size: 22px; cursor: pointer; font-weight: bold; color: #666; background: none; border: none; padding: 0; }
+
+        /* Tabs */
+        .tab-bar { display: inline-flex; gap: 4px; background: #eaeef3; border-radius: 10px; padding: 4px; }
+        .tab-btn { background: none; border: none; height: auto; border-radius: 7px; padding: 7px 18px; font-weight: 600; font-size: 0.84rem; color: #5b6570; }
+        .tab-btn:hover { background: none; color: #2b3440; }
+        .tab-btn.active { color: #0d6efd; background: #fff; box-shadow: 0 1px 3px rgba(20,30,50,0.14); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Collapsible panels */
+        .panel { border: 1px solid #e3e8ee; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+        .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #f8fafc; border-bottom: 1px solid #eef1f5; min-height: 24px; }
+        .panel-title { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a0; }
+        .panel-title-group { display: flex; align-items: center; gap: 6px; }
+        .collapse-btn { border: none; background: none; cursor: pointer; height: auto; padding: 0 4px; font-size: 0.7rem; color: #8a93a0; line-height: 1; transition: transform 0.15s; }
+        .collapse-btn:hover { background: none; color: #2b3440; }
+        .panel.collapsed .collapse-btn { transform: rotate(-90deg); }
+        .panel.collapsed .panel-body { display: none; }
+        .panel.collapsed .panel-head { border-bottom: none; }
+
+        .toolbar-body { padding: 2px 12px; }
+        .toolbar-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 7px 0; }
+        .toolbar-row + .toolbar-row { border-top: 1px solid #eef1f5; }
+        .lbl { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a0; flex: 0 0 74px; }
+        .num { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #4a5462; }
+        .num input { width: 46px; }
+        .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #4a5462; margin-left: auto; cursor: pointer; }
+        .chk input[type="checkbox"] { accent-color: #0d6efd; width: 14px; height: 14px; }
+        .grid-wrap { padding: 12px; display: flex; justify-content: center; }
+
+        /* Determinant tab: cofactor expansion visualizer */
+        .det-matrix-area { display: flex; flex-direction: column; align-items: center; width: fit-content; margin: 10px auto; }
+        .det-col-triggers { display: flex; }
+        .det-col-trigger { width: var(--det-cell-w, 44px); height: 16px; cursor: crosshair; border-radius: 3px; }
+        .det-col-trigger:hover { background: rgba(13,110,253,0.12); }
+        .det-matrix-row { display: flex; align-items: center; }
+        .det-row-triggers { display: flex; flex-direction: column; margin-right: 4px; }
+        .det-row-trigger { width: 16px; height: var(--det-cell-h, 44px); cursor: crosshair; border-radius: 3px; }
+        .det-row-trigger:hover { background: rgba(13,110,253,0.12); }
+        .det-paren { display: flex; align-items: center; color: #333; }
+        .det-grid { display: flex; flex-direction: column; position: relative; user-select: none; }
+        .det-grid-row { display: flex; position: relative; }
+        .det-grid-row.row-struck::after {
+            content: ''; position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+            height: 2px; background: #3f9ff8; z-index: 3; pointer-events: none;
+        }
+        .det-cell {
+            width: var(--det-cell-w, 44px); height: var(--det-cell-h, 44px);
+            display: flex; align-items: center; justify-content: center; white-space: nowrap;
+            position: relative; font-size: 1rem; transition: background 0.12s;
+        }
+        .det-cell.minor-hi { background: #fff3cd; }
+        .det-cell.selected-active { background: rgba(25, 135, 84, 0.15); cursor: pointer; }
+        .det-cell.row-struck .katex, .det-cell.col-struck .katex, .det-cell.cell-struck .katex { opacity: 0.3; }
+        
+        .det-cell.coef-red { z-index: 4; }
+        .det-cell.coef-red .katex, .det-cell.coef-red .katex * {
+            color: #dc3545 !important;
+            opacity: 1 !important;
+            font-weight: 700;
+            text-shadow: 0 0 2px #fff, 0 0 4px #fff;
+        }        
+
+        .det-cell.det-locked, .det-row-trigger.det-locked, .det-col-trigger.det-locked {
+            box-sizing: border-box; border: 1px dashed #000;
+        }
+        .det-cell.rc-cell-hover { background: rgba(25, 135, 84, 0.15); }
+        #rc-result-grid .det-cell { cursor: pointer; }
+        .det-cell.rc-highlight-row { background: rgba(13, 110, 253, 0.18); }
+        .det-cell.rc-highlight-col { background: rgba(220, 53, 69, 0.18); }
+        .det-col-strike-overlay {
+            position: absolute; top: 0; bottom: 0; width: 2px; background: #3f9ff8;
+            display: none; z-index: 3; pointer-events: none;
+        }
+        .det-sign {
+            position: absolute; top: 2px; left: 4px; font-size: 0.62rem; font-weight: bold;
+            opacity: 0; transition: opacity 0.15s; pointer-events: none;
+        }
+        .det-sign.plus { color: #198754; }
+        .det-sign.minus { color: #dc3545; }
+        .det-cell.row-struck .det-sign, .det-cell.col-struck .det-sign, .det-cell.cell-struck .det-sign { opacity: 1; }
+        .det-cell.selected-active .det-sign { opacity: 1; }
+        .det-trigger-inactive { opacity: 0.2; }
+        .det-trigger-inactive:hover { background: none !important; }
+
+        /* Cofactor-expansion formula: built from individually-rendered KaTeX
+           spans (not one monolithic string) so each minor matrix can be an
+           independent double-click target. */
+        /* nowrap: matches the original single-line KaTeX render — the parent
+           scrolls horizontally (.formula-scroll / .det-popup-body), it does
+           not wrap, since .formula-scroll hides vertical overflow. */
+        .det-formula-row { display: inline-flex; flex-wrap: nowrap; align-items: center; justify-content: center; white-space: nowrap; }
+        /* Each term is rendered with its own katex.render(..., {displayMode:true})
+           call (for the same sizing the old single-string render had), but
+           .katex-display is block-level by default — force it inline here so
+           the per-term spans sit side by side instead of stacking. */
+        .det-formula-row .katex-display { display: inline-block; margin: 0; }
+        .det-term { display: inline-flex; align-items: center; }
+        .det-term-matrix { display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 3px; transition: background 0.12s, outline-color 0.12s; }
+        .det-term-matrix-hi { background: #fff3cd; }
+        .det-term-matrix-clickable { cursor: pointer; outline: 1px dashed transparent; }
+        .det-term-matrix-clickable:hover { background: rgba(13,110,253,0.14); outline-color: #0d6efd; }
+
+        /* Recursive expansion popups: draggable (via header) + resizable
+           (native CSS resize handle, bottom-right), independent per instance
+           so several can be open at once, each tracking its own state. */
+        .det-popup {
+            position: fixed; width: 380px; height: 340px; min-width: 260px; min-height: 220px;
+            max-width: 95vw; max-height: 90vh; background: #fff; border: 2px solid #0d6efd;
+            border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.28); z-index: 6000;
+            display: flex; flex-direction: column; resize: both; overflow: hidden;
+        }
+        .det-popup-header {
+            cursor: move; background: #eaf2ff; padding: 7px 6px 7px 10px; display: flex;
+            align-items: center; justify-content: space-between; gap: 6px;
+            border-bottom: 1px solid #dbe7fb; font-size: 0.7rem; font-weight: 700;
+            color: #0d6efd; letter-spacing: 0.02em; user-select: none;
+        }
+        .det-popup-breadcrumb { overflow-wrap: anywhere; }
+        .det-popup-close {
+            flex: 0 0 auto; border: none; background: none; font-size: 1.15rem; font-weight: 700;
+            color: #0d6efd; cursor: pointer; line-height: 1; padding: 0 4px;
+        }
+        .det-popup-close:hover { color: #0b5ed7; }
+        .det-popup-body { padding: 10px; overflow: auto; flex: 1; min-height: 0; }
+        .det-popup .det-expand-controls { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-bottom: 10px; }
+        .det-popup .det-formula-area { min-height: 50px; margin-top: 10px; border-top: 1px solid #eef1f5; padding-top: 8px; overflow-x: auto; overflow-y: hidden; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div style="display: flex; align-items: center;">
-        <h2>Symbolic Matrix Operations</h2>
-        <button id="viewHistoryBtn" class="btn-info" onclick="openHistoryOverlay()" style="display:none;">View Full History</button>
-        <button id="downloadBtn" class="btn-success" onclick="downloadHistory()" style="display:none;">Text Log</button>
-    </div>
-    
-    <div class="controls">
-        <div class="quick-input-group">
-            <span class="quick-input-label">Quick input</span>
-            <input type="text" id="quick-input-field" placeholder="a,b;c,d">
-            <button onclick="confirmQuickInput()">Confirm</button>
-            <button onclick="importToQuickInput()">Import</button>
+    <div class="page-head">
+        <div style="display:flex; align-items:center; gap:6px;">
+            <h2>Matrix Operations</h2>
+            <button class="fs-btn" id="helpBtn" onclick="openHelpOverlay()" title="Help" style="font-size:1.15rem; line-height:1; font-weight:700;">?</button>
+            <button class="fs-btn" id="pageSettingsBtn" onclick="openPageSettings(event)" title="Settings" style="font-size:1.3rem; line-height:1;">&#x2699;&#xfe0e;</button>
         </div>
-        Rows: <input type="number" id="rows" value="3" min="1" style="width: 45px;"> 
-        Cols: <input type="number" id="cols" value="3" min="1" style="width: 45px;">
-        <button onclick="initializeMatrix()">Initialize Matrix</button>
-        <label style="font-weight: bold; font-size: 0.9em; display: flex; align-items: center; gap: 5px; cursor: pointer;">
-            <input type="checkbox" id="showAugmented" onchange="updateUI(false)"> Show Augmented Line
-        </label>
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('tab-rowops', this)">Row Operations</button>
+            <button class="tab-btn" onclick="switchTab('tab-product', this)">Row/Col Product</button>
+            <button class="tab-btn" onclick="switchTab('tab-det', this)">Determinant</button>
+        </div>
     </div>
 
-    <!-- Shared floating color dropdown, one instance for all cells -->
-    <div id="color-dropdown" class="color-dropdown">
-        <!-- swatches injected by JS -->
+    <div id="page-settings-menu" class="mcm-menu">
+        <div class="mcm-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+            <label style="font-size:0.78em; color:#555; font-weight:600;">Type 3 operations</label>
+            <div class="tab-bar" style="width:calc(100%-2*8px);"> <!--adjusted by hand, find a better solution-->
+                <button type="button" class="tab-btn active" id="type3-btn-i" onclick="setType3Anchor('i')" style="flex:1;"><span id="type3-label-i"></span></button>
+                <button type="button" class="tab-btn" id="type3-btn-j" onclick="setType3Anchor('j')" style="flex:1;"><span id="type3-label-j"></span></button>
+            </div>
+        </div>
+       <div class="mcm-row" style="flex-direction:column; align-items:flex-start;">
+            <label style="font-size:0.78em; color:#555; font-weight:600;">Double scalar</label>
+            <label class="chk" style="margin-left:0;">
+                <input type="checkbox" id="type3-lincomb-checkbox" onchange="setType3LinComb(this.checked)">
+                <span id="type3-lincomb-label"></span>
+            </label>
+        </div>
+        <div class="mcm-row" style="flex-direction:column; align-items:stretch; gap:6px;">
+            <label style="font-size:0.78em; color:#555; font-weight:600;">Row operations</label>
+            <select id="rowops-mode-select" onchange="setRowOpsMode(this.value)" style="width:100%;">
+                <option value="both" selected>Both</option>
+                <option value="button">Button</option>
+                <option value="drag">Drag</option>
+            </select>
+        </div>
     </div>
 
-
-    <div class="cell-ops" id="cellOps" style="display:none;">
-        <button onclick="modifyActiveCell('expand')">Expand</button>
-        <button onclick="modifyActiveCell('simplify')">Tidy Up</button>
-    </div>
-
-    <table id="matrix-input-table" style="margin: auto;"></table>
-
-    <div id="display-area" style="display:none;">
-        <div class="history-controls">
-            <button class="history-btn" id="undoBtn" onclick="undo()">&#10094;</button>
-            <div class="latex-container">
-                <div id="mini-box" class="mini-preview">
-                    <span class="mini-preview-label">Previous state</span>
-                    <div id="mini-math"></div>
+    <div id="tab-rowops" class="tab-panel active">
+    <div class="panel" id="input-panel">
+        <div class="panel-head">
+            <div class="panel-title-group">
+                <button class="collapse-btn" onclick="document.getElementById('input-panel').classList.toggle('collapsed')">&#9660;</button>
+                <span class="panel-title">Input</span>
+            </div>
+        </div>
+        <div class="panel-body toolbar-body">
+            <div class="toolbar-row">
+                <span class="lbl">Entries</span>
+                <input type="text" id="quick-input-field" class="quick-input-field"
+                    placeholder="1,0;0,1"
+                    title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors)">
+                <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                    <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'roword')">Rows</button>
+                    <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'roword')">Cols</button>
                 </div>
-                <div id="math-box"></div>
+                <button onclick="confirmQuickInput()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="matrix-settings-menu" class="mcm-menu">
+        <div class="mcm-row">
+            <button class="btn-ghost" style="width:100%;" onclick="toggleIdentityBlock()"><span id="identity-btn-label">Add block</span> <span id="identity-btn-math"></span></button>
+        </div>
+        <div class="mcm-row">
+            <label class="chk" style="margin-left:0;">
+                <input type="checkbox" id="showAugmented" onchange="updateUI()">
+                Separator after col
+            </label>
+        </div>
+        <div class="mcm-row">
+            <input type="text" id="augmentedAfterCols" style="width:100%; cursor: text;" placeholder="e.g. 2,3" onchange="validateAugmentedCols()">
+        </div>
+    </div>
+
+    <div id="display-area" class="panel" style="display:none;">
+        <div class="panel-head">
+            <div class="panel-title-group">
+                <button class="fs-btn" id="historyFsBtn" onclick="togglePanelFullscreen('display-area')" title="Toggle full screen">&#x26F6;&#xfe0e;</button>
+                <span class="panel-title">Matrix</span>
+                <button class="fs-btn" id="matrixSettingsBtn" onclick="openMatrixSettings(event)" title="Matrix settings">&#x2699;&#xfe0e;</button>
+            </div>
+            <div class="chips">
+                <button id="styleUndoBtn" class="btn-ghost btn-sm" onclick="undoStyleEdit()" disabled title="Undo the last cell value/color/expand-tidy edit — does not affect row operations">Undo edit</button>
+                <button id="showMiniBoxBtn" class="btn-ghost btn-sm" onclick="showMiniBox()" style="display:none;" title="Show the previous-state preview">Prev state</button>
+                <button id="viewHistoryBtn" class="btn-ghost btn-sm" onclick="openHistoryOverlay()" style="display:none;">Print</button>
+                <button id="downloadBtn" class="btn-ghost btn-sm" onclick="downloadHistory()" style="display:none;">Text log</button>
+                <button id="exportOcBtn" class="btn-ghost btn-sm" onclick="exportHistoryToOneClaute()" style="display:none;">Export</button>
+                <button id="echelonBtn" class="btn-ghost btn-sm" onclick="runEchelon()" style="display:none;">Auto-reduce</button>
+            </div>
+        </div>
+        <div class="stage-body">
+            <button class="history-btn" id="undoBtn" onclick="undo()">&#10094;</button>
+            <div class="board">
+                <div class="math-row">
+                    <div id="math-box">
+                        <div class="det-paren" id="math-box-paren-left"></div>
+                        <div class="det-grid" id="math-box-grid"></div>
+                        <div class="det-paren" id="math-box-paren-right"></div>
+                    </div>
+                    <div id="rowops-stack" class="rowops-stack"></div>
+                </div>
                 <div id="op-log"></div>
             </div>
             <button class="history-btn" id="redoBtn" onclick="redo()">&#10095;</button>
         </div>
     </div>
+    </div>
+
+    <div id="tab-product" class="tab-panel">
+        <div class="panel" id="rc-input-panel">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="collapse-btn" onclick="document.getElementById('rc-input-panel').classList.toggle('collapsed')">&#9660;</button>
+                    <span class="panel-title">Input</span>
+                </div>
+                <button class="btn-success btn-sm" style="margin-left:0;" onclick="computeProduct()">Compute A &middot; B</button>
+            </div>
+            <div class="panel-body toolbar-body">
+                <div class="toolbar-row">
+                    <span class="lbl">Matrix A</span>
+                    <input type="text" id="rcA-quick" class="quick-input-field" placeholder="1,0;0,1"
+                        title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors)">
+                    <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                        <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'rcA')">Rows</button>
+                        <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'rcA')">Cols</button>
+                    </div>
+                    <button onclick="rcConfirmQuickInput('A')">Confirm</button>
+                </div>
+                <div class="toolbar-row">
+                    <span class="lbl">Matrix B</span>
+                    <input type="text" id="rcB-quick" class="quick-input-field" placeholder="1,0;0,1"
+                        title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors)">
+                    <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                        <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'rcB')">Rows</button>
+                        <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'rcB')">Cols</button>
+                    </div>
+                    <button onclick="rcConfirmQuickInput('B')">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="rc-result-panel">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="fs-btn" onclick="togglePanelFullscreen('rc-result-panel')" title="Toggle full screen">&#x26F6;&#xfe0e;</button>
+                    <span class="panel-title">Product</span>
+                </div>
+            </div>
+            <div class="stage-body">
+            <div class="board">
+            <div style="display:flex; align-items:center; justify-content:center; flex-wrap:wrap;">
+                <div class="det-paren" id="rc-eq-a-paren-left"></div>
+                <div class="det-grid" id="rc-eq-a-grid"></div>
+                <div class="det-paren" id="rc-eq-a-paren-right"></div>
+
+                <div style="font-size:1.8rem; color:#6c757d; margin:0 10px;">&middot;</div>
+
+                <div class="det-paren" id="rc-eq-b-paren-left"></div>
+                <div class="det-grid" id="rc-eq-b-grid"></div>
+                <div class="det-paren" id="rc-eq-b-paren-right"></div>
+
+                <div style="font-size:1.8rem; color:#6c757d; margin:0 10px;">=</div>
+
+                <div class="det-paren" id="rc-paren-left"></div>
+                <div class="det-grid" id="rc-result-grid"></div>
+                <div class="det-paren" id="rc-paren-right"></div>
+            </div>
+            <div id="rc-result-formula" class="formula-scroll" style="min-height:60px; margin-top:15px; font-size:1.1rem;"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-det" class="tab-panel">
+        <div class="panel" id="det-input-panel">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="collapse-btn" onclick="document.getElementById('det-input-panel').classList.toggle('collapsed')">&#9660;</button>
+                    <span class="panel-title">Input</span>
+                </div>
+            </div>
+            <div class="panel-body toolbar-body">
+                <div class="toolbar-row">
+                    <span class="lbl">Entries</span>
+                    <input type="text" id="det-quick" class="quick-input-field" placeholder="1,0;0,1"
+                        title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors) — must be square">
+                    <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                        <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'det')">Rows</button>
+                        <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'det')">Cols</button>
+                    </div>
+                    <button onclick="detConfirmQuickInput()">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="det-viz-area" class="panel" style="display:none;">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="fs-btn" onclick="togglePanelFullscreen('det-viz-area')" title="Toggle full screen">&#x26F6;&#xfe0e;</button>
+                    <span class="panel-title">Cofactor expansion</span>
+                </div>
+            </div>
+            <div class="stage-body">
+            <div class="board">
+            <div id="det-expand-controls" style="text-align:center; margin-bottom: 12px; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">
+                <span class="quick-input-label">Expand along:</span>
+                <select id="det-expand-type-select"></select>
+                <select id="det-expand-idx-select"></select>
+                <button class="btn-success btn-sm" onclick="detCompute()">Compute Determinant</button>
+            </div>
+            <div class="det-matrix-area">
+                <div class="det-col-triggers" id="det-col-triggers"></div>
+                <div class="det-matrix-row">
+                    <div class="det-row-triggers" id="det-row-triggers"></div>
+                    <div class="det-paren" id="det-paren-left"></div>
+                    <div class="det-grid" id="det-grid"></div>
+                    <div class="det-paren" id="det-paren-right"></div>
+                </div>
+            </div>
+            <div id="det-formula-area" class="formula-scroll" style="font-size: 1.1rem; min-height:80px; margin-top:12px; border-top: 1px solid #eef1f5; padding-top: 8px;"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Per-cell context menu, shared by every interactive matrix grid (row-ops,
+     Product's A/B, Determinant) — kept outside all .tab-panel divs so it
+     isn't hidden when a different tab is active (see activeEditorId). -->
+<div id="matrix-cell-menu" class="mcm-menu">
+    <div class="mcm-row">
+        <input type="text" id="mcm-value-input" class="matrix-input" style="width:100%;"
+            onkeydown="if(event.key==='Enter'){mcmApplyValue(); closeMatrixCellMenu();}">
+        <button class="chip" onclick="mcmApplyValue(); closeMatrixCellMenu()">Apply</button>
+    </div>
+    <div class="mcm-row">
+        <button class="chip" onclick="modifyActiveCell('expand'); closeMatrixCellMenu()">Expand</button>
+        <button class="chip" onclick="modifyActiveCell('simplify'); closeMatrixCellMenu()">Tidy up</button>
+    </div>
+    <div id="mcm-swatches" class="mcm-row mcm-swatches"></div>
 </div>
 
 <div id="history-overlay">
@@ -188,6 +640,60 @@
         <span class="close-history" onclick="closeHistoryOverlay()">&times;</span>
         <button style="margin: 10px;" onclick="window.print()">Print / PDF</button>
         <div id="history-list"></div>
+    </div>
+</div>
+
+<div id="echelon-overlay">
+    <div id="echelon-content">
+        <span class="close-history" onclick="closeEchelonOverlay()">&times;</span>
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:10px;">
+            <h3 style="margin:0;">Automatic reduction</h3>
+            <button class="btn-ghost btn-sm" onclick="openInEchelonTree()">Open as branching tree</button>
+        </div>
+        <div id="echelon-tree"></div>
+    </div>
+</div>
+
+<div id="help-overlay">
+    <div id="help-content">
+        <span class="close-history" onclick="closeHelpOverlay()">&times;</span>
+        <h2 style="margin:0 0 4px 0;">How to use this tool</h2>
+        <p style="margin:0 0 20px 0; font-size:0.85rem; color:#6c757d;">Each tab has its own set of interactions. Legend: <span class="help-tag help-tag-click" style="min-width:0; padding:2px 6px;">Click</span> <span class="help-tag help-tag-dblclick" style="min-width:0; padding:2px 6px;">Double-click</span> <span class="help-tag help-tag-hover" style="min-width:0; padding:2px 6px;">Hover</span> <span class="help-tag help-tag-drag" style="min-width:0; padding:2px 6px;">Drag</span></p>
+
+        <div class="help-section">
+            <h3>Row Operations</h3>
+            <p class="help-tagline">Build a matrix and reduce it step by step, one operation at a time.</p>
+            <ul class="help-list">
+                <li><span class="help-tag help-tag-click">Click</span> a matrix cell &mdash; quick scalar-multiply for that whole row.</li>
+                <li><span class="help-tag help-tag-dblclick">Double-click</span> a matrix cell &mdash; edit its value, change its color, or expand/simplify it.</li>
+                <li><span class="help-tag help-tag-click">Click</span> an &ldquo;R&#8560; ops&rdquo; button &mdash; open the full row-operation menu (swap, scalar multiply, or linear combination).</li>
+                <li><span class="help-tag help-tag-drag">Drag</span> a cell and drop it on another row &mdash; opens a menu to swap the two rows or replace the target row using the dragged one.</li>
+                <li>The &#x2699;&#xfe0e; settings menu lets you customize the tab's interface. The Ri/Rj pill decides which row gets replaced by Type III operations: Ri replaces the first row selected while Rj the other one. The multiple scalar toggle enables/disables combinations where both rows get multiplied by a generic coefficient. The dropdown menu switches the row operations' interface between Button / Drag / Both.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>Row/Col Product</h3>
+            <p class="help-tagline">Multiply two matrices A &middot; B and see exactly how each entry is built.</p>
+            <ul class="help-list">
+                <li><span class="help-tag help-tag-hover">Hover</span> a result cell &mdash; highlights the matching row of A and column of B, and shows the term-by-term sum.</li>
+                <li><span class="help-tag help-tag-click">Click</span> a result cell &mdash; locks that highlight and formula in place; click again to release it.</li>
+            </ul>
+        </div>
+
+        <div class="help-section">
+            <h3>Determinant</h3>
+            <p class="help-tagline">Expand a determinant by cofactors along a chosen row or column &mdash; recursively, as deep as you like (provided dimension is >2).</p>
+            <ul class="help-list">
+                <li>Pick the row/column to &ldquo;Expand along&rdquo; using the selector.</li>
+                <li><span class="help-tag help-tag-hover">Hover</span> the active row/column trigger, or an active cell &mdash; strikes out that row/column and shows the corresponding term of the expansion.</li>
+                <li><span class="help-tag help-tag-click">Click</span> a trigger or cell &mdash; locks that highlight; click again to release it.</li>
+                <li><span class="help-tag help-tag-dblclick">Double-click</span> a submatrix (3&times;3 or larger) inside the expansion formula &mdash; opens it in its own popup, fully interactive, where you can keep expanding it further.</li>
+                <li style="margin-top:2px;"><strong>Inside a popup:</strong> it has its own expand-along selector, hover/click highlighting, and Compute Determinant button, just like the main tab.</li>
+                <li><span class="help-tag help-tag-drag">Drag</span> the header to move a popup, or drag its bottom-right corner to resize it.</li>
+                <li>Click &times; to close a popup. Any number of popups can be open at once, from any matrix or from each other.</li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -224,13 +730,33 @@
                     <input type="radio" name="rowop" id="radio-combine" value="combine" onchange="selectRowOpCol('combine')">
                     <span>Combine</span>
                 </div>
-                <div>
-                    <label for="combine-k">Multiply by</label>
-                    <input type="text" id="combine-k" placeholder="e.g. -2" disabled>
+                <div id="combine-classic-fields" class="combine-field-group">
+                    <div id="combine-k-wrap">
+                        <label for="combine-k" id="combine-k-label">Multiply by</label>
+                        <input type="text" id="combine-k" placeholder="e.g. -2" disabled>
+                    </div>
+                    <div id="combine-row-wrap">
+                        <label for="combine-row" id="combine-row-label">Add to row</label>
+                        <input type="text" id="combine-row" placeholder="e.g. 3" disabled>
+                    </div>
                 </div>
-                <div>
-                    <label for="combine-row">Add to row</label>
-                    <input type="text" id="combine-row" placeholder="e.g. 3" disabled>
+                <div id="combine-lincomb-fields" class="combine-field-group" style="display:none;">
+                    <div id="lincomb-dest-wrap">
+                        <label for="lincomb-dest">Replace row</label>
+                        <input type="text" id="lincomb-dest" placeholder="e.g. 3" disabled>
+                        <span id="lincomb-dest-fixed" class="rowop-fixed-val" style="display:none;"></span>
+                    </div>
+                    <div>
+                        <label for="lincomb-expr">With</label>
+                        <input type="text" id="lincomb-expr" placeholder="e.g. 1R2-4R3" disabled>
+                    </div>
+                </div>
+                <!-- Drag-drop Replace: both rows already known (dragged-from / dropped-on), only coefficients needed -->
+                <div id="combine-drag-fields" class="combine-field-group" style="display:none;">
+                    <div>
+                        <label for="drag-combo-input" id="drag-combo-label">Add row</label>
+                        <input type="text" id="drag-combo-input" placeholder="e.g. -2" disabled>
+                    </div>
                 </div>
             </div>
         </div>
@@ -241,39 +767,141 @@
     </div>
 </div>
 
+<!-- Independent of the History panel's DOM/layout so it can float freely
+     (position:fixed, viewport-relative) above everything else on the page. -->
+<div id="mini-box" class="mini-preview" style="display:none;">
+    <span class="mini-preview-label">Previous state</span>
+    <button class="mini-preview-hide" onclick="hideMiniBox()"
+        onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()"
+        title="Hide">_</button>
+    <div id="mini-math"></div>
+</div>
+
 <script>
     let history = [];
     let historyStep = -1;
-    let activeCellId = null;
+    // Currently targeted (row, col) for whichever per-cell menu is open,
+    // plus which matrixEditors[] entry owns it — all cell edits read/write
+    // through that editor's getState()/setState() rather than a fixed array.
+    let editRow = null, editCol = null, activeEditorId = null;
+
+    // Registry of independently-editable matrices (row-ops' current step,
+    // plus Product's A/B and Determinant's single matrix). Row-ops' data
+    // changes *identity* as historyStep moves, so editors store accessors
+    // rather than raw array references.
+    const matrixEditors = {};
+    function registerMatrixEditor(id, undoBtnId, getState, setState, renderOpts) {
+        matrixEditors[id] = { getState, setState, styleUndoStack: [], pendingStyleSnapshot: null, undoBtnId, renderOpts: renderOpts || {} };
+    }
+    registerMatrixEditor('roword', 'styleUndoBtn',
+        () => history[historyStep],
+        (data, colors) => { history[historyStep].data = data; history[historyStep].colors = colors; }
+    );
+
+    function readAtom(str, i) {
+        if (str[i] === '(') {
+            let depth = 1, j = i + 1;
+            while (j < str.length && depth > 0) {
+                if (str[j] === '(') depth++;
+                else if (str[j] === ')') depth--;
+                j++;
+            }
+            if (depth > 0) return { atom: str.slice(i), next: str.length };
+            const inner = str.slice(i + 1, j - 1);
+            return { atom: '(' + convertDivisions(inner) + ')', next: j };
+        }
+        const m = /^[a-zA-Z0-9.^]+/.exec(str.slice(i));
+        if (m) return { atom: m[0], next: i + m[0].length };
+        return null;
+    }
+
+    function convertDivisions(str) {
+        let result = "", i = 0;
+        while (i < str.length) {
+            const first = readAtom(str, i);
+            if (!first) { result += str[i]; i++; continue; }
+            const chain = [first.atom];
+            i = first.next;
+            while (str[i] === '/') {
+                const next = readAtom(str, i + 1);
+                if (!next) break;
+                chain.push(next.atom);
+                i = next.next;
+            }
+            result += chain.length > 1
+                ? chain.reduce((acc, part) => acc === null ? part : `\\frac{${acc}}{${part}}`, null)
+                : chain[0];
+        }
+        return result;
+    }
 
     function customLatexFormatter(str) {
-        let formatted = str;
-        let prev;
-        do { prev = formatted; formatted = formatted.replace(/([a-zA-Z0-9().^]+)\/([a-zA-Z0-9().^]+)/g, "\\frac{$1}{$2}"); } while (formatted !== prev);
-        return formatted.replace(/\*/g, " ");
+        return convertDivisions(str).replace(/\*/g, " ");
+    }
+
+    // Removes one pair of parentheses wrapping the whole expression, so a
+    // coefficient typed as "(k+1)" isn't parenthesised a second time. Leaves
+    // "(k+1)(k-1)" alone - there the first '(' doesn't match the last ')'.
+    function stripOuterParens(expr) {
+        let t = String(expr).trim();
+        while (t.startsWith('(') && t.endsWith(')')) {
+            let depth = 0, wrapsWhole = true;
+            for (let i = 0; i < t.length; i++) {
+                if (t[i] === '(') depth++;
+                else if (t[i] === ')') {
+                    depth--;
+                    if (depth === 0 && i < t.length - 1) { wrapsWhole = false; break; }
+                }
+            }
+            if (!wrapsWhole) break;
+            t = t.slice(1, -1).trim();
+        }
+        return t;
+    }
+
+    // Is there a +/- outside every parenthesis (past a leading sign)? Such a
+    // coefficient is a sum and needs parentheses in front of a row label.
+    function hasTopLevelSum(expr) {
+        let depth = 0;
+        for (let i = 0; i < expr.length; i++) {
+            const ch = expr[i];
+            if (ch === '(') depth++;
+            else if (ch === ')') depth--;
+            else if ((ch === '+' || ch === '-') && depth === 0 && i > 0) {
+                if ('*/^+-('.includes(expr[i - 1])) continue; // a sign, not a term separator
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Splits a coefficient into the sign shown before the row label and the
+    // LaTeX for the rest (empty when it is 1). A leading minus is only pulled
+    // out when what follows is a single term: "-k-1" is NOT -(k-1), so a sum
+    // keeps its own sign inside the parentheses.
+    function coefficientParts(kRaw) {
+        let k = stripOuterParens(kRaw);
+        let sign = '+';
+        if (!hasTopLevelSum(k)) {
+            if (k.startsWith('-')) { sign = '-'; k = stripOuterParens(k.slice(1)); }
+            else if (k.startsWith('+')) { k = stripOuterParens(k.slice(1)); }
+        }
+        if (k === '1' || k === '') return { sign, tex: '' };
+        const tex = customLatexFormatter(k);
+        return { sign, tex: hasTopLevelSum(k) ? `\\left(${tex}\\right)` : tex };
     }
 
     function formatOpDescription(type, rDest, rSrc, k) {
         let dest = `R_{${rDest + 1}}`;
         let src = `R_{${rSrc + 1}}`;
         if (type === 'swap') return `${dest} \\leftrightarrow ${src}`;
-        let kTex = customLatexFormatter(k);
-        let isPoly = k.substring(1).includes('+') || k.substring(1).includes('-');
+        const { sign, tex } = coefficientParts(k);
         if (type === 'multiply') {
-            if (k === "1") return `${dest} \\rightarrow ${dest}`;
-            if (k === "-1") return `${dest} \\rightarrow -${dest}`;
-            return isPoly ? `${dest} \\rightarrow (${kTex})${dest}` : `${dest} \\rightarrow ${kTex}${dest}`;
+            if (tex === '') return sign === '-' ? `${dest} \\rightarrow -${dest}` : `${dest} \\rightarrow ${dest}`;
+            return `${dest} \\rightarrow ${sign === '-' ? '-' : ''}${tex}${dest}`;
         }
         if (type === 'add') {
-            if (k === "1") return `${dest} \\rightarrow ${dest} + ${src}`;
-            if (k === "-1") return `${dest} \\rightarrow ${dest} - ${src}`;
-            if (k.startsWith('-')) {
-                let positiveK = k.substring(1);
-                let posKTex = customLatexFormatter(positiveK);
-                let posIsPoly = positiveK.includes('+') || positiveK.includes('-');
-                return posIsPoly ? `${dest} \\rightarrow ${dest} - (${posKTex})${src}` : `${dest} \\rightarrow ${dest} - ${posKTex}${src}`;
-            }
-            return isPoly ? `${dest} \\rightarrow ${dest} + (${kTex})${src}` : `${dest} \\rightarrow ${dest} + ${kTex}${src}`;
+            return `${dest} \\rightarrow ${dest} ${sign} ${tex}${src}`;
         }
     }
 
@@ -298,91 +926,440 @@
         return res;
     }
 
+    function parseAugmentedCols(cols) {
+        const raw = document.getElementById('augmentedAfterCols').value.trim();
+        if (!raw) return [cols - 1];
+        const nums = raw.split(',').map(s => parseInt(s.trim(), 10));
+        const valid = nums.filter(n => !isNaN(n) && n >= 1 && n <= cols - 1);
+        return valid.length ? [...new Set(valid)] : [cols - 1];
+    }
+
+    function validateAugmentedCols() {
+        if (historyStep < 0) { updateUI(); return; }
+        const cols = history[historyStep].data[0].length;
+        const raw = document.getElementById('augmentedAfterCols').value.trim();
+        if (raw) {
+            const bad = raw.split(',').map(s => s.trim()).filter(s => s !== '')
+                .filter(s => { const n = parseInt(s, 10); return isNaN(n) || n < 1 || n > cols - 1; });
+            if (bad.length) alert(`Invalid column${bad.length > 1 ? 's' : ''}: ${bad.join(', ')}. Must be between 1 and ${cols - 1}.`);
+        }
+        updateUI();
+    }
+
     function generateMatrixLatex(gridData, colorData) {
         const isAugmented = document.getElementById('showAugmented').checked;
         const rows = gridData.length, cols = gridData[0].length;
-        let latex = isAugmented && cols > 1 ? "\\left( \\begin{array}{" + "c".repeat(cols - 1) + "|" + "c} " : "\\begin{pmatrix} ";
+        let latex;
+        if (isAugmented && cols > 1) {
+            const afterCols = new Set(parseAugmentedCols(cols));
+            let colSpec = "";
+            for (let c = 1; c <= cols; c++) { colSpec += "c"; if (afterCols.has(c)) colSpec += "|"; }
+            latex = "\\left( \\begin{array}{" + colSpec + "} ";
+        } else {
+            latex = "\\begin{pmatrix} ";
+        }
+        const rowTexList = [];
         for (let i = 0; i < rows; i++) {
             let rowEntries = gridData[i].map((val, j) => {
                 let tex = customLatexFormatter(val);
                 let color = colorData[i][j];
                 return (color && color !== "#000000") ? `\\color{${color}}{${tex}}` : tex;
             });
-            latex += rowEntries.join(" & ") + (i < rows - 1 ? " \\\\ " : "");
+            rowTexList.push(rowEntries.join(" & "));
         }
+        const rowSep = rowTexList.some(r => r.includes("\\frac")) ? " \\\\[0.2em] " : " \\\\ ";
+        latex += rowTexList.join(rowSep);
         return latex + (isAugmented && cols > 1 ? " \\end{array} \\right)" : " \\end{pmatrix}");
     }
 
-    function readGridFromDOM() {
-        const rows = document.getElementById('rows').value, cols = document.getElementById('cols').value;
-        let gridData = [], colorData = [];
+    // Renders a matrix as an interactive grid (one DOM element + one click
+    // listener per cell) instead of a single flat KaTeX string, so each entry
+    // can open its own edit/color context menu (see openMatrixCellMenu).
+    // Defaults target the row-ops "Matrix" display; other editors (Product's
+    // A/B, Determinant) pass their own gridId/cellPrefix/editorId/paren ids.
+    function renderMathBoxGrid(data, colors, opts) {
+        const { gridId = 'math-box-grid', cellPrefix = 'math-box-cell', editorId = 'roword',
+            parenLeftId = 'math-box-paren-left', parenRightId = 'math-box-paren-right' } = opts || {};
+        const rows = data.length, cols = data[0].length;
+        renderStretchyParens(rows, parenLeftId, parenRightId);
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = "";
+        // Augmented-separator display only applies to the row-ops matrix.
+        const isAugmented = editorId === 'roword' && document.getElementById('showAugmented').checked;
+        const afterCols = (isAugmented && cols > 1) ? new Set(parseAugmentedCols(cols)) : new Set();
         for (let i = 0; i < rows; i++) {
-            let rowVals = [], rowCols = [];
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'det-grid-row';
             for (let j = 0; j < cols; j++) {
-                rowVals.push(document.getElementById(`cell-${i}-${j}`).value);
-                // color is stored as the button's background style (hex string set by us)
-                rowCols.push(document.getElementById(`colorbtn-${i}-${j}`).style.background || '#000000');
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.id = `${cellPrefix}-${i}-${j}`;
+                if (afterCols.has(j + 1)) cell.style.borderRight = '2px solid #333';
+                const kspan = document.createElement('span');
+                const tex = customLatexFormatter(data[i][j]);
+                const color = colors[i][j];
+                katex.render((color && color !== "#000000") ? `\\color{${color}}{${tex}}` : tex, kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+                cell.dataset.rowIdx = String(i);
+                if (editorId === 'roword') {
+                    cell.addEventListener('mousedown', (e) => {
+                        if (rowOpsMode === 'drag' || rowOpsMode === 'both') {
+                            e.preventDefault();
+                            startRowDragTracking(e, i);
+                        }
+                    });
+                    cell.addEventListener('click', (e) => {
+                        if (_suppressNextCellClick) { _suppressNextCellClick = false; return; }
+                        if (rowOpsMode !== 'drag' && rowOpsMode !== 'both') return;
+                        if (cell._clickTimer) { clearTimeout(cell._clickTimer); cell._clickTimer = null; return; }
+                        cell._clickTimer = setTimeout(() => {
+                            cell._clickTimer = null;
+                            openScalarModal(i);
+                        }, 250);
+                    });
+                    cell.addEventListener('dblclick', (e) => {
+                        if (cell._clickTimer) { clearTimeout(cell._clickTimer); cell._clickTimer = null; }
+                        openMatrixCellMenu(e, editorId, i, j);
+                    });
+                } else {
+                    cell.addEventListener('click', (e) => openMatrixCellMenu(e, editorId, i, j));
+                }
+                rowDiv.appendChild(cell);
             }
-            gridData.push(rowVals); colorData.push(rowCols);
+            grid.appendChild(rowDiv);
         }
-        return { gridData, colorData };
+        fitDetCells(grid);
     }
 
-    function saveState(description) {
-        const { gridData, colorData } = readGridFromDOM();
+    // Re-renders whichever editor owns `id` using its own registered
+    // gridId/cellPrefix/paren ids, from its own getState().
+    function renderEditor(id) {
+        const ed = matrixEditors[id];
+        if (!ed) return;
+        const state = ed.getState();
+        if (!state) return;
+        renderMathBoxGrid(state.data, state.colors, { ...ed.renderOpts, editorId: id });
+    }
+
+    // Pushes a brand new history entry built from explicit data/colors arrays
+    // (the caller already has the new grid in hand — no DOM read needed).
+    function saveState(data, colors, description) {
         if (historyStep < history.length - 1) history = history.slice(0, historyStep + 1);
-        history.push({ data: gridData, colors: colorData, log: description });
-        historyStep++; updateUI(true);
+        history.push({ data, colors, log: description });
+        historyStep++; updateUI();
+        resetStyleUndo();
+        saveStateToParent();
     }
 
-    // Overwrites the current history entry in place (used for manual cell edits:
-    // no new step is created, but stored data stays in sync with what is on screen).
-    function overwriteCurrentState() {
-        if (historyStep < 0) return;
-        const { gridData, colorData } = readGridFromDOM();
-        history[historyStep].data = gridData;
-        history[historyStep].colors = colorData;
-        updateUI(false);
-    }
-
-    function updateUI(syncInputs = true) {
-        const state = history[historyStep]; if (!state) return;
-        if (syncInputs) {
-            state.data.forEach((r, i) => r.forEach((v, j) => {
-                const cell = document.getElementById(`cell-${i}-${j}`);
-                const btn  = document.getElementById(`colorbtn-${i}-${j}`);
-                if (cell) cell.value = v;
-                if (btn)  btn.style.background = state.colors[i][j];
-            }));
+    // Re-renders editor `id` (row-ops' updateUI() for 'roword', a plain
+    // grid re-render otherwise) and persists, after a caller has mutated
+    // that editor's current data/colors in place (no new undo step).
+    function refreshEditor(id = 'roword') {
+        if (id === 'roword') {
+            if (historyStep < 0) return;
+            updateUI();
+        } else {
+            renderEditor(id);
         }
-        document.getElementById('math-box').innerHTML = `$$ ${generateMatrixLatex(state.data, state.colors)} $$`;
-        document.getElementById('op-log').innerHTML = `$$ \\text{Operation: } ${state.log} $$`;
-        
+        saveStateToParent();
+    }
+
+    // ── Style-edit undo: a separate stack per editor for cell value/color/
+    // expand-tidy edits, deliberately independent of the row-operation
+    // history rewind (undo()/redo() below). Opening the per-cell menu
+    // snapshots that editor's data/colors once; further edits within that
+    // same session reuse it, so closing the menu (or switching cells)
+    // commits ONE undo step covering the whole session rather than one per
+    // keystroke. For row-ops, scoped to whichever history entry is current —
+    // moving through row-operation history clears it.
+    const MAX_STYLE_UNDO = 30;
+
+    function captureStyleSnapshotIfNeeded(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed || ed.pendingStyleSnapshot) return;
+        const state = ed.getState();
+        if (!state) return;
+        ed.pendingStyleSnapshot = { data: state.data.map(r => r.slice()), colors: state.colors.map(r => r.slice()) };
+    }
+
+    function flushStyleCheckpoint(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed || !ed.pendingStyleSnapshot) return;
+        ed.styleUndoStack.push(ed.pendingStyleSnapshot);
+        if (ed.styleUndoStack.length > MAX_STYLE_UNDO) ed.styleUndoStack.shift();
+        ed.pendingStyleSnapshot = null;
+        updateStyleUndoButton(id);
+    }
+
+    function resetStyleUndo(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed) return;
+        ed.styleUndoStack = [];
+        ed.pendingStyleSnapshot = null;
+        updateStyleUndoButton(id);
+    }
+
+    function updateStyleUndoButton(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed) return;
+        const btn = document.getElementById(ed.undoBtnId);
+        if (btn) btn.disabled = !ed.pendingStyleSnapshot && ed.styleUndoStack.length === 0;
+    }
+
+    function undoStyleEdit(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed || !ed.getState()) return;
+        let snap;
+        if (ed.pendingStyleSnapshot) {
+            // still mid-session (menu open) — revert the in-progress edits
+            snap = ed.pendingStyleSnapshot;
+            ed.pendingStyleSnapshot = null;
+        } else if (ed.styleUndoStack.length) {
+            snap = ed.styleUndoStack.pop();
+        } else {
+            return;
+        }
+        ed.setState(snap.data, snap.colors);
+        refreshEditor(id);
+        updateStyleUndoButton(id);
+    }
+
+    // Independent of historyStep-driven visibility — set by the mini-box's own
+    // "_" button and cleared by the "Prev state" button in the History header,
+    // which only appears while there's a previous state AND it's hidden.
+    let miniBoxHidden = false;
+
+    function updateMiniBoxButton() {
+        document.getElementById('showMiniBoxBtn').style.display =
+            (historyStep > 0 && miniBoxHidden) ? "block" : "none";
+    }
+
+    function hideMiniBox() {
+        miniBoxHidden = true;
+        document.getElementById('mini-box').style.display = "none";
+        updateMiniBoxButton();
+    }
+    function showMiniBox() {
+        miniBoxHidden = false;
+        updateUI();
+    }
+
+    function updateUI() {
+        const state = history[historyStep]; if (!state) return;
+        renderMathBoxGrid(state.data, state.colors);
+        katex.render(`\\text{Operation: } ${state.log}`, document.getElementById('op-log'), { displayMode: true, throwOnError: false });
+
         const miniBox = document.getElementById('mini-box'), miniMath = document.getElementById('mini-math');
         if (historyStep > 0) {
-            miniBox.style.display = "flex";
-            miniMath.innerHTML = `$$ ${generateMatrixLatex(history[historyStep-1].data, history[historyStep-1].colors)} $$`;
+            katex.render(generateMatrixLatex(history[historyStep-1].data, history[historyStep-1].colors), miniMath, { displayMode: true, throwOnError: false });
+            miniBox.style.display = miniBoxHidden ? "none" : "flex";
         } else { miniBox.style.display = "none"; }
-        
-        if (window.MathJax) MathJax.typesetPromise().then(() => fitMiniMath());
+        updateMiniBoxButton();
+
+        fitMiniMath();
         document.getElementById('undoBtn').disabled = historyStep <= 0;
         document.getElementById('redoBtn').disabled = historyStep >= history.length - 1;
         document.getElementById('viewHistoryBtn').style.display = "block";
     }
 
+    // Which role the clicked row-op button ("R_i" label) plays in the type-3
+    // (combine) operation: 'i' (default) = clicked row is the source added
+    // FROM (matches the on-screen R_i label); 'j' = clicked row is the
+    // destination added TO. Toggled from the page-settings popup.
+    let type3Anchor = 'i';
+
+    function openPageSettings(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('page-settings-menu');
+        if (menu.style.display === 'flex') { closePageSettings(); return; }
+        menu.style.display = 'flex';
+        const rect = event.currentTarget.getBoundingClientRect();
+        const mRect = menu.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        let left = rect.left;
+        if (left + mRect.width > window.innerWidth) left = window.innerWidth - mRect.width - 8;
+        if (top + mRect.height > window.innerHeight) top = rect.top - mRect.height - 4;
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+    }
+    function closePageSettings() {
+        document.getElementById('page-settings-menu').style.display = 'none';
+    }
+    document.addEventListener('mousedown', (e) => {
+        const menu = document.getElementById('page-settings-menu');
+        if (menu.style.display === 'flex' && !menu.contains(e.target) && e.target.id !== 'pageSettingsBtn')
+            closePageSettings();
+    });
+
+    function setType3Anchor(mode) {
+        type3Anchor = mode;
+        document.getElementById('type3-btn-i').classList.toggle('active', mode === 'i');
+        document.getElementById('type3-btn-j').classList.toggle('active', mode === 'j');
+        updateCombineRowLabel();
+        updateCombineFieldsMode();
+    }
+
+    function updateCombineRowLabel() {
+        const rowLabel = document.getElementById('combine-row-label');
+        const kLabel = document.getElementById('combine-k-label');
+        const kWrap = document.getElementById('combine-k-wrap');
+        const rowWrap = document.getElementById('combine-row-wrap');
+        if (!rowLabel || !kLabel || !kWrap || !rowWrap) return;
+        if (type3Anchor === 'j') {
+            rowLabel.textContent = 'Add row';
+            kLabel.textContent = 'multiplied by';
+            rowWrap.style.order = '1';
+            kWrap.style.order = '2';
+        } else {
+            rowLabel.textContent = 'Add to row';
+            kLabel.textContent = 'Multiply by';
+            kWrap.style.order = '1';
+            rowWrap.style.order = '2';
+        }
+    }
+
+    (function initType3Toggle() {
+        katex.render('R_i', document.getElementById('type3-label-i'), { throwOnError: false });
+        katex.render('R_j', document.getElementById('type3-label-j'), { throwOnError: false });
+        katex.render('\\lambda_i R_i+\\lambda_jR_j', document.getElementById('type3-lincomb-label'), { throwOnError: false });
+    })();
+
+    // Whether the Combine column uses the classic "multiply by k / add to
+    // row t" form (off, default) or the general replace-row linear
+    // combination form "row[dest] = coef1*row[idx1] + coef2*row[idx2]" (on).
+    // Toggled from the page-settings popup checkbox.
+    let type3LinComb = false;
+
+    function setType3LinComb(checked) {
+        type3LinComb = checked;
+        updateCombineFieldsMode();
+    }
+
+    function updateCombineFieldsMode() {
+        const classic = document.getElementById('combine-classic-fields');
+        const lincomb = document.getElementById('combine-lincomb-fields');
+        const dragFields = document.getElementById('combine-drag-fields');
+        if (!classic || !lincomb || !dragFields) return;
+        if (rowOpModalMode === 'drag') {
+            classic.style.display = 'none';
+            lincomb.style.display = 'none';
+            dragFields.style.display = '';
+            return;
+        }
+        dragFields.style.display = 'none';
+        classic.style.display = type3LinComb ? 'none' : '';
+        lincomb.style.display = type3LinComb ? '' : 'none';
+        if (type3LinComb) {
+            const destInput = document.getElementById('lincomb-dest');
+            const destFixed = document.getElementById('lincomb-dest-fixed');
+            if (type3Anchor === 'j') {
+                destInput.style.display = 'none';
+                destFixed.style.display = '';
+                destFixed.textContent = (_rowOpIdx !== null) ? String(_rowOpIdx + 1) : '';
+            } else {
+                destInput.style.display = '';
+                destFixed.style.display = 'none';
+            }
+        }
+    }
+
+    // Parses "1R2-4R3" into { coef1: '1', idx1: 1, coef2: '-4', idx2: 2 }
+    // (indices returned 0-based). Everything before the first R is coef1,
+    // the digits right after it are idx1, everything between the end of
+    // idx1 and the second R is coef2, and the digits after that are idx2.
+    // A blank coefficient means 1, a lone sign means +-1.
+    function parseLinCombExpr(str) {
+        const m = /^([^Rr]*)[Rr](\d+)([^Rr]*)[Rr](\d+)$/.exec(str.trim());
+        if (!m) return null;
+        const parseCoef = (raw) => {
+            const t = raw.trim();
+            if (t === '') return '1';
+            if (t === '-') return '-1';
+            if (t === '+') return '1';
+            return t;
+        };
+        return {
+            coef1: parseCoef(m[1]),
+            idx1: parseInt(m[2], 10) - 1,
+            coef2: parseCoef(m[3]),
+            idx2: parseInt(m[4], 10) - 1,
+        };
+    }
+
+    function formatLinCombDescription(dest, coef1, idx1, coef2, idx2) {
+        const fmtTerm = (coef, idx, isFirst) => {
+            const { sign, tex } = coefficientParts(coef);
+            const body = `${tex}R_{${idx + 1}}`;
+            if (isFirst) return sign === '-' ? `-${body}` : body;
+            return sign === '-' ? ` - ${body}` : ` + ${body}`;
+        };
+        return `R_{${dest + 1}} \\rightarrow ${fmtTerm(coef1, idx1, true)}${fmtTerm(coef2, idx2, false)}`;
+    }
+
     let _rowOpIdx = null;
+    let rowOpModalMode = 'full';
+    let _dragToIdx = null;
+
+    function resetRowOpModalChrome() {
+        rowOpModalMode = 'full';
+        _dragToIdx = null;
+        document.getElementById('col-swap').style.display = '';
+        document.getElementById('col-scalar').style.display = '';
+        document.getElementById('col-combine').style.display = '';
+        document.getElementById('swap-with').disabled = false;
+    }
 
     function doRowOp(rIdx) {
+        resetRowOpModalChrome();
         _rowOpIdx = rIdx;
         document.getElementById('rowop-title').textContent = `Row ${rIdx + 1} — choose operation`;
-        // Reset to swap selected, all fields cleared
+        updateCombineRowLabel();
         selectRowOpCol('swap');
         document.getElementById('swap-with').value = '';
         document.getElementById('scalar-k').value = '';
         document.getElementById('combine-k').value = '';
         document.getElementById('combine-row').value = '';
+        document.getElementById('lincomb-dest').value = '';
+        document.getElementById('lincomb-expr').value = '';
+        updateCombineFieldsMode();
         document.getElementById('rowop-overlay').style.display = 'flex';
         setTimeout(() => document.getElementById('swap-with').focus(), 50);
+    }
+
+    function openRowOpModalForDrag(fromIdx, toIdx) {
+        resetRowOpModalChrome();
+        rowOpModalMode = 'drag';
+        _rowOpIdx = fromIdx;
+        _dragToIdx = toIdx;
+        document.getElementById('rowop-title').textContent = `Row ${toIdx + 1} — swap or replace using row ${fromIdx + 1}`;
+        document.getElementById('col-scalar').style.display = 'none';
+        selectRowOpCol('swap');
+        document.getElementById('swap-with').value = String(toIdx + 1);
+        document.getElementById('swap-with').disabled = true;
+        document.getElementById('drag-combo-input').value = '';
+        if (type3LinComb) {
+            document.getElementById('drag-combo-label').textContent = `Replace row ${toIdx + 1} with`;
+            document.getElementById('drag-combo-input').placeholder = 'e.g. 1R2-4R3';
+        } else {
+            document.getElementById('drag-combo-label').textContent = `Add row ${fromIdx + 1} multiplied by`;
+            document.getElementById('drag-combo-input').placeholder = 'e.g. -2';
+        }
+        updateCombineFieldsMode();
+        document.getElementById('rowop-overlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('drag-combo-input').focus(), 50);
+    }
+
+    function openScalarModal(rIdx) {
+        resetRowOpModalChrome();
+        rowOpModalMode = 'scalarOnly';
+        _rowOpIdx = rIdx;
+        document.getElementById('rowop-title').textContent = `Row ${rIdx + 1} — scalar multiply`;
+        document.getElementById('col-swap').style.display = 'none';
+        document.getElementById('col-combine').style.display = 'none';
+        selectRowOpCol('scalar');
+        document.getElementById('scalar-k').value = '';
+        document.getElementById('rowop-overlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('scalar-k').focus(), 50);
     }
 
     function selectRowOpCol(type) {
@@ -402,6 +1379,7 @@
                 inputs.forEach(i => i.disabled = true);
             }
         });
+        if (rowOpModalMode === 'drag') document.getElementById('swap-with').disabled = true;
     }
 
     function closeRowOpModal() {
@@ -409,44 +1387,146 @@
         _rowOpIdx = null;
     }
 
+    function algebriteEval(expr) {
+        let result;
+        try {
+            result = Algebrite.run(expr).toString();
+        } catch (e) {
+            throw new Error('Invalid expression.');
+        }
+        if (result.includes('Stop:')) throw new Error('Invalid expression.');
+        return result;
+    }
+
     function confirmRowOp() {
         const rIdx = _rowOpIdx;
         if (rIdx === null) return;
-        const rows = parseInt(document.getElementById('rows').value);
-        const cols = parseInt(document.getElementById('cols').value);
+        const cur = history[historyStep];
+        const rows = cur.data.length, cols = cur.data[0].length;
         const type = document.querySelector('input[name="rowop"]:checked').value;
 
         if (type === 'swap') {
             const t = parseInt(document.getElementById('swap-with').value) - 1;
-            if (isNaN(t) || t < 0 || t >= rows) { alert('Invalid row number.'); return; }
-            for (let j = 0; j < cols; j++) {
-                const c1 = document.getElementById(`cell-${rIdx}-${j}`), c2 = document.getElementById(`cell-${t}-${j}`);
-                const p1 = document.getElementById(`colorbtn-${rIdx}-${j}`), p2 = document.getElementById(`colorbtn-${t}-${j}`);
-                [c1.value, c2.value] = [c2.value, c1.value];
-                const tmp = p1.style.background; p1.style.background = p2.style.background; p2.style.background = tmp;
-            }
-            saveState(formatOpDescription('swap', rIdx, t));
+            if (isNaN(t) || t < 0 || t==rIdx || t >= rows) { alert('Invalid row number.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            const newColors = cur.colors.map(r => r.slice());
+            [newData[rIdx], newData[t]] = [newData[t], newData[rIdx]];
+            [newColors[rIdx], newColors[t]] = [newColors[t], newColors[rIdx]];
+            saveState(newData, newColors, formatOpDescription('swap', rIdx, t));
 
         } else if (type === 'scalar') {
             const k = document.getElementById('scalar-k').value.trim();
             if (!k) { alert('Enter a scalar.'); return; }
-            for (let j = 0; j < cols; j++) {
-                const el = document.getElementById(`cell-${rIdx}-${j}`);
-                el.value = reorderPolynomial(Algebrite.run(`(${k})*(${el.value})`).toString());
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[rIdx][j] = reorderPolynomial(algebriteEval(`(${k})*(${cur.data[rIdx][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
             }
-            saveState(formatOpDescription('multiply', rIdx, null, k));
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('multiply', rIdx, null, k));
 
-        } else if (type === 'combine') {
+        } else if (type === 'combine' && rowOpModalMode === 'drag' && !type3LinComb) {
+            const destIdx = _dragToIdx;
+            const srcIdx = rIdx;
+            const k = document.getElementById('drag-combo-input').value.trim();
+            if (!k) { alert('Enter a scalar.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${cur.data[destIdx][j]})+(${k})*(${cur.data[srcIdx][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k));
+
+        } else if (type === 'combine' && rowOpModalMode === 'drag' && type3LinComb) {
+            const destIdx = _dragToIdx;
+            const parsed = parseLinCombExpr(document.getElementById('drag-combo-input').value);
+            if (!parsed) { alert('Expression must look like "1R2-4R3".'); return; }
+            const { coef1, idx1, coef2, idx2 } = parsed;
+            if (idx1 < 0 || idx1 >= rows || idx2 < 0 || idx2 >= rows) { alert('Row index out of range.'); return; }
+            if (idx1 === idx2) { alert('The two rows in the expression must be different.'); return; }
+            if (destIdx !== idx1 && destIdx !== idx2) { alert(`Row ${destIdx + 1} must appear in the expression.`); return; }
+            const destCoef = (destIdx === idx1) ? coef1 : coef2;
+            let destCoefVal;
+            try {
+                destCoefVal = algebriteEval(`(${destCoef})`);
+            } catch (e) {
+                alert('Invalid coefficient expression.');
+                return;
+            }
+            if (destCoefVal === '0') { alert('The coefficient of the destination row cannot be zero.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${coef1})*(${cur.data[idx1][j]})+(${coef2})*(${cur.data[idx2][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2));
+
+        } else if (type === 'combine' && !type3LinComb) {
             const k = document.getElementById('combine-k').value.trim();
             const t = parseInt(document.getElementById('combine-row').value) - 1;
             if (!k) { alert('Enter a scalar.'); return; }
-            if (isNaN(t) || t < 0 || t >= rows) { alert('Invalid row number.'); return; }
-            for (let j = 0; j < cols; j++) {
-                const srcVal = document.getElementById(`cell-${rIdx}-${j}`).value;
-                const dest = document.getElementById(`cell-${t}-${j}`);
-                dest.value = reorderPolynomial(Algebrite.run(`(${dest.value})+(${k})*(${srcVal})`).toString());
+            if (isNaN(t) || t < 0 || t == rIdx || t >= rows) { alert('Invalid row number.'); return; }
+            // type3Anchor decides which role the clicked row (rIdx) plays:
+            // 'i' (default) -> clicked row is the source (R_dest = t), 'j' -> clicked row is the destination (R_src = t).
+            const destIdx = (type3Anchor === 'j') ? rIdx : t;
+            const srcIdx = (type3Anchor === 'j') ? t : rIdx;
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${cur.data[destIdx][j]})+(${k})*(${cur.data[srcIdx][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
             }
-            saveState(formatOpDescription('add', t, rIdx, k));
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k));
+
+        } else if (type === 'combine' && type3LinComb) {
+            // General replace-row form: row[dest] = coef1*row[idx1] + coef2*row[idx2].
+            // dest is the clicked row in R_j mode (automatic), or the typed "Replace row" field in R_i mode.
+            let destIdx;
+            if (type3Anchor === 'j') {
+                destIdx = rIdx;
+            } else {
+                destIdx = parseInt(document.getElementById('lincomb-dest').value) - 1;
+                if (isNaN(destIdx) || destIdx < 0 || destIdx >= rows) { alert('Invalid destination row.'); return; }
+            }
+            const parsed = parseLinCombExpr(document.getElementById('lincomb-expr').value);
+            if (!parsed) { alert('Expression must look like "1R2-4R3".'); return; }
+            const { coef1, idx1, coef2, idx2 } = parsed;
+            if (idx1 < 0 || idx1 >= rows || idx2 < 0 || idx2 >= rows) { alert('Row index out of range.'); return; }
+            if (idx1 === idx2) { alert('The two rows in the expression must be different.'); return; }
+            if (destIdx !== idx1 && destIdx !== idx2) { alert(`Row ${destIdx + 1} must appear in the expression.`); return; }
+            const destCoef = (destIdx === idx1) ? coef1 : coef2;
+            let destCoefVal;
+            try {
+                destCoefVal = algebriteEval(`(${destCoef})`);
+            } catch (e) {
+                alert('Invalid coefficient expression.');
+                return;
+            }
+            if (destCoefVal === '0') { alert('The coefficient of the destination row cannot be zero.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${coef1})*(${cur.data[idx1][j]})+(${coef2})*(${cur.data[idx2][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2));
         }
 
         closeRowOpModal();
@@ -471,16 +1551,29 @@
             const nextState = history[i + 1]; // Look ahead to the next item
             const row = document.createElement('div');
             row.className = "history-row";
-            row.innerHTML = `<div class="history-matrix"><div style="font-size: 1.8rem;">$$ ${generateMatrixLatex(state.data, state.colors)} $$</div></div>`
-            if(nextState) row.innerHTML += `<div class="history-desc">$$ \\text{Step ${i+1}: } ${nextState.log} $$</div>`;
-            else row.innerHTML += `<div class="history-desc"></div>`;
+
+            const matrixDiv = document.createElement('div');
+            matrixDiv.className = "history-matrix";
+            const matrixInner = document.createElement('div');
+            matrixInner.style.fontSize = "1.8rem";
+            katex.render(generateMatrixLatex(state.data, state.colors), matrixInner, { displayMode: true, throwOnError: false });
+            matrixDiv.appendChild(matrixInner);
+            row.appendChild(matrixDiv);
+
+            const descDiv = document.createElement('div');
+            descDiv.className = "history-desc";
+            if (nextState) katex.render(`\\text{Step ${i+1}: } ${nextState.log}`, descDiv, { displayMode: true, throwOnError: false });
+            row.appendChild(descDiv);
+
             list.appendChild(row);
         });
         document.getElementById('history-overlay').style.display = "flex";
-        MathJax.typesetPromise([list]);
     }
 
     function closeHistoryOverlay() { document.getElementById('history-overlay').style.display = "none"; }
+
+    function openHelpOverlay() { document.getElementById('help-overlay').style.display = "flex"; }
+    function closeHelpOverlay() { document.getElementById('help-overlay').style.display = "none"; }
     // Palette colours (same set as the old row palette)
     const PALETTE = [
         { hex: '#000000', title: 'Black' },
@@ -498,123 +1591,262 @@
         { hex: '#00CC00', title: 'Bright Green' },
     ];
 
-    // Build the dropdown once
-    (function buildDropdown() {
-        const dd = document.getElementById('color-dropdown');
+    // Build the swatch row for the per-cell context menu (matrix-cell-menu)
+    (function buildMcmSwatches() {
+        const wrap = document.getElementById('mcm-swatches');
         PALETTE.forEach(({ hex, title }) => {
             const s = document.createElement('div');
             s.className = 'swatch';
             s.style.background = hex;
             if (hex === '#FFFFFF') s.style.border = '1px solid #ccc';
             s.title = title;
-            s.addEventListener('mousedown', (e) => { e.preventDefault(); applyQuickColor(hex); closeColorDropdown(); });
-            s.addEventListener('touchstart', (e) => { e.preventDefault(); applyQuickColor(hex); closeColorDropdown(); }, { passive: false });
-            dd.appendChild(s);
+            s.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                applyQuickColor(hex);
+                closeMatrixCellMenu();
+            });
+            wrap.appendChild(s);
         });
         // Custom colour swatch (wraps a hidden native picker)
         const custom = document.createElement('div');
         custom.className = 'swatch-custom';
         custom.title = 'Custom colour…';
-        custom.innerHTML = '✎<input type="color" id="custom-color-input" value="#000000">';
+        custom.innerHTML = '✎<input type="color" id="mcm-custom-color-input" value="#000000">';
         custom.querySelector('input').addEventListener('input', (e) => {
             applyQuickColor(e.target.value);
         });
-        custom.querySelector('input').addEventListener('change', () => closeColorDropdown());
-        dd.appendChild(custom);
+        custom.querySelector('input').addEventListener('change', () => closeMatrixCellMenu());
+        wrap.appendChild(custom);
     })();
-
-    let _dropdownTargetRow = null, _dropdownTargetCol = null;
-
-    function openColorDropdown(event, row, col) {
-        event.stopPropagation();
-        _dropdownTargetRow = row;
-        _dropdownTargetCol = col;
-        activeCellId = `cell-${row}-${col}`;
-
-        // Sync custom picker to current cell color
-        const currentColor = document.getElementById(`colorbtn-${row}-${col}`).style.background;
-        document.getElementById('custom-color-input').value = rgbToHex(currentColor);
-
-        const dd = document.getElementById('color-dropdown');
-        dd.style.display = 'flex';
-
-        // Position below the button, clamped to viewport
-        const rect = event.currentTarget.getBoundingClientRect();
-        let top = rect.bottom + window.scrollY + 4;
-        let left = rect.left + window.scrollX;
-        const ddW = 148, ddH = 120;
-        if (left + ddW > window.innerWidth) left = window.innerWidth - ddW - 8;
-        if (top + ddH > window.innerHeight + window.scrollY) top = rect.top + window.scrollY - ddH - 4;
-        dd.style.top  = top + 'px';
-        dd.style.left = left + 'px';
-    }
-
-    function closeColorDropdown() {
-        document.getElementById('color-dropdown').style.display = 'none';
-    }
 
     // Close on outside click/touch
     document.addEventListener('mousedown', (e) => {
-        const dd = document.getElementById('color-dropdown');
-        if (dd.style.display === 'flex' && !dd.contains(e.target) && !e.target.classList.contains('cell-color-btn'))
-            closeColorDropdown();
+        const mcm = document.getElementById('matrix-cell-menu');
+        if (mcm.style.display === 'flex' && !mcm.contains(e.target) && !e.target.closest('.det-grid'))
+            closeMatrixCellMenu();
     });
 
-    function rgbToHex(rgb) {
-        if (!rgb || rgb.startsWith('#')) return rgb || '#000000';
-        const m = rgb.match(/\d+/g);
-        if (!m || m.length < 3) return '#000000';
-        return '#' + m.slice(0,3).map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+    function openMatrixCellMenu(event, editorId, row, col) {
+        event.stopPropagation();
+        flushStyleCheckpoint(activeEditorId); // commit any pending session from a previously opened cell
+        activeEditorId = editorId;
+        editRow = row;
+        editCol = col;
+
+        const state = matrixEditors[editorId].getState();
+        const valInput = document.getElementById('mcm-value-input');
+        valInput.value = state.data[row][col];
+        document.getElementById('mcm-custom-color-input').value = state.colors[row][col];
+
+        const menu = document.getElementById('matrix-cell-menu');
+        menu.style.display = 'flex';
+        const rect = event.currentTarget.getBoundingClientRect();
+        const mRect = menu.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        let left = rect.left;
+        if (left + mRect.width > window.innerWidth) left = window.innerWidth - mRect.width - 8;
+        if (top + mRect.height > window.innerHeight) top = rect.top - mRect.height - 4;
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+        setTimeout(() => valInput.focus(), 30);
+    }
+
+    function closeMatrixCellMenu() {
+        document.getElementById('matrix-cell-menu').style.display = 'none';
+        flushStyleCheckpoint(activeEditorId);
+    }
+
+    document.addEventListener('mousedown', (e) => {
+        const menu = document.getElementById('matrix-settings-menu');
+        if (menu.style.display === 'flex' && !menu.contains(e.target) && e.target.id !== 'matrixSettingsBtn')
+            closeMatrixSettings();
+    });
+
+    function openMatrixSettings(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('matrix-settings-menu');
+        if (menu.style.display === 'flex') { closeMatrixSettings(); return; }
+        menu.style.display = 'flex';
+        const rect = event.currentTarget.getBoundingClientRect();
+        const mRect = menu.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        let left = rect.left;
+        if (left + mRect.width > window.innerWidth) left = window.innerWidth - mRect.width - 8;
+        if (top + mRect.height > window.innerHeight) top = rect.top - mRect.height - 4;
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+    }
+    function closeMatrixSettings() {
+        document.getElementById('matrix-settings-menu').style.display = 'none';
+    }
+
+    function mcmApplyValue() {
+        if (editRow === null || !activeEditorId) return;
+        captureStyleSnapshotIfNeeded(activeEditorId);
+        matrixEditors[activeEditorId].getState().data[editRow][editCol] = document.getElementById('mcm-value-input').value;
+        refreshEditor(activeEditorId);
+    }
+
+    function togglePanelFullscreen(id) {
+        document.getElementById(id).classList.toggle('panel-fullscreen');
+        fitMiniMath();
     }
 
     function applyQuickColor(color) {
-        const row = _dropdownTargetRow, col = _dropdownTargetCol;
-        if (row === null || col === null) return;
-        const btn = document.getElementById(`colorbtn-${row}-${col}`);
-        if (btn) btn.style.background = color;
-        overwriteCurrentState();
+        if (editRow === null || editCol === null || !activeEditorId) return;
+        captureStyleSnapshotIfNeeded(activeEditorId);
+        matrixEditors[activeEditorId].getState().colors[editRow][editCol] = color;
+        refreshEditor(activeEditorId);
     }
     function modifyActiveCell(op) {
-        if (!activeCellId) return;
-        const [_, r, c] = activeCellId.split('-');
-        const cellInput = document.getElementById(activeCellId);
+        if (editRow === null || !activeEditorId) return;
+        const state = matrixEditors[activeEditorId].getState();
+        const curVal = state.data[editRow][editCol];
         try {
-            let res = (op === 'expand') ? Algebrite.run(`expand(${cellInput.value})`) : Algebrite.run(`simplify(${cellInput.value})`);
+            let res = (op === 'expand') ? Algebrite.run(`expand(${curVal})`) : Algebrite.run(`simplify(${curVal})`);
             let ordered = reorderPolynomial(res.toString());
-            cellInput.value = ordered;
-            if (history[historyStep]) history[historyStep].data[r][c] = ordered;
-            updateUI(false);
+            captureStyleSnapshotIfNeeded(activeEditorId);
+            state.data[editRow][editCol] = ordered;
+            refreshEditor(activeEditorId);
         } catch (e) { console.error(e); }
     }
-    function rebuildMatrixUI(dataArray) {
-        const rows = dataArray.length, cols = dataArray[0].length;
-        const table = document.getElementById('matrix-input-table');
-        table.innerHTML = "";
-        document.getElementById('downloadBtn').style.display = "block";
-        document.getElementById('cellOps').style.display = "flex";
-        for (let i = 0; i < rows; i++) {
-            const tr = document.createElement('tr');
-            for (let j = 0; j < cols; j++) {
-                const td = document.createElement('td');
-                td.innerHTML = `<div class="cell-group">
-                    <input class="matrix-input" id="cell-${i}-${j}" type="text" value="${dataArray[i][j]}" onfocus="activeCellId=this.id" onchange="overwriteCurrentState()">
-                    <button class="cell-color-btn" id="colorbtn-${i}-${j}" style="background:#000000"
-                        onclick="openColorDropdown(event,'${i}','${j}')"></button>
-                </div>`;
-                tr.appendChild(td);
+    // Builds the R_i row-operation buttons and reveals the History panel.
+    // (There's no editor table anymore — the History grid IS the editor.)
+    let rowOpsMode = 'both';
+
+    function setRowOpsMode(mode) {
+        rowOpsMode = mode;
+        if (historyStep >= 0) buildRowOpsUI(history[historyStep].data);
+    }
+
+    function wireRowOpButton(btn, i) {
+        if (rowOpsMode === 'button' || rowOpsMode === 'both') {
+            btn.addEventListener('click', () => doRowOp(i));
+        }
+    }
+
+    let _rowDragState = null;
+    let _suppressNextCellClick = false;
+
+    function startRowDragTracking(e, i) {
+        if (e.button !== 0) return;
+        _rowDragState = { fromIdx: i, dragging: false, startX: e.clientX, startY: e.clientY, ghostEl: null, overIdx: null };
+        const onMove = (ev) => onRowDragMove(ev);
+        const onUp = (ev) => onRowDragEnd(onMove, onUp);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    function onRowDragMove(e) {
+        if (!_rowDragState) return;
+        const dx = e.clientX - _rowDragState.startX, dy = e.clientY - _rowDragState.startY;
+        if (!_rowDragState.dragging) {
+            if (Math.hypot(dx, dy) < 6) return;
+            _rowDragState.dragging = true;
+            document.getElementById('math-box-grid').classList.add('dragging-row');
+            const ghost = document.createElement('div');
+            ghost.className = 'row-drag-ghost';
+            const rowEl = document.querySelectorAll('#math-box-grid .det-grid-row')[_rowDragState.fromIdx];
+            if (rowEl) ghost.appendChild(rowEl.cloneNode(true));
+            else katex.render(`R_{${_rowDragState.fromIdx + 1}}`, ghost, { throwOnError: false });
+            document.body.appendChild(ghost);
+            _rowDragState.ghostEl = ghost;
+        }
+        _rowDragState.ghostEl.style.left = (e.clientX + 12) + 'px';
+        _rowDragState.ghostEl.style.top = (e.clientY + 12) + 'px';
+
+        document.querySelectorAll('#math-box-grid .det-grid-row.row-drop-hover').forEach(el => el.classList.remove('row-drop-hover'));
+        _rowDragState.overIdx = null;
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        const cell = target && target.closest && target.closest('#math-box-grid .det-cell');
+        if (cell && cell.dataset.rowIdx !== undefined) {
+            const idx = parseInt(cell.dataset.rowIdx, 10);
+            if (idx !== _rowDragState.fromIdx) {
+                cell.closest('.det-grid-row').classList.add('row-drop-hover');
+                _rowDragState.overIdx = idx;
             }
-            tr.innerHTML += `<td><button class="matrix-row-ops" onclick="doRowOp(${i})">\\(R_${i+1}\\, \\) Ops</button></td>`;
-            table.appendChild(tr);
+        }
+    }
+
+    function onRowDragEnd(onMove, onUp) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.getElementById('math-box-grid').classList.remove('dragging-row');
+        if (!_rowDragState) return;
+        const { dragging, fromIdx, overIdx, ghostEl } = _rowDragState;
+        if (ghostEl) ghostEl.remove();
+        document.querySelectorAll('#math-box-grid .det-grid-row.row-drop-hover').forEach(el => el.classList.remove('row-drop-hover'));
+        _rowDragState = null;
+        if (dragging) {
+            _suppressNextCellClick = true;
+            setTimeout(() => { _suppressNextCellClick = false; }, 0);
+            if (overIdx !== null && overIdx !== undefined) openRowOpModalForDrag(fromIdx, overIdx);
+        }
+    }
+
+    function buildRowOpsUI(dataArray) {
+        const rows = dataArray.length;
+        document.getElementById('downloadBtn').style.display = "block";
+        document.getElementById('exportOcBtn').style.display = isEmbeddedInOneClaute() ? "block" : "none";
+        document.getElementById('echelonBtn').style.display = "block";
+        const stack = document.getElementById('rowops-stack');
+        stack.innerHTML = "";
+        for (let i = 0; i < rows; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'rowops';
+            btn.dataset.rowIdx = String(i);
+            btn.innerHTML = `<span id="rowop-label-${i}"></span>&nbsp;ops`;
+            wireRowOpButton(btn, i);
+            stack.appendChild(btn);
+            katex.render(`R_{${i+1}}`, document.getElementById(`rowop-label-${i}`), { throwOnError: false });
         }
         document.getElementById('display-area').style.display = "block";
-        history = []; historyStep = -1; saveState("\\text{Matrix Initialized}");
+    }
+    function rebuildMatrixUI(dataArray) {
+        buildRowOpsUI(dataArray);
+        history = []; historyStep = -1;
+        identityBlockAdded = false;
+        saveState(dataArray, dataArray.map(row => row.map(() => '#000000')), "\\text{Matrix Initialized}");
+        updateIdentityBlockButton();
     }
     function initializeMatrix() {
-        const r = document.getElementById('rows').value, c = document.getElementById('cols').value;
-        rebuildMatrixUI(Array.from({ length: r }, () => Array(parseInt(c)).fill("0")));
+        rebuildMatrixUI([["1", "0"], ["0", "1"]]);
     }
-    function undo() { if (historyStep > 0) { historyStep--; updateUI(true); } }
-    function redo() { if (historyStep < history.length - 1) { historyStep++; updateUI(true); } }
+    let identityBlockAdded = false;
+    function updateIdentityBlockButton() {
+        const label = document.getElementById('identity-btn-label');
+        if (label) label.textContent = identityBlockAdded ? 'Remove block' : 'Add block';
+    }
+    function toggleIdentityBlock() {
+        if (identityBlockAdded) removeIdentityBlock();
+        else insertIdentity();
+    }
+    function insertIdentity() {
+        if (historyStep < 0) { alert('Initialize a matrix first.'); return; }
+        const gridData = history[historyStep].data;
+        const rows = gridData.length, origCols = gridData[0].length;
+        const newGrid = gridData.map((row, i) => row.concat(Array.from({ length: rows }, (_, j) => (i === j ? '1' : '0'))));
+        document.getElementById('showAugmented').checked = true;
+        document.getElementById('augmentedAfterCols').value = String(origCols);
+        rebuildMatrixUI(newGrid);
+        identityBlockAdded = true;
+        updateIdentityBlockButton();
+    }
+    function removeIdentityBlock() {
+        if (historyStep < 0) return;
+        const gridData = history[historyStep].data;
+        const rows = gridData.length, totalCols = gridData[0].length;
+        const origCols = totalCols - rows;
+        if (origCols < 1) return;
+        const newGrid = gridData.map(row => row.slice(0, origCols));
+        document.getElementById('showAugmented').checked = false;
+        document.getElementById('augmentedAfterCols').value = '';
+        rebuildMatrixUI(newGrid);
+        identityBlockAdded = false;
+        updateIdentityBlockButton();
+    }
+    function undo() { if (historyStep > 0) { historyStep--; updateUI(); resetStyleUndo(); } }
+    function redo() { if (historyStep < history.length - 1) { historyStep++; updateUI(); resetStyleUndo(); } }
     
     function fitMiniMath() {
         const box = document.getElementById('mini-box'), content = document.getElementById('mini-math');
@@ -637,29 +1869,342 @@
         }
     }
 
+    // 'row': semicolon-groups (or several pasted vectors) become rows.
+    // 'col': they become columns instead. Tracked per editor since each
+    // Entries field (row-ops, Product's A/B, Determinant) is independent.
+    const quickInputOrientation = { roword: 'row', rcA: 'row', rcB: 'row', det: 'row' };
+
+    // Maps an editorKey to its Entries <input> id and confirm function, so
+    // the orientation toggle and paste-handling below can be attached once
+    // per editor instead of duplicated per tab.
+    const quickInputConfig = {
+        roword: { fieldId: 'quick-input-field', confirm: () => confirmQuickInput() },
+        rcA: { fieldId: 'rcA-quick', confirm: () => rcConfirmQuickInput('A') },
+        rcB: { fieldId: 'rcB-quick', confirm: () => rcConfirmQuickInput('B') },
+        det: { fieldId: 'det-quick', confirm: () => detConfirmQuickInput() },
+    };
+
+    function setQuickInputOrientation(mode, btn, editorKey) {
+        quickInputOrientation[editorKey] = mode;
+        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cfg = quickInputConfig[editorKey];
+        if (document.getElementById(cfg.fieldId).value.trim()) cfg.confirm();
+    }
+
+    function transposeGrid(grid) {
+        return grid[0].map((_, j) => grid.map(row => row[j]));
+    }
+
+    // Cleans up one pasted LaTeX cell into an Algebrite-compatible expression.
+    function latexCellToExpr(s) {
+        s = s.trim();
+        let prev;
+        do {
+            prev = s;
+            s = s.replace(/\\d?frac\s*\{([^{}]*)\}\{([^{}]*)\}/g, '(($1)/($2))');
+        } while (s !== prev);
+        s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, 'sqrt($1)');
+        s = s.replace(/\\left|\\right/g, '');
+        s = s.replace(/\\cdot|\\times/g, '*');
+        s = s.replace(/\\pi\b/g, 'pi');
+        s = s.replace(/\^\{([^{}]*)\}/g, '^($1)');
+        s = s.replace(/\{([^{}]*)\}/g, '$1');
+        s = s.replace(/\\,|\\;|\\:|\\!/g, '');
+        return s.replace(/\s+/g, ' ').trim();
+    }
+
+    // OneClaute sometimes wraps an augmented matrix as a delimiter env directly
+    // around an inner array carrying the real grid + colspec, e.g.
+    // \begin{pmatrix}\begin{array}{c|c|c}a&b&c\\d&e&f\end{array}\end{pmatrix}.
+    // Peels off wrapper envs that hold nothing but one inner env, returning the
+    // innermost body and which env it came from (only 'array' carries a colspec).
+    function unwrapNestedEnv(body){
+        let b = body.trim(), env = null, changed = true;
+        while (changed) {
+            changed = false;
+            const m = b.match(/^\\begin\{(pmatrix|bmatrix|vmatrix|Vmatrix|Bmatrix|matrix|array)\}([\s\S]*)\\end\{\1\}$/);
+            if (m) { env = m[1]; b = m[2]; changed = true; }
+        }
+        return { body: b, env };
+    }
+
+    // "c|c|c" → [1,2] (1-indexed "separator after this column"), matching
+    // the app's own augmentedAfterCols format.
+    function parseColSpecSeparators(spec){
+        const afterCols = [];
+        let col = 0;
+        for (const ch of spec) {
+            if (ch === 'c' || ch === 'l' || ch === 'r') col++;
+            else if (ch === '|') afterCols.push(col);
+        }
+        return afterCols;
+    }
+
+    // Extracts every \begin{...matrix...}...\end{...} block pasted from
+    // OneClaute (one matrix, or several vectors copied side by side) into
+    // 2D arrays of cleaned-up expression strings, unwrapping a nested array
+    // (with its column spec, for augmented pastes) when present.
+    function parseLatexBlocks(text) {
+        const re = /\\begin\{(pmatrix|bmatrix|vmatrix|Vmatrix|Bmatrix|matrix|array)\}([\s\S]*?)\\end\{\1\}/g;
+        const blocks = [];
+        let m;
+        while ((m = re.exec(text))) {
+            let body = m[2];
+            let colSpec = null;
+            if (m[1] === 'array') {
+                const cm = body.match(/^\s*\{([^{}]*)\}/);
+                if (cm) colSpec = cm[1];
+                body = body.replace(/^\s*\{[^{}]*\}/, '');
+            }
+            const unwrapped = unwrapNestedEnv(body);
+            body = unwrapped.body;
+            if (unwrapped.env === 'array') {
+                const cm = body.match(/^\s*\{([^{}]*)\}/);
+                if (cm) colSpec = cm[1];
+                body = body.replace(/^\s*\{[^{}]*\}/, '');
+            }
+            const rows = body.split('\\\\')
+                .map(r => r.replace(/^\s*\[[^\]]*\]/, '').trim())
+                .filter(r => r.length);
+            blocks.push({ grid: rows.map(r => r.split('&').map(latexCellToExpr)), colSpec });
+        }
+        return blocks;
+    }
+
+    // Shared by Confirm and the paste-translate handler: parses either a
+    // plain "a,b;c,d" string or pasted LaTeX into a grid, plus any augmented
+    // column separators detected from a single matrix's array colspec.
+    function resolveQuickInputRows(raw, editorKey = 'roword') {
+        let rows;
+        let augAfterCols = null;
+        const latexBlocks = raw.includes('\\begin{') ? parseLatexBlocks(raw) : [];
+        const orientation = quickInputOrientation[editorKey];
+
+        if (latexBlocks.length === 1) {
+            // A single pasted matrix — used exactly as written.
+            rows = latexBlocks[0].grid;
+            if (latexBlocks[0].colSpec) {
+                const afterCols = parseColSpecSeparators(latexBlocks[0].colSpec);
+                if (afterCols.length) augAfterCols = afterCols;
+            }
+        } else if (latexBlocks.length > 1) {
+            // Several pasted vectors — combine them as rows or columns per the toggle.
+            const vectors = latexBlocks.map(b => b.grid.flat());
+            rows = orientation === 'col' ? transposeGrid(vectors) : vectors;
+        } else {
+            rows = raw.split(';').map(r => r.split(',').map(c => c.trim()));
+            if (orientation === 'col') rows = transposeGrid(rows);
+        }
+        return { rows, augAfterCols };
+    }
+
+    function quickInputRowsToText(rows) {
+        return rows.map(r => r.join(',')).join(';');
+    }
+
+    // Wires an Entries field for editorKey: LaTeX paste -> plain-text
+    // translation + auto-confirm; plain paste -> native insertion detected
+    // via inputType + auto-confirm; normal typing is left alone.
+    // onAugDetected (row-ops only) receives the augmented-colspec info a
+    // LaTeX paste carried, since confirmQuickInput needs it a tick later.
+    function attachQuickInputPaste(editorKey, onAugDetected) {
+        const cfg = quickInputConfig[editorKey];
+        const field = document.getElementById(cfg.fieldId);
+        field.addEventListener('paste', function (e) {
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (!text || !text.includes('\\begin{')) return; // plain paste — default happens, 'input' listener below auto-confirms it
+            e.preventDefault();
+            try {
+                const { rows, augAfterCols } = resolveQuickInputRows(text.trim(), editorKey);
+                this.value = quickInputRowsToText(rows);
+                if (onAugDetected) onAugDetected(augAfterCols);
+            } catch (err) {
+                this.value = text; // translation failed — fall back to the raw paste, nothing to auto-confirm
+                return;
+            }
+            cfg.confirm();
+        });
+        field.addEventListener('input', function (e) {
+            if (onAugDetected) onAugDetected(null); // only trust it immediately after the paste that set it
+            if (e.inputType === 'insertFromPaste' && this.value.trim()) cfg.confirm();
+        });
+    }
+
+    let pendingAugAfterCols = null;
+    attachQuickInputPaste('roword', (aug) => { pendingAugAfterCols = aug; });
+
     function confirmQuickInput() {
-        const val = document.getElementById('quick-input-field').value.trim();
-        if (!val) return;
-        const rows = val.split(';').map(r => r.split(',').map(c => c.trim()));
-        document.getElementById('rows').value = rows.length;
-        document.getElementById('cols').value = rows[0].length;
+        const raw = document.getElementById('quick-input-field').value.trim();
+        if (!raw) return;
+
+        const { rows, augAfterCols } = resolveQuickInputRows(raw, 'roword');
+        const finalAugAfterCols = augAfterCols || pendingAugAfterCols;
+        pendingAugAfterCols = null;
+
+        const expectedCols = rows[0].length;
+        const badRow = rows.findIndex(r => r.length !== expectedCols);
+        if (badRow !== -1) {
+            alert(`Group ${badRow + 1} has ${rows[badRow].length} value(s), expected ${expectedCols}. All groups must be the same length.`);
+            return;
+        }
+        // A fresh paste fully determines the augmented view — don't leave a
+        // previous paste's separator settings stuck on if this one has none.
+        document.getElementById('showAugmented').checked = !!finalAugAfterCols;
+        document.getElementById('augmentedAfterCols').value = finalAugAfterCols ? finalAugAfterCols.join(',') : '';
         rebuildMatrixUI(rows);
     }
-    function importToQuickInput() {
-        let res = [];
-        for (let i = 0; i < document.getElementById('rows').value; i++) {
-            let row = [];
-            for (let j = 0; j < document.getElementById('cols').value; j++) row.push(document.getElementById(`cell-${i}-${j}`).value);
-            res.push(row.join(','));
-        }
-        document.getElementById('quick-input-field').value = res.join(';');
+    function closeEchelonOverlay() {
+        document.getElementById('echelon-overlay').style.display = 'none';
     }
+
+    function runEchelon() {
+        if (historyStep < 0) { alert('No matrix to reduce.'); return; }
+        const data = history[historyStep].data;
+        let tree;
+        try {
+            tree = window.toEchelonForm(data.map(r => r.slice()));
+        } catch (e) {
+            alert('Could not complete automatic reduction: ' + e.message);
+            return;
+        }
+        const container = document.getElementById('echelon-tree');
+        container.innerHTML = '';
+        renderEchelonNode(tree, container, 0);
+        document.getElementById('echelon-overlay').style.display = 'flex';
+    }
+
+    // Hands the current matrix to echelon.html, which draws the same
+    // toEchelonForm() tree as an actual branching diagram (pan/zoom, per-case
+    // row operations, rank/solution verdicts).
+    function openInEchelonTree() {
+        if (historyStep < 0) { alert('No matrix to reduce.'); return; }
+        const data = history[historyStep].data;
+        // mode=auto: this button means "let echelon.js branch it for me"
+        let url = 'echelon.html?mode=auto&m=' + encodeURIComponent(data.map(r => r.join(',')).join(';'));
+        if (document.getElementById('showAugmented').checked) {
+            url += '&aug=' + encodeURIComponent(parseAugmentedCols(data[0].length).join(','));
+        }
+        window.open(url, '_blank');
+    }
+
+    function renderEchelonNode(node, container, depth) {
+        const wrap = document.createElement('div');
+        wrap.className = 'echelon-node';
+        wrap.style.marginLeft = (depth * 24) + 'px';
+
+        const condDiv = document.createElement('div');
+        condDiv.className = 'echelon-condition';
+        condDiv.textContent = node.condition;
+        wrap.appendChild(condDiv);
+
+        const matrixDiv = document.createElement('div');
+        matrixDiv.className = 'echelon-matrix-wrap';
+        const colors = node.rows.map(r => r.map(() => "#000000"));
+        katex.render(generateMatrixLatex(node.rows, colors), matrixDiv, { displayMode: true, throwOnError: false });
+        wrap.appendChild(matrixDiv);
+
+        container.appendChild(wrap);
+        node.children.forEach(child => renderEchelonNode(child, container, depth + 1));
+    }
+
     function downloadHistory() {
         let output = history.map((s, i) => `Step ${i}: ${s.log}\nLaTeX: ${generateMatrixLatex(s.data, s.colors)}`).join('\n\n');
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([output], {type: 'text/plain'}));
         a.download = 'matrix_log.txt'; a.click();
     }
+
+    function isEmbeddedInOneClaute() {
+        try { return window.parent !== window; } catch (e) { return false; }
+    }
+
+    function escHtmlAttr(s) {
+        return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function buildOneClauteHistoryHtml() {
+        let html = '';
+        history.forEach((state, i) => {
+            const matrixLatex = generateMatrixLatex(state.data, state.colors);
+            html += `<p>Step ${i}: <span class="math-atom" contenteditable="false" data-latex="${escHtmlAttr(state.log)}"></span></p>`;
+            html += `<div class="display-block" data-align="center" data-latex="${escHtmlAttr(matrixLatex)}" data-mode="mathlive" contenteditable="false"><div class="display-block-inner" data-layer="mathlive"></div><div class="display-block-inner" data-layer="katex"></div></div>`;
+        });
+        return html;
+    }
+
+    function exportHistoryToOneClaute() {
+        if (history.length === 0) { alert('Nothing to export yet.'); return; }
+        if (!isEmbeddedInOneClaute()) { alert('This only works when the page is embedded inside a OneClaute page.'); return; }
+        window.parent.postMessage({
+            type: 'embed-insert-block',
+            content: buildOneClauteHistoryHtml(),
+            height: Math.max(300, history.length * 220),
+        }, '*');
+    }
+
+    function serializeAppState() {
+        const activeTabEl = document.querySelector('.tab-panel.active');
+        return {
+            activeTab: activeTabEl ? activeTabEl.id : 'tab-rowops',
+            rowops: {
+                history: history,
+                historyStep: historyStep,
+                showAugmented: document.getElementById('showAugmented').checked,
+                augmentedAfterCols: document.getElementById('augmentedAfterCols').value,
+            },
+            product: {
+                aData: rcAState.data, aColors: rcAState.colors,
+                bData: rcBState.data, bColors: rcBState.colors,
+            },
+            det: {
+                data: detState.data, colors: detState.colors,
+                expandAlong: detExpandAlong,
+            },
+        };
+    }
+
+    function saveStateToParent() {
+        if (!isEmbeddedInOneClaute()) return;
+        window.parent.postMessage({ type: 'embed-save', state: serializeAppState() }, '*');
+    }
+
+    function restoreAppState(state) {
+        if (!state) return;
+        try {
+            if (state.rowops && state.rowops.history && state.rowops.history.length) {
+                history = state.rowops.history;
+                historyStep = state.rowops.historyStep;
+                document.getElementById('showAugmented').checked = !!state.rowops.showAugmented;
+                document.getElementById('augmentedAfterCols').value = state.rowops.augmentedAfterCols || '';
+                const dims = history[historyStep].data;
+                buildRowOpsUI(dims);
+                identityBlockAdded = false;
+                updateIdentityBlockButton();
+                updateUI();
+                resetStyleUndo();
+            }
+            if (state.product) {
+                const p = state.product;
+                if (p.aData) rcAState = { data: p.aData, colors: p.aColors || p.aData.map(r => r.map(() => '#000000')) };
+                if (p.bData) rcBState = { data: p.bData, colors: p.bColors || p.bData.map(r => r.map(() => '#000000')) };
+                if (p.aData && p.bData) computeProduct();
+            }
+            if (state.det && state.det.data) {
+                detState = { data: state.det.data, colors: state.det.colors || state.det.data.map(r => r.map(() => '#000000')) };
+                if (state.det.expandAlong) detExpandAlong = state.det.expandAlong;
+                detCompute();
+            }
+            if (state.activeTab) {
+                const btn = document.querySelector(`.tab-btn[onclick*="${state.activeTab}"]`);
+                if (btn) switchTab(state.activeTab, btn);
+            }
+        } catch (e) { console.error('restoreAppState failed', e); }
+    }
+
+    window.addEventListener('message', (e) => {
+        if (e.data?.type === 'embed-init') restoreAppState(e.data.state);
+    });
 
     (function initMiniBox(el) {
         let p3=0, p4=0;
@@ -734,7 +2279,910 @@
         ro.observe(el);
     })(document.getElementById("mini-box"));
 
-    window.onload = initializeMatrix;
+    // ---------- Tab switching ----------
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        btn.classList.add('active');
+        saveStateToParent();
+    }
+
+    function renderStretchyParensEls(n, leftEl, rightEl) {
+        const phantomRows = Array(n).fill('1').join('\\\\[0.2em]');
+        const phantomMatrix = `\\begin{matrix}${phantomRows}\\end{matrix}`;
+        katex.render(`\\left(\\vphantom{${phantomMatrix}}\\right.`, leftEl, { throwOnError: false });
+        katex.render(`\\left.\\vphantom{${phantomMatrix}}\\right)`, rightEl, { throwOnError: false });
+    }
+    function renderStretchyParens(n, leftId, rightId) {
+        renderStretchyParensEls(n, document.getElementById(leftId), document.getElementById(rightId));
+    }
+
+    // ---------- Row/Col Product tab ----------
+    let rcLastA = null, rcLastB = null, rcLastResult = null;
+    let rcLock = null;
+
+    function rcDefaultState() {
+        return { data: [["1", "0"], ["0", "1"]], colors: [["#000000", "#000000"], ["#000000", "#000000"]] };
+    }
+    // No interactive editor grid for A/B — Entries is the only way to set
+    // them, so rcAState/rcBState are plain data holders, not matrixEditors.
+    let rcAState = rcDefaultState();
+    let rcBState = rcDefaultState();
+    attachQuickInputPaste('rcA');
+    attachQuickInputPaste('rcB');
+
+    function rcClearOutputs() {
+        rcLastA = rcLastB = rcLastResult = null;
+        ['rc-eq-a-grid', 'rc-eq-a-paren-left', 'rc-eq-a-paren-right',
+         'rc-eq-b-grid', 'rc-eq-b-paren-left', 'rc-eq-b-paren-right',
+         'rc-result-grid', 'rc-paren-left', 'rc-paren-right',
+         'rc-result-formula'].forEach(id => document.getElementById(id).innerHTML = "");
+    }
+
+    function rcInitDefaults() {
+        computeProduct();
+    }
+
+    function rcConfirmQuickInput(which) {
+        const editorId = `rc${which}`;
+        const raw = document.getElementById(`${editorId}-quick`).value.trim();
+        if (!raw) return;
+        const { rows } = resolveQuickInputRows(raw, editorId);
+        const expectedCols = rows[0].length;
+        const badRow = rows.findIndex(r => r.length !== expectedCols);
+        if (badRow !== -1) {
+            alert(`Row ${badRow + 1} has ${rows[badRow].length} value(s), expected ${expectedCols}. All rows must have the same number of columns.`);
+            return;
+        }
+        const newState = { data: rows, colors: rows.map(r => r.map(() => '#000000')) };
+        if (which === 'A') rcAState = newState; else rcBState = newState;
+        rcClearOutputs();
+        computeProduct();
+    }
+
+    function rcFormatFactor(raw) {
+        const tex = customLatexFormatter(raw);
+        return raw.trim().startsWith('-') ? `(${tex})` : tex;
+    }
+
+    function rcBuildExpansionFormula(A, B, i, j, resultValue) {
+        const n = A[0].length;
+        const terms = [];
+        for (let k = 0; k < n; k++) {
+            const aTex = `{\\color{#0d6efd}${rcFormatFactor(A[i][k])}}`;
+            const bTex = `{\\color{#dc3545}${rcFormatFactor(B[k][j])}}`;
+            terms.push(`${aTex}\\cdot${bTex}`);
+        }
+        const coloredResult = `{\\color{#198754}${customLatexFormatter(resultValue)}}`;
+        return `${terms.join('+')} = ${coloredResult}`;
+    }
+
+    function rcHighlightRow(eqPrefix, rowIdx, cols, add) {
+        for (let j = 0; j < cols; j++) {
+            const el = document.getElementById(`${eqPrefix}-${rowIdx}-${j}`);
+            if (el) el.classList.toggle('rc-highlight-row', add);
+        }
+    }
+    function rcHighlightCol(eqPrefix, colIdx, rows, add) {
+        for (let i = 0; i < rows; i++) {
+            const el = document.getElementById(`${eqPrefix}-${i}-${colIdx}`);
+            if (el) el.classList.toggle('rc-highlight-col', add);
+        }
+    }
+
+    function fitDetCells(scopeEl) {
+        let w = 32, h = 32;
+        scopeEl.querySelectorAll('.det-cell .katex').forEach(k => {
+            w = Math.max(w, k.offsetWidth + 8);
+            h = Math.max(h, k.offsetHeight + 6);
+        });
+        scopeEl.style.setProperty('--det-cell-w', w + 'px');
+        scopeEl.style.setProperty('--det-cell-h', h + 'px');
+    }
+
+    function rcBuildReadOnlyGrid(gridId, leftParenId, rightParenId, idPrefix, data) {
+        const rows = data.length, cols = data[0].length;
+        renderStretchyParens(rows, leftParenId, rightParenId);
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = "";
+        for (let i = 0; i < rows; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'det-grid-row';
+            for (let j = 0; j < cols; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.id = `${idPrefix}-${i}-${j}`;
+                const kspan = document.createElement('span');
+                katex.render(customLatexFormatter(data[i][j]), kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+                rowDiv.appendChild(cell);
+            }
+            grid.appendChild(rowDiv);
+        }
+        fitDetCells(grid);
+    }
+
+    function rcHoverResult(i, j) {
+        document.getElementById(`rc-result-cell-${i}-${j}`).classList.add('rc-cell-hover');
+        rcHighlightRow('rc-eq-a', i, rcLastA[0].length, true);
+        rcHighlightCol('rc-eq-b', j, rcLastB.length, true);
+        katex.render(
+            rcBuildExpansionFormula(rcLastA, rcLastB, i, j, rcLastResult[i][j]),
+            document.getElementById('rc-result-formula'), { displayMode: true, throwOnError: false }
+        );
+    }
+    function rcClearHoverResult(i, j) {
+        document.getElementById(`rc-result-cell-${i}-${j}`).classList.remove('rc-cell-hover');
+        rcHighlightRow('rc-eq-a', i, rcLastA[0].length, false);
+        rcHighlightCol('rc-eq-b', j, rcLastB.length, false);
+        document.getElementById('rc-result-formula').innerHTML = "";
+    }
+
+    function rcToggleLock(i, j, cellEl) {
+        if (rcLock && rcLock.i === i && rcLock.j === j) {
+            rcLock = null;
+            rcClearHoverResult(i, j);
+            cellEl.classList.remove('det-locked');
+            return;
+        }
+        if (rcLock) rcClearHoverResult(rcLock.i, rcLock.j);
+        rcLock = { i, j };
+        document.querySelectorAll('#rc-result-grid .det-locked').forEach(el => el.classList.remove('det-locked'));
+        rcHoverResult(i, j);
+        cellEl.classList.add('det-locked');
+    }
+
+    function rcRenderResultGrid(result) {
+        rcLock = null;
+        const rows = result.length, cols = result[0].length;
+        renderStretchyParens(rows, 'rc-paren-left', 'rc-paren-right');
+        const grid = document.getElementById('rc-result-grid');
+        grid.innerHTML = "";
+        for (let i = 0; i < rows; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'det-grid-row';
+            for (let j = 0; j < cols; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.id = `rc-result-cell-${i}-${j}`;
+                const kspan = document.createElement('span');
+                katex.render(customLatexFormatter(result[i][j]), kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+                cell.addEventListener('mouseenter', () => { if (!rcLock) rcHoverResult(i, j); });
+                cell.addEventListener('mouseleave', () => { if (!rcLock) rcClearHoverResult(i, j); });
+                cell.addEventListener('click', () => rcToggleLock(i, j, cell));
+                rowDiv.appendChild(cell);
+            }
+            grid.appendChild(rowDiv);
+        }
+        fitDetCells(grid);
+    }
+
+    function rcShowUndefinedResult() {
+        document.getElementById('rc-paren-left').innerHTML = '';
+        document.getElementById('rc-paren-right').innerHTML = '';
+        document.getElementById('rc-result-formula').innerHTML = '';
+        const resultGrid = document.getElementById('rc-result-grid');
+        resultGrid.innerHTML = '';
+        katex.render('\\text{undefined}', resultGrid, { throwOnError: false });
+    }
+
+    function computeProduct() {
+        const A = rcAState.data, B = rcBState.data;
+        const aRows = A.length, aCols = A[0].length, bRows = B.length, bCols = B[0].length;
+        rcBuildReadOnlyGrid('rc-eq-a-grid', 'rc-eq-a-paren-left', 'rc-eq-a-paren-right', 'rc-eq-a', A);
+        rcBuildReadOnlyGrid('rc-eq-b-grid', 'rc-eq-b-paren-left', 'rc-eq-b-paren-right', 'rc-eq-b', B);
+        if (aCols !== bRows) {
+            rcLastA = A; rcLastB = B; rcLastResult = null;
+            rcShowUndefinedResult();
+            saveStateToParent();
+            return;
+        }
+        const result = [];
+        for (let i = 0; i < aRows; i++) {
+            const row = [];
+            for (let j = 0; j < bCols; j++) {
+                const terms = [];
+                for (let k = 0; k < aCols; k++) terms.push(`(${A[i][k]})*(${B[k][j]})`);
+                let val;
+                try {
+                    val = algebriteEval(terms.join('+'));
+                } catch (e) {
+                    rcLastA = A; rcLastB = B; rcLastResult = null;
+                    rcShowUndefinedResult();
+                    saveStateToParent();
+                    return;
+                }
+                row.push(reorderPolynomial(val));
+            }
+            result.push(row);
+        }
+        rcLastA = A; rcLastB = B; rcLastResult = result;
+        rcRenderResultGrid(result);
+        saveStateToParent();
+    }
+
+    // ---------- Determinant tab ----------
+    let detValues = [];
+    let detExpandAlong = { type: 'row', idx: 0 };
+    let detLastResult = null;
+    let detLock = null;
+
+    function detLockMatches(target) {
+        if (!detLock) return false;
+        if (detLock.kind !== target.kind) return false;
+        if (target.kind === 'cell') return detLock.i === target.i && detLock.j === target.j;
+        return detLock.idx === target.idx;
+    }
+
+    function detClearLockVisual() {
+        document.querySelectorAll('.det-locked').forEach(el => el.classList.remove('det-locked'));
+    }
+
+    function detToggleLock(target, el) {
+        if (detLockMatches(target)) {
+            detLock = null;
+            detClearStrike();
+            detHideFormula();
+            detClearLockVisual();
+            return;
+        }
+        detLock = target;
+        if (target.kind === 'row') {
+            detStrikeRow(target.idx);
+        } else if (target.kind === 'col') {
+            detStrikeCol(target.idx);
+        } else {
+            detStrikeCell(target.i, target.j);
+            document.getElementById(`det-viz-cell-${target.i}-${target.j}`).classList.add('coef-red');
+            const k = detExpandAlong.type === 'row' ? target.j : target.i;
+            detShowHighlightedExpansion(k);
+        }
+        detClearLockVisual();
+        el.classList.add('det-locked');
+    }
+
+    function detOnExpandAlongChange() {
+        const type = document.getElementById('det-expand-type-select').value;
+        const idx = parseInt(document.getElementById('det-expand-idx-select').value, 10);
+        detExpandAlong = { type, idx };
+        detRenderViz();
+        detHideFormula(); // shows the resting full-expansion state
+    }
+
+    function detBuildExpandRadios(n) {
+        const typeSel = document.getElementById('det-expand-type-select');
+        const idxSel = document.getElementById('det-expand-idx-select');
+        typeSel.innerHTML = '<option value="row">Row</option><option value="col">Col</option>';
+        typeSel.value = detExpandAlong.type;
+        idxSel.innerHTML = Array.from({ length: n }, (_, i) => `<option value="${i}">${i + 1}</option>`).join('');
+        idxSel.value = String(detExpandAlong.idx);
+        typeSel.onchange = detOnExpandAlongChange;
+        idxSel.onchange = detOnExpandAlongChange;
+    }
+
+    function detDefaultState(n = 2) {
+        return {
+            data: Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? '1' : '0')),
+            colors: Array.from({ length: n }, () => Array(n).fill('#000000')),
+        };
+    }
+    // No interactive editor grid — Entries is the only way to set it, so
+    // detState is a plain data holder, not a matrixEditors entry.
+    let detState = detDefaultState();
+    attachQuickInputPaste('det');
+
+    // Row/1 is only the default at page creation (via detExpandAlong's initial
+    // value above) — a later Confirm with a new matrix keeps the current
+    // expand-along choice, only clamping it if the new size makes it invalid.
+    function detResetVizForNewMatrix(n) {
+        if (detExpandAlong.idx >= n) detExpandAlong = { ...detExpandAlong, idx: n - 1 };
+        detLastResult = null;
+        detBuildExpandRadios(n);
+    }
+
+    function detInitDefaults() {
+        detResetVizForNewMatrix(detState.data.length);
+        detCompute();
+    }
+
+    function detConfirmQuickInput() {
+        const raw = document.getElementById('det-quick').value.trim();
+        if (!raw) return;
+        const { rows } = resolveQuickInputRows(raw, 'det');
+        const n = rows.length;
+        const badRow = rows.findIndex(r => r.length !== n);
+        if (badRow !== -1) {
+            alert(`A determinant matrix must be square (n×n). Row ${badRow + 1} has ${rows[badRow].length} value(s), expected ${n}.`);
+            return;
+        }
+        detState = { data: rows, colors: rows.map(r => r.map(() => '#000000')) };
+        detResetVizForNewMatrix(n);
+        detCompute();
+    }
+
+    function detReadGrid() {
+        return detState.data;
+    }
+
+    function detMinor(m, r, c) {
+        return m.filter((_, i) => i !== r).map(row => row.filter((_, j) => j !== c));
+    }
+
+    // Matrix content only, no surrounding delimiters -- the caller wraps it in
+    // \left( \right) itself so a colorbox can be applied to just the interior.
+    function detMinorContentLatex(m) {
+        if (m.length === 0) return "";
+        return "\\begin{matrix} " + m.map(row => row.map(v => customLatexFormatter(v)).join(" & ")).join(" \\\\ ") + " \\end{matrix}";
+    }
+
+    // Builds one "+coef * det(minor)" term as DOM (not a LaTeX string) so the
+    // minor matrix inside it is its own KaTeX span and can carry its own
+    // double-click handler. `isFirst` mirrors the old string-based behaviour
+    // of stripping a leading "+" only from the very first term.
+    function buildDetTermDom(m, i, j, highlight, isFirst, onMinorDblClick) {
+        const wrap = document.createElement('span');
+        wrap.className = 'det-term';
+
+        const sign = (i + j) % 2 === 0 ? '+' : '-';
+        const signDisplay = (isFirst && sign === '+') ? '' : sign;
+        const rawCoef = customLatexFormatter(m[i][j]);
+        const trimmed = m[i][j].trim();
+        const needsParens = trimmed.startsWith('-') || trimmed.slice(1).includes('+') || trimmed.slice(1).includes('-');
+        const coefDisplay = needsParens ? `(${rawCoef})` : rawCoef;
+
+        const openSpan = document.createElement('span');
+        let openTex = signDisplay + (highlight ? `{\\color{#dc3545}${coefDisplay}}` : coefDisplay) + '\\cdot\\det\\left(';
+        katex.render(openTex, openSpan, { displayMode: true, throwOnError: false });
+        wrap.appendChild(openSpan);
+
+        const minor = detMinor(m, i, j);
+        const minorSpan = document.createElement('span');
+        minorSpan.className = 'det-term-matrix';
+        if (highlight) minorSpan.classList.add('det-term-matrix-hi');
+        katex.render(detMinorContentLatex(minor), minorSpan, { displayMode: true, throwOnError: false });
+        if (minor.length >= 3 && onMinorDblClick) {
+            minorSpan.classList.add('det-term-matrix-clickable');
+            minorSpan.title = 'Doppio click per espandere questa sottomatrice';
+            minorSpan.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                onMinorDblClick(minor, i, j);
+            });
+        }
+        wrap.appendChild(minorSpan);
+
+        const closeSpan = document.createElement('span');
+        katex.render('\\right)', closeSpan, { displayMode: true, throwOnError: false });
+        wrap.appendChild(closeSpan);
+
+        return wrap;
+    }
+
+    // Generic expansion-formula renderer, shared by the main Determinant tab
+    // and every recursive popup. `onMinorDblClick(minorMatrix, i, j)` is only
+    // wired up for minors of dimension >= 3 (buildDetTermDom enforces this).
+    function renderDetExpansionInto(area, m, type, idx, finalValue, highlightK, onMinorDblClick) {
+        area.innerHTML = '';
+        area.style.fontSize = m.length >= 4 ? '0.88rem' : '1.1rem';
+        const row = document.createElement('div');
+        row.className = 'det-formula-row';
+
+        const lhs = document.createElement('span');
+        katex.render('\\det A = ', lhs, { displayMode: true, throwOnError: false });
+        row.appendChild(lhs);
+
+        const n = m.length;
+        for (let k = 0; k < n; k++) {
+            const i = type === 'row' ? idx : k;
+            const j = type === 'row' ? k : idx;
+            row.appendChild(buildDetTermDom(m, i, j, k === highlightK, k === 0, onMinorDblClick));
+        }
+
+        const rhs = document.createElement('span');
+        katex.render(' = ' + customLatexFormatter(finalValue), rhs, { displayMode: true, throwOnError: false });
+        row.appendChild(rhs);
+
+        area.appendChild(row);
+    }
+
+    // "<n>×<n> → riga/colonna <k> → <m>×<m>" — one breadcrumb hop, appended
+    // when a popup is spawned from a double-clicked minor.
+    function detCrumbAppend(baseCrumb, type, idx, minorSize) {
+        return `${baseCrumb} \u2192 ${type === 'row' ? 'riga' : 'colonna'} ${idx + 1} \u2192 ${minorSize}\u00d7${minorSize}`;
+    }
+
+    // Mouse-leave restores the resting state: the full expansion for the currently
+    // selected row/col (if a determinant has been computed), rather than clearing.
+    function detHideFormula() {
+        const area = document.getElementById('det-formula-area');
+        if (detLastResult === null) { area.innerHTML = ''; return; }
+        renderDetExpansionInto(area, detValues, detExpandAlong.type, detExpandAlong.idx, detLastResult, null,
+            (minor) => openDetPopup(minor, detCrumbAppend(`${detValues.length}\u00d7${detValues.length}`, detExpandAlong.type, detExpandAlong.idx, minor.length)));
+    }
+    function detShowHighlightedExpansion(k) {
+        if (detLastResult === null) return;
+        const area = document.getElementById('det-formula-area');
+        renderDetExpansionInto(area, detValues, detExpandAlong.type, detExpandAlong.idx, detLastResult, k,
+            (minor) => openDetPopup(minor, detCrumbAppend(`${detValues.length}\u00d7${detValues.length}`, detExpandAlong.type, detExpandAlong.idx, minor.length)));
+    }
+
+    function detRenderViz() {
+        detValues = detReadGrid();
+        const n = detValues.length;
+        detLock = null;
+        document.getElementById('det-viz-area').style.display = 'block';
+        renderStretchyParens(n, 'det-paren-left', 'det-paren-right');
+
+        const grid = document.getElementById('det-grid');
+        const rowT = document.getElementById('det-row-triggers');
+        const colT = document.getElementById('det-col-triggers');
+        grid.innerHTML = ''; rowT.innerHTML = ''; colT.innerHTML = '';
+        detHideFormula();
+
+        const colOverlays = [];
+        for (let j = 0; j < n; j++) {
+            const ov = document.createElement('div');
+            ov.className = 'det-col-strike-overlay';
+            ov.id = 'det-col-overlay-' + j;
+            grid.appendChild(ov);
+            colOverlays.push(ov);
+        }
+
+        for (let j = 0; j < n; j++) {
+            const t = document.createElement('div');
+            t.className = 'det-col-trigger';
+            if (detExpandAlong.type === 'col' && detExpandAlong.idx === j) {
+                t.addEventListener('mouseenter', () => { if (!detLock) detStrikeCol(j); });
+                t.addEventListener('mouseleave', () => { if (!detLock) detClearStrike(); });
+                t.addEventListener('click', () => detToggleLock({ kind: 'col', idx: j }, t));
+            } else {
+                t.classList.add('det-trigger-inactive');
+            }
+            colT.appendChild(t);
+        }
+
+        for (let i = 0; i < n; i++) {
+            const rt = document.createElement('div');
+            rt.className = 'det-row-trigger';
+            if (detExpandAlong.type === 'row' && detExpandAlong.idx === i) {
+                rt.addEventListener('mouseenter', () => { if (!detLock) detStrikeRow(i); });
+                rt.addEventListener('mouseleave', () => { if (!detLock) detClearStrike(); });
+                rt.addEventListener('click', () => detToggleLock({ kind: 'row', idx: i }, rt));
+            } else {
+                rt.classList.add('det-trigger-inactive');
+            }
+            rowT.appendChild(rt);
+
+            const row = document.createElement('div');
+            row.className = 'det-grid-row';
+            row.id = 'det-grid-row-' + i;
+
+            for (let j = 0; j < n; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.dataset.row = i; cell.dataset.col = j;
+                cell.id = `det-viz-cell-${i}-${j}`;
+
+                const isActive = (detExpandAlong.type === 'row' && detExpandAlong.idx === i) ||
+                                  (detExpandAlong.type === 'col' && detExpandAlong.idx === j);
+
+                if (isActive) {
+                    cell.classList.add('selected-active');
+                    const sign = document.createElement('span');
+                    sign.className = 'det-sign ' + ((i + j) % 2 === 0 ? 'plus' : 'minus');
+                    sign.textContent = (i + j) % 2 === 0 ? '+' : '−';
+                    cell.appendChild(sign);
+                }
+
+                const kspan = document.createElement('span');
+                katex.render(customLatexFormatter(detValues[i][j]), kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+
+                if (isActive) {
+                    const k = detExpandAlong.type === 'row' ? j : i;
+                    cell.addEventListener('mouseenter', () => {
+                        if (detLock) return;
+                        detStrikeCell(i, j);
+                        cell.classList.add('coef-red');
+                        detShowHighlightedExpansion(k);
+                    });
+                    cell.addEventListener('mouseleave', () => {
+                        if (detLock) return;
+                        detClearStrike();
+                        detHideFormula();
+                    });
+                    cell.addEventListener('click', () => detToggleLock({ kind: 'cell', i, j }, cell));
+                }
+
+                row.appendChild(cell);
+            }
+            grid.appendChild(row);
+        }
+
+        fitDetCells(document.querySelector('.det-matrix-area'));
+    }
+
+    function detAllCells() { return document.querySelectorAll('.det-cell'); }
+
+    // Positions a column-strike overlay right before it's shown, rather than
+    // once at render time — detRenderViz() can run while tab-det isn't the
+    // active tab yet (e.g. the on-load auto-compute), where getBoundingClientRect()
+    // on a display:none subtree returns zero-size rects and bakes in a wrong
+    // position that never gets corrected.
+    function detPositionColOverlay(c) {
+        const grid = document.getElementById('det-grid');
+        const cell = document.getElementById(`det-viz-cell-0-${c}`);
+        const gridRect = grid.getBoundingClientRect();
+        const cr = cell.getBoundingClientRect();
+        document.getElementById('det-col-overlay-' + c).style.left = (cr.left - gridRect.left + cr.width / 2 - 1) + 'px';
+    }
+
+    function detStrikeRow(r) {
+        detClearStrike();
+        document.getElementById('det-grid-row-' + r)?.classList.add('row-struck');
+        document.querySelectorAll(`.det-cell[data-row="${r}"]`).forEach(c => c.classList.add('row-struck'));
+    }
+    function detStrikeCol(c) {
+        detClearStrike();
+        detPositionColOverlay(c);
+        document.getElementById('det-col-overlay-' + c).style.display = 'block';
+        document.querySelectorAll(`.det-cell[data-col="${c}"]`).forEach(cell => cell.classList.add('col-struck'));
+    }
+    function detStrikeCell(r, c) {
+        detClearStrike();
+        document.getElementById('det-grid-row-' + r)?.classList.add('row-struck');
+        detPositionColOverlay(c);
+        document.getElementById('det-col-overlay-' + c).style.display = 'block';
+        detAllCells().forEach(cell => {
+            const ci = +cell.dataset.row, cj = +cell.dataset.col;
+            if (ci === r || cj === c) cell.classList.add('cell-struck');
+            else cell.classList.add('minor-hi');
+        });
+    }
+    function detClearStrike() {
+        document.querySelectorAll('.det-grid-row').forEach(r => r.classList.remove('row-struck'));
+        detAllCells().forEach(c => c.classList.remove('row-struck', 'col-struck', 'cell-struck', 'minor-hi', 'coef-red'));
+        document.querySelectorAll('.det-col-strike-overlay').forEach(o => o.style.display = 'none');
+    }
+
+    function detComputeDeterminant(m) {
+        const n = m.length;
+        if (n === 1) return reorderPolynomial(algebriteEval(m[0][0]));
+        if (n === 2) return reorderPolynomial(algebriteEval(`(${m[0][0]})*(${m[1][1]})-(${m[0][1]})*(${m[1][0]})`));
+        const terms = [];
+        for (let j = 0; j < n; j++) {
+            const minorDet = detComputeDeterminant(detMinor(m, 0, j));
+            const sign = j % 2 === 0 ? '+' : '-';
+            terms.push(`${sign}(${m[0][j]})*(${minorDet})`);
+        }
+        return reorderPolynomial(algebriteEval(terms.join('')));
+    }
+
+    function detCompute() {
+        const m = detReadGrid();
+        let result;
+        try {
+            result = detComputeDeterminant(m);
+        } catch (e) {
+            alert('Invalid expression in one or more cells.');
+            return;
+        }
+        detLastResult = result;
+        detRenderViz();
+        detHideFormula(); // shows the resting full-expansion state
+        saveStateToParent();
+    }
+
+    // ---------- Determinant tab: recursive expansion popups ----------
+    // Each popup is a fully independent copy of the cofactor-expansion
+    // visualizer (grid, row/col triggers, expand-along selector, formula),
+    // scoped entirely to its own DOM subtree so any number can be open at
+    // once. Double-clicking a >=3x3 minor in a popup's own formula spawns a
+    // further popup, extending the breadcrumb.
+    let detPopupSeq = 0;
+    let detPopupZTop = 6000;
+    const detPopups = {};
+
+    function detPopupCascadePos() {
+        const k = Object.keys(detPopups).length % 8;
+        return { top: 70 + k * 26, left: 60 + k * 30 };
+    }
+
+    function bringDetPopupToFront(id) {
+        const st = detPopups[id];
+        if (!st) return;
+        st.el.style.zIndex = ++detPopupZTop;
+    }
+
+    function closeDetPopup(id) {
+        const st = detPopups[id];
+        if (!st) return;
+        st.el.remove();
+        delete detPopups[id];
+    }
+
+    function makeDetPopupDraggable(el) {
+        const header = el.querySelector('.det-popup-header');
+        let px = 0, py = 0;
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.det-popup-close')) return;
+            e.preventDefault();
+            px = e.clientX; py = e.clientY;
+            document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; };
+            document.onmousemove = (e) => {
+                el.style.top = (el.offsetTop - (py - e.clientY)) + 'px';
+                el.style.left = (el.offsetLeft - (px - e.clientX)) + 'px';
+                px = e.clientX; py = e.clientY;
+            };
+        });
+        let lastX = 0, lastY = 0;
+        header.addEventListener('touchstart', (e) => {
+            if (e.target.closest('.det-popup-close')) return;
+            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        }, { passive: true });
+        header.addEventListener('touchmove', (e) => {
+            const dx = e.touches[0].clientX - lastX, dy = e.touches[0].clientY - lastY;
+            el.style.top = (el.offsetTop + dy) + 'px';
+            el.style.left = (el.offsetLeft + dx) + 'px';
+            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+            e.preventDefault();
+        }, { passive: false });
+    }
+
+    function detPopupLockMatches(state, target) {
+        if (!state.lock) return false;
+        if (state.lock.kind !== target.kind) return false;
+        if (target.kind === 'cell') return state.lock.i === target.i && state.lock.j === target.j;
+        return state.lock.idx === target.idx;
+    }
+
+    function detPopupPositionColOverlay(state, c) {
+        const root = state.el;
+        const grid = root.querySelector('.det-grid');
+        const cell = root.querySelector(`.det-cell[data-row="0"][data-col="${c}"]`);
+        const gridRect = grid.getBoundingClientRect();
+        const cr = cell.getBoundingClientRect();
+        root.querySelector(`.det-col-strike-overlay[data-col="${c}"]`).style.left = (cr.left - gridRect.left + cr.width / 2 - 1) + 'px';
+    }
+    function detPopupStrikeRow(state, r) {
+        detPopupClearStrike(state);
+        const root = state.el;
+        root.querySelector(`.det-grid-row[data-row="${r}"]`)?.classList.add('row-struck');
+        root.querySelectorAll(`.det-cell[data-row="${r}"]`).forEach(c => c.classList.add('row-struck'));
+    }
+    function detPopupStrikeCol(state, c) {
+        detPopupClearStrike(state);
+        const root = state.el;
+        detPopupPositionColOverlay(state, c);
+        root.querySelector(`.det-col-strike-overlay[data-col="${c}"]`).style.display = 'block';
+        root.querySelectorAll(`.det-cell[data-col="${c}"]`).forEach(cell => cell.classList.add('col-struck'));
+    }
+    function detPopupStrikeCell(state, r, c) {
+        detPopupClearStrike(state);
+        const root = state.el;
+        root.querySelector(`.det-grid-row[data-row="${r}"]`)?.classList.add('row-struck');
+        detPopupPositionColOverlay(state, c);
+        root.querySelector(`.det-col-strike-overlay[data-col="${c}"]`).style.display = 'block';
+        root.querySelectorAll('.det-cell').forEach(cell => {
+            const ci = +cell.dataset.row, cj = +cell.dataset.col;
+            if (ci === r || cj === c) cell.classList.add('cell-struck');
+            else cell.classList.add('minor-hi');
+        });
+    }
+    function detPopupClearStrike(state) {
+        const root = state.el;
+        root.querySelectorAll('.det-grid-row').forEach(r => r.classList.remove('row-struck'));
+        root.querySelectorAll('.det-cell').forEach(c => c.classList.remove('row-struck', 'col-struck', 'cell-struck', 'minor-hi', 'coef-red'));
+        root.querySelectorAll('.det-col-strike-overlay').forEach(o => o.style.display = 'none');
+    }
+
+    function detPopupToggleLock(state, target, el) {
+        if (detPopupLockMatches(state, target)) {
+            state.lock = null;
+            detPopupClearStrike(state);
+            detPopupHideFormula(state);
+            state.el.querySelectorAll('.det-locked').forEach(e => e.classList.remove('det-locked'));
+            return;
+        }
+        state.lock = target;
+        if (target.kind === 'row') {
+            detPopupStrikeRow(state, target.idx);
+        } else if (target.kind === 'col') {
+            detPopupStrikeCol(state, target.idx);
+        } else {
+            detPopupStrikeCell(state, target.i, target.j);
+            state.el.querySelector(`.det-cell[data-row="${target.i}"][data-col="${target.j}"]`).classList.add('coef-red');
+            const k = state.expandAlong.type === 'row' ? target.j : target.i;
+            detPopupShowHighlighted(state, k);
+        }
+        state.el.querySelectorAll('.det-locked').forEach(e => e.classList.remove('det-locked'));
+        el.classList.add('det-locked');
+    }
+
+    function detPopupHideFormula(state) {
+        const area = state.el.querySelector('.det-formula-area');
+        if (state.lastResult === null) { area.innerHTML = ''; return; }
+        renderDetExpansionInto(area, state.matrix, state.expandAlong.type, state.expandAlong.idx, state.lastResult, null,
+            (minor) => detPopupSpawnChild(state, minor));
+    }
+    function detPopupShowHighlighted(state, k) {
+        if (state.lastResult === null) return;
+        const area = state.el.querySelector('.det-formula-area');
+        renderDetExpansionInto(area, state.matrix, state.expandAlong.type, state.expandAlong.idx, state.lastResult, k,
+            (minor) => detPopupSpawnChild(state, minor));
+    }
+    function detPopupSpawnChild(state, minorMatrix) {
+        openDetPopup(minorMatrix, detCrumbAppend(state.breadcrumb, state.expandAlong.type, state.expandAlong.idx, minorMatrix.length));
+    }
+
+    function detPopupRenderViz(state) {
+        const m = state.matrix, n = m.length, root = state.el;
+        state.lock = null;
+        renderStretchyParensEls(n, root.querySelector('.dp-paren-left'), root.querySelector('.dp-paren-right'));
+
+        const grid = root.querySelector('.det-grid');
+        const rowT = root.querySelector('.det-row-triggers');
+        const colT = root.querySelector('.det-col-triggers');
+        grid.innerHTML = ''; rowT.innerHTML = ''; colT.innerHTML = '';
+        detPopupHideFormula(state);
+
+        for (let j = 0; j < n; j++) {
+            const ov = document.createElement('div');
+            ov.className = 'det-col-strike-overlay';
+            ov.dataset.col = j;
+            grid.appendChild(ov);
+        }
+
+        for (let j = 0; j < n; j++) {
+            const t = document.createElement('div');
+            t.className = 'det-col-trigger';
+            if (state.expandAlong.type === 'col' && state.expandAlong.idx === j) {
+                t.addEventListener('mouseenter', () => { if (!state.lock) detPopupStrikeCol(state, j); });
+                t.addEventListener('mouseleave', () => { if (!state.lock) detPopupClearStrike(state); });
+                t.addEventListener('click', () => detPopupToggleLock(state, { kind: 'col', idx: j }, t));
+            } else {
+                t.classList.add('det-trigger-inactive');
+            }
+            colT.appendChild(t);
+        }
+
+        for (let i = 0; i < n; i++) {
+            const rt = document.createElement('div');
+            rt.className = 'det-row-trigger';
+            if (state.expandAlong.type === 'row' && state.expandAlong.idx === i) {
+                rt.addEventListener('mouseenter', () => { if (!state.lock) detPopupStrikeRow(state, i); });
+                rt.addEventListener('mouseleave', () => { if (!state.lock) detPopupClearStrike(state); });
+                rt.addEventListener('click', () => detPopupToggleLock(state, { kind: 'row', idx: i }, rt));
+            } else {
+                rt.classList.add('det-trigger-inactive');
+            }
+            rowT.appendChild(rt);
+
+            const row = document.createElement('div');
+            row.className = 'det-grid-row';
+            row.dataset.row = i;
+
+            for (let j = 0; j < n; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.dataset.row = i; cell.dataset.col = j;
+
+                const isActive = (state.expandAlong.type === 'row' && state.expandAlong.idx === i) ||
+                                  (state.expandAlong.type === 'col' && state.expandAlong.idx === j);
+
+                if (isActive) {
+                    cell.classList.add('selected-active');
+                    const sign = document.createElement('span');
+                    sign.className = 'det-sign ' + ((i + j) % 2 === 0 ? 'plus' : 'minus');
+                    sign.textContent = (i + j) % 2 === 0 ? '+' : '\u2212';
+                    cell.appendChild(sign);
+                }
+
+                const kspan = document.createElement('span');
+                katex.render(customLatexFormatter(m[i][j]), kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+
+                if (isActive) {
+                    const k = state.expandAlong.type === 'row' ? j : i;
+                    cell.addEventListener('mouseenter', () => {
+                        if (state.lock) return;
+                        detPopupStrikeCell(state, i, j);
+                        cell.classList.add('coef-red');
+                        detPopupShowHighlighted(state, k);
+                    });
+                    cell.addEventListener('mouseleave', () => {
+                        if (state.lock) return;
+                        detPopupClearStrike(state);
+                        detPopupHideFormula(state);
+                    });
+                    cell.addEventListener('click', () => detPopupToggleLock(state, { kind: 'cell', i, j }, cell));
+                }
+
+                row.appendChild(cell);
+            }
+            grid.appendChild(row);
+        }
+
+        fitDetCells(root.querySelector('.det-matrix-area'));
+    }
+
+    function detPopupCompute(state) {
+        let result;
+        try {
+            result = detComputeDeterminant(state.matrix);
+        } catch (e) {
+            alert('Invalid expression in one or more cells.');
+            return;
+        }
+        state.lastResult = result;
+        detPopupRenderViz(state);
+        detPopupHideFormula(state);
+    }
+
+    // Only entry point: creates the popup DOM, wires it up, and computes its
+    // determinant/expansion immediately (mirrors detInitDefaults() on load).
+    function openDetPopup(matrix, breadcrumb) {
+        const id = 'p' + (++detPopupSeq);
+        const pos = detPopupCascadePos();
+        const el = document.createElement('div');
+        el.className = 'det-popup';
+        el.id = 'det-popup-' + id;
+        el.style.top = pos.top + 'px';
+        el.style.left = pos.left + 'px';
+        el.style.zIndex = ++detPopupZTop;
+        el.innerHTML =
+            '<div class="det-popup-header">' +
+                '<span class="det-popup-breadcrumb"></span>' +
+                '<button type="button" class="det-popup-close" title="Chiudi">&times;</button>' +
+            '</div>' +
+            '<div class="det-popup-body">' +
+                '<div class="det-expand-controls">' +
+                    '<span class="quick-input-label">Expand along:</span>' +
+                    '<select class="dp-type-select"><option value="row">Row</option><option value="col">Col</option></select>' +
+                    '<select class="dp-idx-select"></select>' +
+                    '<button type="button" class="btn-success btn-sm dp-compute-btn">Compute Determinant</button>' +
+                '</div>' +
+                '<div class="det-matrix-area">' +
+                    '<div class="det-col-triggers"></div>' +
+                    '<div class="det-matrix-row">' +
+                        '<div class="det-row-triggers"></div>' +
+                        '<div class="det-paren dp-paren-left"></div>' +
+                        '<div class="det-grid"></div>' +
+                        '<div class="det-paren dp-paren-right"></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="det-formula-area"></div>' +
+            '</div>';
+        document.body.appendChild(el);
+
+        const state = { id, el, matrix, breadcrumb, expandAlong: { type: 'row', idx: 0 }, lock: null, lastResult: null };
+        detPopups[id] = state;
+
+        el.querySelector('.det-popup-breadcrumb').textContent = breadcrumb;
+        el.querySelector('.det-popup-close').addEventListener('click', () => closeDetPopup(id));
+        el.addEventListener('mousedown', () => bringDetPopupToFront(id));
+        makeDetPopupDraggable(el);
+
+        const typeSel = el.querySelector('.dp-type-select');
+        const idxSel = el.querySelector('.dp-idx-select');
+        typeSel.value = state.expandAlong.type;
+        idxSel.innerHTML = Array.from({ length: matrix.length }, (_, i) => `<option value="${i}">${i + 1}</option>`).join('');
+        idxSel.value = String(state.expandAlong.idx);
+        typeSel.addEventListener('change', () => { state.expandAlong.type = typeSel.value; detPopupRenderViz(state); detPopupHideFormula(state); });
+        idxSel.addEventListener('change', () => { state.expandAlong.idx = parseInt(idxSel.value, 10); detPopupRenderViz(state); detPopupHideFormula(state); });
+        el.querySelector('.dp-compute-btn').addEventListener('click', () => detPopupCompute(state));
+
+        detPopupCompute(state);
+        return state;
+    }
+
+    window.onload = () => {
+        initializeMatrix();
+        rcInitDefaults();
+        detInitDefaults();
+        katex.render('I_n', document.getElementById('identity-btn-math'), { throwOnError: false });
+    };
 </script>
 </body>
 </html>
