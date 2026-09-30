@@ -194,7 +194,7 @@
         #op-log { margin-top: 12px; font-size: 0.85rem; color: #7a838d; border-top: 1px solid #eef1f5; padding-top: 8px; }
         #op-log .katex-display { margin: 0; }
         .formula-scroll { display: flex; align-items: center; overflow-x: auto; overflow-y: hidden; }
-        .formula-scroll .katex-display { margin: 0 auto; padding: 2px 0 14px; }
+        .formula-scroll .katex-display { margin: 0 auto; padding: 2px 0 ; }
 
         #history-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -3166,13 +3166,14 @@
         const trimmed = m[i][j].trim();
         const needsParens = trimmed.startsWith('-') || trimmed.slice(1).includes('+') || trimmed.slice(1).includes('-');
         const coefDisplay = needsParens ? `(${rawCoef})` : rawCoef;
+        const minor = detMinor(m, i, j);
 
         const openSpan = document.createElement('span');
-        let openTex = signDisplay + (highlight ? `{\\color{#dc3545}${coefDisplay}}` : coefDisplay) + '\\cdot\\det\\left(';
+        const phantom = minor.length ? `\\vphantom{${detMinorContentLatex(minor)}}` : '';
+        let openTex = signDisplay + (highlight ? `{\\color{#dc3545}${coefDisplay}}` : coefDisplay) + `\\cdot\\det\\left(${phantom}\\right.`; 
         katex.render(openTex, openSpan, { displayMode: true, throwOnError: false });
         wrap.appendChild(openSpan);
 
-        const minor = detMinor(m, i, j);
         const minorSpan = document.createElement('span');
         minorSpan.className = 'det-term-matrix';
         if (highlight) minorSpan.classList.add('det-term-matrix-hi');
@@ -3188,9 +3189,8 @@
         wrap.appendChild(minorSpan);
 
         const closeSpan = document.createElement('span');
-        katex.render('\\right)', closeSpan, { displayMode: true, throwOnError: false });
+        katex.render(`\\left.${phantom}\\right)`, closeSpan, { displayMode: true, throwOnError: false }); 
         wrap.appendChild(closeSpan);
-
         return wrap;
     }
 
