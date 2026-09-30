@@ -19,7 +19,7 @@
         .page-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
         .page-head h2 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
         .quick-input-label { font-weight: bold; font-size: 0.85em; color: #4a5462; }
-        .quick-input-field { flex: 1 1 200px; min-width: 140px; font-family: Consolas, monospace; text-align: left; }
+        .quick-input-field { flex: 1 1 140px; min-width: 90px; max-width: 260px; font-family: Consolas, monospace; text-align: left; }
 
         input[type="text"], input[type="number"] { height: 28px; padding: 0 8px; border: 1px solid #d5dbe3; border-radius: 7px; text-align: center; font-size: 0.85rem; background: #fbfcfd; outline: none; box-sizing: border-box; }
         input[type="text"]:focus, input[type="number"]:focus { border-color: #0d6efd; background: #fff; }
@@ -102,8 +102,10 @@
         .qi-orient { padding: 2px; }
         .qi-orient .tab-btn { padding: 4px 10px; font-size: 0.72rem; }
 
-        .math-row { display: flex; align-items: center; justify-content: center; gap: 14px; }
-        .rowops-stack { display: flex; flex-direction: column; justify-content: space-around; align-self: stretch; gap: 5px; padding: 8px 0; }
+        .math-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; }
+        #math-box { grid-column: 2; }
+        .rowops-stack { display: flex; flex-direction: column; justify-content: space-around; align-self: stretch; gap: 5px; padding: 8px 0; grid-column: 3; justify-self: start; }
+        .op-log-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
         .rowops {
             height: 25px; padding: 0 10px; border: 1px solid #d5dbe3; border-radius: 999px; background: #fff;
             font-size: 0.72rem; font-weight: 600; color: #4a5462;
@@ -136,6 +138,33 @@
         }
         .history-btn:hover:not(:disabled) { background: #f5f7fa; }
         .history-btn:disabled { background: #fff; opacity: 0.35; }
+        .explain-btn { font-size: 0.9rem; }
+        #explainBtn:hover { background: #fff; }
+        #explain-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #explain-content {
+            background: white; border-radius: 12px; padding: 22px 26px; width: 95%; max-width: 780px;
+            max-height: 88vh; overflow: auto; position: relative; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+        }
+        #explain-content h3 { margin: 0 0 16px 0; font-size: 1.05em; color: #333; text-align: center; }
+        .explain-close { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; font-weight: bold; color: #4a5462; }
+        .explain-close:hover { color: #0d6efd; }
+        .explain-row { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; padding: 6px 0; overflow-x: auto; }
+        .explain-arrow { font-size: 1.6rem; color: #6c757d; flex-shrink: 0; }
+        .explain-matrix { display: flex; align-items: center; flex-shrink: 0; font-size: 1.25rem; }
+        /* No layout override here anymore: .explain-matrix .det-grid/.det-grid-row/.det-cell
+           now fall through to the base rules (further down this stylesheet) — the same
+           flex grid, uniform square cells sized by fitDetCells() — that #math-box uses,
+           so the Explain popup matches the History matrix's shape exactly. */
+        .explain-clickable { cursor: pointer; }
+        .explain-clickable:hover { filter: brightness(0.96); }
+        .explain-badges { display: flex; flex-direction: column; margin-right: 2px; }
+        .explain-badge-row { width: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .explain-legend { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; font-size: 0.78rem; color: #4a5462; flex-wrap: wrap; }
+        .explain-legend svg { vertical-align: -3px; margin-right: 5px; }
+        .explain-hint { text-align: center; font-size: 0.72rem; color: #8a93a0; margin-top: 10px; }
         .board {
             flex: 1; min-width: 0; position: relative; text-align: center;
             padding: 14px 12px 8px; min-height: 190px;
@@ -407,7 +436,7 @@
     <div id="page-settings-menu" class="mcm-menu">
         <div class="mcm-row" style="flex-direction:column; align-items:stretch; gap:8px;">
             <label style="font-size:0.78em; color:#555; font-weight:600;">Type 3 operations</label>
-            <div class="tab-bar" style="width:calc(100%-2*8px);"> <!--adjusted by hand, find a better solution-->
+            <div class="tab-bar" style="width:calc(100%-2*8px);"> <!--adjusted by hand, find a better solution; buttons Ri and Rj were inverted, evaluate a better patch-->
                 <button type="button" class="tab-btn active" id="type3-btn-i" onclick="setType3Anchor('i')" style="flex:1;"><span id="type3-label-i"></span></button>
                 <button type="button" class="tab-btn" id="type3-btn-j" onclick="setType3Anchor('j')" style="flex:1;"><span id="type3-label-j"></span></button>
             </div>
@@ -447,6 +476,8 @@
                     <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'roword')">Rows</button>
                     <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'roword')">Cols</button>
                 </div>
+                <button id="loadLogBtn" class="btn-ghost" onclick="document.getElementById('loadLogFile').click()" title="Load a saved text log and replay every matrix state and row operation">Load Log</button>
+                <input type="file" id="loadLogFile" accept=".txt,text/plain" style="display:none;" onchange="handleLoadLogFile(event)">
                 <button onclick="confirmQuickInput()">Confirm</button>
             </div>
         </div>
@@ -494,11 +525,41 @@
                     </div>
                     <div id="rowops-stack" class="rowops-stack"></div>
                 </div>
-                <div id="op-log"></div>
+                <div class="op-log-row">
+                    <div style="width:20px"> <!--just to center the operation log --> </div>
+                    <div id="op-log"></div>
+                    <button class="history-btn explain-btn" id="explainBtn" style="margin-top:15px; height:20px; width:20px; border:0px" onclick="openExplainPopup()" disabled title="Explain step">
+                        &#128161;
+                    </button>
+                </div>
             </div>
             <button class="history-btn" id="redoBtn" onclick="redo()">&#10095;</button>
         </div>
     </div>
+    </div>
+
+    <div id="explain-overlay">
+        <div id="explain-content">
+            <span class="explain-close" onclick="closeExplainPopup()">&times;</span>
+            <h3 id="explain-title"></h3>
+            <div class="explain-row">
+                <div class="explain-matrix">
+                    <div class="explain-badges" id="explain-prev-badges"></div>
+                    <div class="det-paren" id="explain-prev-paren-left"></div>
+                    <div class="det-grid" id="explain-prev-grid"></div>
+                    <div class="det-paren" id="explain-prev-paren-right"></div>
+                </div>
+                <div class="explain-arrow">&#8594;</div>
+                <div class="explain-matrix">
+                    <div class="explain-badges" id="explain-cur-badges"></div>
+                    <div class="det-paren" id="explain-cur-paren-left"></div>
+                    <div class="det-grid" id="explain-cur-grid"></div>
+                    <div class="det-paren" id="explain-cur-paren-right"></div>
+                </div>
+            </div>
+            <div class="explain-legend" id="explain-legend"></div>
+            <div class="explain-hint" id="explain-hint"></div>
+        </div>
     </div>
 
     <div id="tab-product" class="tab-panel">
@@ -668,7 +729,7 @@
                 <li><span class="help-tag help-tag-dblclick">Double-click</span> a matrix cell &mdash; edit its value, change its color, or expand/simplify it.</li>
                 <li><span class="help-tag help-tag-click">Click</span> an &ldquo;R&#8560; ops&rdquo; button &mdash; open the full row-operation menu (swap, scalar multiply, or linear combination).</li>
                 <li><span class="help-tag help-tag-drag">Drag</span> a cell and drop it on another row &mdash; opens a menu to swap the two rows or replace the target row using the dragged one.</li>
-                <li>The &#x2699;&#xfe0e; settings menu lets you customize the tab's interface. The Ri/Rj pill decides which row gets replaced by Type III operations: Ri replaces the first row selected while Rj the other one. The multiple scalar toggle enables/disables combinations where both rows get multiplied by a generic coefficient. The dropdown menu switches the row operations' interface between Button / Drag / Both.</li>
+                <li>The &#x2699;&#xfe0e; settings menu lets you customize the tab's interface. The Rj/Ri pill decides which row gets replaced by Type III operations: Ri replaces the first row selected while Rj the other one. The multiple scalar toggle enables/disables combinations where both rows get multiplied by a generic coefficient. The dropdown menu switches the row operations' interface between Button / Drag / Both.</li>
             </ul>
         </div>
 
@@ -1043,9 +1104,9 @@
 
     // Pushes a brand new history entry built from explicit data/colors arrays
     // (the caller already has the new grid in hand — no DOM read needed).
-    function saveState(data, colors, description) {
+    function saveState(data, colors, description, op) {
         if (historyStep < history.length - 1) history = history.slice(0, historyStep + 1);
-        history.push({ data, colors, log: description });
+        history.push({ data, colors, log: description, op: op || null });
         historyStep++; updateUI();
         resetStyleUndo();
         saveStateToParent();
@@ -1160,6 +1221,7 @@
         document.getElementById('undoBtn').disabled = historyStep <= 0;
         document.getElementById('redoBtn').disabled = historyStep >= history.length - 1;
         document.getElementById('viewHistoryBtn').style.display = "block";
+        document.getElementById('explainBtn').disabled = !state.op;
     }
 
     // Which role the clicked row-op button ("R_i" label) plays in the type-3
@@ -1219,8 +1281,8 @@
     }
 
     (function initType3Toggle() {
-        katex.render('R_i', document.getElementById('type3-label-i'), { throwOnError: false });
-        katex.render('R_j', document.getElementById('type3-label-j'), { throwOnError: false });
+        katex.render('R_j', document.getElementById('type3-label-i'), { throwOnError: false });
+        katex.render('R_i', document.getElementById('type3-label-j'), { throwOnError: false });
         katex.render('\\lambda_i R_i+\\lambda_jR_j', document.getElementById('type3-lincomb-label'), { throwOnError: false });
     })();
 
@@ -1294,6 +1356,51 @@
             return sign === '-' ? ` - ${body}` : ` + ${body}`;
         };
         return `R_{${dest + 1}} \\rightarrow ${fmtTerm(coef1, idx1, true)}${fmtTerm(coef2, idx2, false)}`;
+    }
+
+    // ── Shared op-replay engine (used by "Load Log") ──────────────────────
+    // Applies a structured op ({type:'swap'|'multiply'|'add', ...}, exactly
+    // the shape already stored on each history entry) to a data grid,
+    // independent of any modal/UI state — the same math the row-op modal
+    // itself runs, factored out so a pasted log can replay it too.
+    function computeOpResult(data, op) {
+        const cols = data[0].length;
+        const newData = data.map(r => r.slice());
+        if (op.type === 'swap') {
+            if (!(op.r1 >= 0 && op.r1 < data.length && op.r2 >= 0 && op.r2 < data.length)) {
+                throw new Error('row index out of range');
+            }
+            [newData[op.r1], newData[op.r2]] = [newData[op.r2], newData[op.r1]];
+        } else if (op.type === 'multiply') {
+            if (!(op.row >= 0 && op.row < data.length)) throw new Error('row index out of range');
+            for (let j = 0; j < cols; j++) {
+                newData[op.row][j] = reorderPolynomial(algebriteEval(`(${op.k})*(${data[op.row][j]})`));
+            }
+        } else if (op.type === 'add') {
+            if (!(op.dest >= 0 && op.dest < data.length && op.src >= 0 && op.src < data.length)) {
+                throw new Error('row index out of range');
+            }
+            for (let j = 0; j < cols; j++) {
+                newData[op.dest][j] = reorderPolynomial(algebriteEval(`(${op.cDest})*(${data[op.dest][j]})+(${op.cSrc})*(${data[op.src][j]})`));
+            }
+        } else {
+            throw new Error(`unknown operation type "${op && op.type}"`);
+        }
+        return newData;
+    }
+
+    // Regenerates the same human-readable description the live modal would
+    // have produced for this op, straight from its stored fields.
+    function describeOp(op) {
+        if (op.type === 'swap') return formatOpDescription('swap', op.r1, op.r2);
+        if (op.type === 'multiply') return formatOpDescription('multiply', op.row, null, op.k);
+        if (op.type === 'add') {
+            if (stripOuterParens(String(op.cDest).trim()) === '1') {
+                return formatOpDescription('add', op.dest, op.src, op.cSrc);
+            }
+            return formatLinCombDescription(op.dest, op.cDest, op.dest, op.cSrc, op.src);
+        }
+        throw new Error(`unknown operation type "${op && op.type}"`);
     }
 
     let _rowOpIdx = null;
@@ -1412,7 +1519,7 @@
             const newColors = cur.colors.map(r => r.slice());
             [newData[rIdx], newData[t]] = [newData[t], newData[rIdx]];
             [newColors[rIdx], newColors[t]] = [newColors[t], newColors[rIdx]];
-            saveState(newData, newColors, formatOpDescription('swap', rIdx, t));
+            saveState(newData, newColors, formatOpDescription('swap', rIdx, t), { type: 'swap', r1: rIdx, r2: t });
 
         } else if (type === 'scalar') {
             const k = document.getElementById('scalar-k').value.trim();
@@ -1426,7 +1533,7 @@
                 alert('Invalid scalar or cell expression - operation cancelled.');
                 return;
             }
-            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('multiply', rIdx, null, k));
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('multiply', rIdx, null, k), { type: 'multiply', row: rIdx, k });
 
         } else if (type === 'combine' && rowOpModalMode === 'drag' && !type3LinComb) {
             const destIdx = _dragToIdx;
@@ -1442,7 +1549,7 @@
                 alert('Invalid scalar or cell expression - operation cancelled.');
                 return;
             }
-            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k));
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k), { type: 'add', dest: destIdx, src: srcIdx, cDest: '1', cSrc: k });
 
         } else if (type === 'combine' && rowOpModalMode === 'drag' && type3LinComb) {
             const destIdx = _dragToIdx;
@@ -1470,7 +1577,10 @@
                 alert('Invalid scalar or cell expression - operation cancelled.');
                 return;
             }
-            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2));
+            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2),
+                (destIdx === idx1)
+                    ? { type: 'add', dest: destIdx, src: idx2, cDest: coef1, cSrc: coef2 }
+                    : { type: 'add', dest: destIdx, src: idx1, cDest: coef2, cSrc: coef1 });
 
         } else if (type === 'combine' && !type3LinComb) {
             const k = document.getElementById('combine-k').value.trim();
@@ -1490,7 +1600,7 @@
                 alert('Invalid scalar or cell expression - operation cancelled.');
                 return;
             }
-            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k));
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k), { type: 'add', dest: destIdx, src: srcIdx, cDest: '1', cSrc: k });
 
         } else if (type === 'combine' && type3LinComb) {
             // General replace-row form: row[dest] = coef1*row[idx1] + coef2*row[idx2].
@@ -1526,7 +1636,10 @@
                 alert('Invalid scalar or cell expression - operation cancelled.');
                 return;
             }
-            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2));
+            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2),
+                (destIdx === idx1)
+                    ? { type: 'add', dest: destIdx, src: idx2, cDest: coef1, cSrc: coef2 }
+                    : { type: 'add', dest: destIdx, src: idx1, cDest: coef2, cSrc: coef1 });
         }
 
         closeRowOpModal();
@@ -1543,6 +1656,334 @@
     document.getElementById('rowop-modal').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') confirmRowOp();
     });
+
+    // ===================== Explain popup (row-operation breakdown) =====================
+    // Reuses stripOuterParens/hasTopLevelSum/customLatexFormatter (defined above) to be
+    // consistent with how the app already builds symbolic row-operation labels.
+
+    // Formats a raw expression both as a standalone term and as a factor of a
+    // "\cdot" product. A factor gets wrapped in parentheses iff it's negative or a
+    // top-level sum/difference (e.g. "-3" -> "(-3)", "a+1" -> "(a+1)", "3" -> "3");
+    // a standalone term (not multiplied by anything) is never wrapped, since a
+    // leading "-2" or "a+1" reads fine on its own. `isCoef` strips one redundant
+    // pair of outer parens first, for coefficients the user may have typed as "(-3)".
+    function explainTermParts(raw, isCoef) {
+        let t = String(raw).trim();
+        if (isCoef) t = stripOuterParens(t);
+        const tex = customLatexFormatter(t);
+        const needsParen = hasTopLevelSum(t) || t.startsWith('-');
+        // Plain "(" ")" here, not "\left( \right)": those are stretchy delimiters
+        // and KaTeX reserves extra vertical space for them even around a single
+        // short number, which was inflating each operation cell's row height.
+        return { plain: tex, factor: needsParen ? `(${tex})` : tex };
+    }
+
+    let _explainState = null; // { prevState, curState, op }
+
+    function closeExplainPopup() {
+        document.getElementById('explain-overlay').style.display = 'none';
+        _explainState = null;
+    }
+
+    ['mousedown', 'touchstart'].forEach(evt =>
+        document.getElementById('explain-overlay').addEventListener(evt, (e) => {
+            if (e.target === document.getElementById('explain-overlay')) closeExplainPopup();
+        }, { passive: true })
+    );
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && document.getElementById('explain-overlay').style.display === 'flex') closeExplainPopup();
+    });
+
+    // A small filled block-arrow badge, used both in the row-badge column and the legend.
+    const EXPLAIN_YELLOW = '#EF9F27', EXPLAIN_GREEN = '#639922';
+    function explainArrowSvg(color, w, h) {
+        const fill = color === 'yellow' ? EXPLAIN_YELLOW : EXPLAIN_GREEN;
+        return `<svg width="${w}" height="${h}" viewBox="0 0 24 24" aria-hidden="true"><path d="M2,8 L13,8 L13,3 L22,12 L13,21 L13,16 L2,16 Z" fill="${fill}"/></svg>`;
+    }
+    // A small filled circle badge, used in the legend for a Type III combine.
+    function explainCircleSvg(color, d) {
+        const fill = color === 'yellow' ? EXPLAIN_YELLOW : EXPLAIN_GREEN;
+        return `<svg width="${d}" height="${d}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="${fill}"/></svg>`;
+    }
+
+    // Builds one read-only matrix grid for the explain popup, plus its row-badge column.
+    // cellSpec(i, j) returns { latex, hoverLatex, rowColor } for that cell:
+    //  - latex: what's shown by default (plain value, or an operation with a red coefficient)
+    //  - hoverLatex: if present, the cell is clickable and toggles to this (the actual result)
+    //  - rowColor: 'yellow' | 'green' | null — an arrow badge is drawn for this row, outside the parenthesis
+    // Draws a single curved, double-headed arrow spanning from row `r1` to row
+    // `r2` in the badges column (used for a Type I swap, in place of the two
+    // separate straight per-row arrows) — a yellow-to-green gradient stroke
+    // with an arrowhead at each end pointing into its row.
+    function explainRenderSwapBadge(badgesId, rowDivs, r1, r2) {
+        const badgesEl = document.getElementById(badgesId);
+        badgesEl.innerHTML = '';
+        badgesEl.style.position = 'relative';
+        const heights = rowDivs.map(rd => rd.getBoundingClientRect().height);
+        const totalH = heights.reduce((a, b) => a + b, 0);
+        badgesEl.style.height = totalH + 'px';
+        badgesEl.style.width = '20px';
+        const centerY = (i) => heights.slice(0, i).reduce((a, b) => a + b, 0) + heights[i] / 2;
+        const top = Math.min(r1, r2), bottom = Math.max(r1, r2);
+        const yTop = centerY(top), yBottom = centerY(bottom);
+        const w = 20;
+        const xEdge = w - 5, xBulge = 3;
+        const uid = badgesId;
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('width', w);
+        svg.setAttribute('height', totalH);
+        svg.setAttribute('viewBox', `0 0 ${w} ${totalH}`);
+        svg.style.position = 'absolute';
+        svg.style.left = '0';
+        svg.style.top = '0';
+        svg.style.overflow = 'visible';
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="swapGrad-${uid}" x1="0" y1="${yTop}" x2="0" y2="${yBottom}" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="${EXPLAIN_YELLOW}" />
+                    <stop offset="1" stop-color="${EXPLAIN_GREEN}" />
+                </linearGradient>
+                <marker id="swapArrowTop-${uid}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M0,0 L10,5 L0,10 Z" fill="${EXPLAIN_YELLOW}" />
+                </marker>
+                <marker id="swapArrowBottom-${uid}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M0,0 L10,5 L0,10 Z" fill="${EXPLAIN_GREEN}" />
+                </marker>
+            </defs>
+            <path d="M ${xEdge} ${yTop} C ${xBulge} ${yTop + (yBottom - yTop) * 0.22}, ${xBulge} ${yBottom - (yBottom - yTop) * 0.22}, ${xEdge} ${yBottom}"
+                  fill="none" stroke="url(#swapGrad-${uid})" stroke-width="2.4" stroke-linecap="round"
+                  marker-start="url(#swapArrowTop-${uid})" marker-end="url(#swapArrowBottom-${uid})" />
+        `;
+        badgesEl.appendChild(svg);
+    }
+
+    // Draws a single curved, single-headed arrow from row `fromRow` (the added/
+    // source row — green tail, no arrowhead) to row `toRow` (the destination
+    // row — yellow arrowhead), used for a Type III combine badge.
+    function explainRenderCombineBadge(badgesId, rowDivs, fromRow, toRow) {
+        const badgesEl = document.getElementById(badgesId);
+        badgesEl.innerHTML = '';
+        badgesEl.style.position = 'relative';
+        const heights = rowDivs.map(rd => rd.getBoundingClientRect().height);
+        const totalH = heights.reduce((a, b) => a + b, 0);
+        badgesEl.style.height = totalH + 'px';
+        badgesEl.style.width = '20px';
+        const centerY = (i) => heights.slice(0, i).reduce((a, b) => a + b, 0) + heights[i] / 2;
+        const yFrom = centerY(fromRow), yTo = centerY(toRow);
+        const w = 20;
+        const xEdge = w - 5, xBulge = 3;
+        const uid = badgesId;
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('width', w);
+        svg.setAttribute('height', totalH);
+        svg.setAttribute('viewBox', `0 0 ${w} ${totalH}`);
+        svg.style.position = 'absolute';
+        svg.style.left = '0';
+        svg.style.top = '0';
+        svg.style.overflow = 'visible';
+        const dy = (yTo - yFrom) * 0.22;
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="combGrad-${uid}" x1="0" y1="${yFrom}" x2="0" y2="${yTo}" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="${EXPLAIN_GREEN}" />
+                    <stop offset="1" stop-color="${EXPLAIN_YELLOW}" />
+                </linearGradient>
+                <marker id="combArrowHead-${uid}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M0,0 L10,5 L0,10 Z" fill="${EXPLAIN_YELLOW}" />
+                </marker>
+            </defs>
+            <path d="M ${xEdge} ${yFrom} C ${xBulge} ${yFrom + dy}, ${xBulge} ${yTo - dy}, ${xEdge} ${yTo}"
+                  fill="none" stroke="url(#combGrad-${uid})" stroke-width="2.4" stroke-linecap="round"
+                  marker-end="url(#combArrowHead-${uid})" />
+        `;
+        badgesEl.appendChild(svg);
+    }
+
+    function explainRenderGrid(gridId, badgesId, parenLeftId, parenRightId, rows, cols, cellSpec, swapRows) {
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = "";
+        const rowColors = [];
+        const rowDivs = [];
+        for (let i = 0; i < rows; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'det-grid-row';
+            let rowColor = null;
+            for (let j = 0; j < cols; j++) {
+                const spec = cellSpec(i, j);
+                if (spec.rowColor) rowColor = spec.rowColor;
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                const kspan = document.createElement('span');
+                katex.render(spec.latex, kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+                if (spec.hoverLatex) {
+                    cell.classList.add('explain-clickable');
+                    let showingResult = false;
+                    cell.addEventListener('click', () => {
+                        showingResult = !showingResult;
+                        kspan.innerHTML = '';
+                        katex.render(showingResult ? spec.hoverLatex : spec.latex, kspan, { throwOnError: false });
+                    });
+                }
+                rowDiv.appendChild(cell);
+            }
+            rowColors.push(rowColor);
+            rowDivs.push(rowDiv);
+            grid.appendChild(rowDiv);
+        }
+        fitDetCells(grid);
+
+        // Same paren-sizing method as the History matrix (#math-box): stretch
+        // to the row count via a phantom KaTeX matrix, not a measured pixel
+        // height, so the parentheses match #math-box's height exactly.
+        renderStretchyParens(rows, parenLeftId, parenRightId);
+
+        if (swapRows === 'hide') {
+            const badgesEl = document.getElementById(badgesId);
+            badgesEl.innerHTML = '';
+            badgesEl.style.position = '';
+            badgesEl.style.height = '';
+            badgesEl.style.width = '0px';
+            return;
+        }
+        if (Array.isArray(swapRows)) {
+            explainRenderSwapBadge(badgesId, rowDivs, swapRows[0], swapRows[1]);
+            return;
+        }
+        if (swapRows && typeof swapRows === 'object') {
+            explainRenderCombineBadge(badgesId, rowDivs, swapRows.from, swapRows.to);
+            return;
+        }
+        const badgesEl = document.getElementById(badgesId);
+        badgesEl.innerHTML = '';
+        badgesEl.style.position = '';
+        badgesEl.style.height = '';
+        badgesEl.style.width = '';
+        rowDivs.forEach((rowDiv, i) => {
+            const badgeRow = document.createElement('div');
+            badgeRow.className = 'explain-badge-row';
+            badgeRow.style.height = rowDiv.getBoundingClientRect().height + 'px';
+            if (rowColors[i]) badgeRow.innerHTML = explainArrowSvg(rowColors[i], 18, 16);
+            badgesEl.appendChild(badgeRow);
+        });
+    }
+
+    function openExplainPopup() {
+        if (historyStep <= 0) return;
+        const curState = history[historyStep];
+        const op = curState.op;
+        if (!op) return;
+        const prevState = history[historyStep - 1];
+        _explainState = { prevState, curState, op };
+
+        // Make the overlay visible (but content still empty) before building the
+        // grids below, so their real layout height can be measured for the parens.
+        document.getElementById('explain-overlay').style.display = 'flex';
+
+        const rows = prevState.data.length, cols = prevState.data[0].length;
+        const legend = document.getElementById('explain-legend');
+        const title = document.getElementById('explain-title');
+        const hint = document.getElementById('explain-hint');
+        legend.innerHTML = "";
+        hint.textContent = "";
+
+        const addLegendItem = (color, text) => {
+            const item = document.createElement('span');
+            item.innerHTML = `${explainArrowSvg(color, 16, 14)}${text}`;
+            legend.appendChild(item);
+        };
+
+        if (op.type === 'swap') {
+            title.textContent = `Type I — swap R${op.r1 + 1} and R${op.r2 + 1}`;
+            const item = document.createElement('span');
+            item.textContent = `R${op.r1 + 1} \u2194 R${op.r2 + 1}`;
+            legend.appendChild(item);
+
+            const prevSpec = (i, j) => ({
+                latex: `\\color{black}{${explainTermParts(prevState.data[i][j], false).plain}}`,
+            });
+            const curSpec = (i, j) => ({
+                latex: `\\color{black}{${explainTermParts(curState.data[i][j], false).plain}}`,
+            });
+            // Single curved double-headed arrow across the two swapped rows,
+            // shown only on the left (previous-state) matrix; the right
+            // (result) matrix carries no badge at all.
+            explainRenderGrid('explain-prev-grid', 'explain-prev-badges', 'explain-prev-paren-left', 'explain-prev-paren-right', rows, cols, prevSpec, [op.r1, op.r2]);
+            explainRenderGrid('explain-cur-grid', 'explain-cur-badges', 'explain-cur-paren-left', 'explain-cur-paren-right', rows, cols, curSpec, 'hide');
+
+        } else if (op.type === 'multiply') {
+            title.textContent = `Type II — R${op.row + 1} multiplied by ${op.k}`;
+            addLegendItem('yellow', `Row multiplied by ${op.k}`);
+            hint.textContent = 'Click a highlighted cell to toggle between the operation and its result.';
+
+            const prevSpec = (i, j) => ({
+                latex: `\\color{black}{${explainTermParts(prevState.data[i][j], false).plain}}`,
+                rowColor: i === op.row ? 'yellow' : null,
+            });
+            const curSpec = (i, j) => {
+                if (i !== op.row) {
+                    return { latex: `\\color{black}{${explainTermParts(curState.data[i][j], false).plain}}`, rowColor: null };
+                }
+                const coef = explainTermParts(op.k, true);
+                const val = explainTermParts(prevState.data[i][j], false);
+                const opLatex = `\\color{red}{${coef.factor}} \\cdot \\color{black}{${val.factor}}`;
+                return {
+                    latex: opLatex,
+                    hoverLatex: `\\color{black}{${explainTermParts(curState.data[i][j], false).plain}}`,
+                    rowColor: 'yellow',
+                };
+            };
+            explainRenderGrid('explain-prev-grid', 'explain-prev-badges', 'explain-prev-paren-left', 'explain-prev-paren-right', rows, cols, prevSpec);
+            explainRenderGrid('explain-cur-grid', 'explain-cur-badges', 'explain-cur-paren-left', 'explain-cur-paren-right', rows, cols, curSpec);
+
+        } else if (op.type === 'add') {
+            title.textContent = `Type III — R${op.dest + 1} combined with R${op.src + 1} multiplied by ${op.cSrc}`;
+            const addLegendCircleItem = (color, text) => {
+                const item = document.createElement('span');
+                item.innerHTML = `${explainCircleSvg(color, 14)}${text}`;
+                legend.appendChild(item);
+            };
+            addLegendCircleItem('yellow', `Destination row R${op.dest + 1}`);
+            addLegendCircleItem('green', `Row added R${op.src + 1}`);
+            hint.textContent = 'Click a highlighted destination cell to toggle between the operation and its result.';
+
+            const prevSpec = (i, j) => ({
+                latex: `\\color{black}{${explainTermParts(prevState.data[i][j], false).plain}}`,
+            });
+            const curSpec = (i, j) => {
+                if (i === op.src) {
+                    return { latex: `\\color{black}{${explainTermParts(prevState.data[i][j], false).plain}}` };
+                }
+                if (i !== op.dest) {
+                    return { latex: `\\color{black}{${explainTermParts(curState.data[i][j], false).plain}}` };
+                }
+                const destVal = explainTermParts(prevState.data[op.dest][j], false);
+                let destTermLatex;
+                if (stripOuterParens(String(op.cDest).trim()) === '1') {
+                    destTermLatex = `\\color{black}{${destVal.plain}}`;
+                } else {
+                    const cDest = explainTermParts(op.cDest, true);
+                    destTermLatex = `\\color{red}{${cDest.factor}} \\cdot \\color{black}{${destVal.factor}}`;
+                }
+                const srcVal = explainTermParts(prevState.data[op.src][j], false);
+                const cSrc = explainTermParts(op.cSrc, true);
+                const srcTermLatex = `\\color{red}{${cSrc.factor}} \\cdot \\color{black}{${srcVal.factor}}`;
+                const opLatex = `${destTermLatex} + ${srcTermLatex}`;
+                return {
+                    latex: opLatex,
+                    hoverLatex: `\\color{black}{${explainTermParts(curState.data[i][j], false).plain}}`,
+                };
+            };
+            // Single curved, single-headed arrow from the added row (green
+            // tail) to the destination row (yellow head), shown only on the
+            // left (previous-state) matrix; the right (result) matrix carries
+            // no badge at all.
+            explainRenderGrid('explain-prev-grid', 'explain-prev-badges', 'explain-prev-paren-left', 'explain-prev-paren-right', rows, cols, prevSpec, { from: op.src, to: op.dest });
+            explainRenderGrid('explain-cur-grid', 'explain-cur-badges', 'explain-cur-paren-left', 'explain-cur-paren-right', rows, cols, curSpec, 'hide');
+        }
+    }
 
     function openHistoryOverlay() {
         const list = document.getElementById('history-list');
@@ -2108,11 +2549,105 @@
         node.children.forEach(child => renderEchelonNode(child, container, depth + 1));
     }
 
+    // Marker line separating the human-readable log from the machine-readable
+    // payload appended at the end of the same .txt file.
+    const LOG_DATA_MARKER = '%%MATRIX-LOG-JSON%% (do not edit below this line)';
+
+    function buildLogJsonBlob() {
+        const initial = history.length ? history[0].data : [];
+        const ops = history.slice(1).map(s => s.op).filter(Boolean);
+        const afterColsField = (document.getElementById('augmentedAfterCols').value || '')
+            .split(',').map(s => s.trim()).filter(Boolean).map(Number);
+        const augmented = {
+            enabled: document.getElementById('showAugmented').checked,
+            afterCols: afterColsField,
+        };
+        return JSON.stringify({ version: 1, initial, augmented, ops });
+    }
+
     function downloadHistory() {
         let output = history.map((s, i) => `Step ${i}: ${s.log}\nLaTeX: ${generateMatrixLatex(s.data, s.colors)}`).join('\n\n');
+        output += `\n\n${LOG_DATA_MARKER}\n${buildLogJsonBlob()}`;
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([output], {type: 'text/plain'}));
         a.download = 'matrix_log.txt'; a.click();
+    }
+
+    // ── "Load Log": parses the JSON payload back out of a pasted/uploaded
+    // log file, replays every operation on top of the initial matrix using
+    // the same math as the live row-op modal, and only touches the app's
+    // real state once the whole sequence has been validated.
+    function extractLogJson(text) {
+        const idx = text.indexOf('%%MATRIX-LOG-JSON%%');
+        if (idx === -1) throw new Error('No machine-readable data found in this log (missing the %%MATRIX-LOG-JSON%% marker).');
+        const nlIdx = text.indexOf('\n', idx);
+        const jsonText = (nlIdx === -1 ? '' : text.slice(nlIdx + 1)).trim();
+        try {
+            return JSON.parse(jsonText);
+        } catch (e) {
+            throw new Error('Malformed log data: ' + e.message);
+        }
+    }
+
+    function buildReplayFromLog(parsed) {
+        if (!parsed || !Array.isArray(parsed.initial) || parsed.initial.length === 0) {
+            throw new Error('Missing or invalid initial matrix.');
+        }
+        const initial = parsed.initial.map(row => {
+            if (!Array.isArray(row) || row.length === 0) throw new Error('Invalid initial matrix row.');
+            return row.map(v => String(v));
+        });
+        const cols = initial[0].length;
+        if (initial.some(r => r.length !== cols)) throw new Error('Initial matrix rows have inconsistent lengths.');
+
+        const ops = Array.isArray(parsed.ops) ? parsed.ops : [];
+        let data = initial;
+        const steps = [];
+        ops.forEach((op, i) => {
+            let newData, description;
+            try {
+                newData = computeOpResult(data, op);
+                description = describeOp(op);
+            } catch (e) {
+                throw new Error(`Step ${i + 1} (${op && op.type}): ${e.message}`);
+            }
+            steps.push({ data: newData, description, op });
+            data = newData;
+        });
+
+        const augmented = (parsed.augmented && typeof parsed.augmented === 'object')
+            ? parsed.augmented : { enabled: false, afterCols: [] };
+        return { initial, steps, augmented };
+    }
+
+    function loadLogFromText(text) {
+        let replay;
+        try {
+            replay = buildReplayFromLog(extractLogJson(text));
+        } catch (e) {
+            alert('Could not load this log: ' + e.message);
+            return;
+        }
+        if (history.length > 0 && !confirm('Loading a log will replace the current matrix and its entire history. Continue?')) return;
+
+        document.getElementById('showAugmented').checked = !!replay.augmented.enabled;
+        document.getElementById('augmentedAfterCols').value = Array.isArray(replay.augmented.afterCols) ? replay.augmented.afterCols.join(',') : '';
+
+        rebuildMatrixUI(replay.initial);
+        replay.steps.forEach(step => {
+            const colors = step.data.map(row => row.map(() => '#000000'));
+            saveState(step.data, colors, step.description, step.op);
+        });
+    }
+
+    function handleLoadLogFile(evt) {
+        const file = evt.target.files[0];
+        evt.target.value = '';
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => loadLogFromText(String(reader.result));
+        reader.onerror = () => alert('Could not read that file.');
+        reader.readAsText(file);
     }
 
     function isEmbeddedInOneClaute() {
