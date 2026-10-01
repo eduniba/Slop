@@ -1,0 +1,3909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echelon Tree — manual</title>
+
+<!-- GENERATED FILE — do not edit by hand.
+     Assembled from matrici.html (row-operation editor: its stylesheet, its
+     tab-1 markup and its whole script, taken verbatim) plus the manual
+     branching canvas. Rebuild with scratchpad/build/assemble.js after changing
+     either side. Only Algebrite and KaTeX are still loaded from a CDN. -->
+
+<script src="https://cdn.jsdelivr.net/npm/algebrite@1.4.0/dist/algebrite.bundle-for-browser.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+<style>
+/* ===================== from matrici.html ===================== */
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 20px; background-color: #eef1f5; color: #2b3440; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 20px 24px 22px; border-radius: 16px; box-shadow: 0 2px 6px rgba(20,30,50,0.05), 0 12px 32px rgba(20,30,50,0.07); }
+        .page-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
+        .page-head h2 { font-size: 1.25rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+        .quick-input-label { font-weight: bold; font-size: 0.85em; color: #4a5462; }
+        .quick-input-field { flex: 1 1 200px; min-width: 140px; font-family: Consolas, monospace; text-align: left; }
+
+        input[type="text"], input[type="number"] { height: 28px; padding: 0 8px; border: 1px solid #d5dbe3; border-radius: 7px; text-align: center; font-size: 0.85rem; background: #fbfcfd; outline: none; box-sizing: border-box; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: #0d6efd; background: #fff; }
+        select { height: 28px; padding: 0 6px; border: 1px solid #d5dbe3; border-radius: 7px; font-size: 0.85rem; background: #fbfcfd; outline: none; font-family: inherit; color: #2b3440; }
+        select:focus { border-color: #0d6efd; background: #fff; }
+        button { cursor: pointer; height: 28px; padding: 0 13px; border: 1px solid transparent; border-radius: 7px; background: #0d6efd; color: white; font-weight: 600; font-size: 0.8rem; font-family: inherit; }
+        button:hover { background: #0b5ed7; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .btn-ghost { background: #fff; border-color: #d5dbe3; color: #3c4652; }
+        .btn-ghost:hover { background: #f5f7fa; }
+        .btn-sm { height: 24px; padding: 0 10px; font-size: 0.72rem; }
+        .btn-success { background: #198754; margin-left: 10px; }
+        .btn-success:hover { background: #157347; }
+
+        .chips { display: flex; gap: 5px; align-items: center; }
+        .chip { border: 1px solid #f0d9a0; background: #fff9ec; color: #8a6d1f; border-radius: 999px; height: 24px; padding: 0 11px; font-size: 0.72rem; font-weight: 600; }
+        .chip:hover { background: #fdf2d7; }
+
+        input.matrix-input { width: 56px; height: 30px; background: #fff; }
+
+        /* Per-cell context menu (interactive History matrix) */
+        .mcm-menu {
+            position: fixed; z-index: 99999; display: none; flex-direction: column; gap: 6px;
+            background: #fff; border: 1px solid #ccc; border-radius: 8px;
+            padding: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.2); width: 190px;
+        }
+        .mcm-menu .mcm-row { display: flex; align-items: center; gap: 5px; }
+        .mcm-menu .mcm-swatches { flex-wrap: wrap; }
+        .mcm-menu .mcm-swatches .swatch {
+            width: 22px; height: 22px; border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.15); cursor: pointer;
+        }
+        .mcm-menu .mcm-swatches .swatch:hover { transform: scale(1.15); }
+        .mcm-menu .mcm-swatches .swatch-custom {
+            width: 22px; height: 22px; border-radius: 4px;
+            border: 2px dashed #999; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; color: #666; overflow: hidden; position: relative;
+        }
+        .mcm-menu .mcm-swatches .swatch-custom input[type="color"] {
+            position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;
+        }
+
+        /* Interactive History matrix grid (built from det-grid/det-cell) */
+        #math-box-grid .det-cell { cursor: pointer; user-select: none;}
+        #math-box-grid .det-cell:hover { outline: 1.5px dashed rgba(0,0,0,0.30); outline-offset: -1.5px; border-radius: 4px; }
+        #math-box-grid.dragging-row .det-cell:hover { outline: none; }
+
+        /* Quick-input row/col orientation toggle */
+        .qi-orient { padding: 2px; }
+        .qi-orient .tab-btn { padding: 4px 10px; font-size: 0.72rem; }
+
+        .math-row { display: flex; align-items: center; justify-content: center; gap: 14px; }
+        .rowops-stack { display: flex; flex-direction: column; justify-content: space-around; align-self: stretch; gap: 5px; padding: 8px 0; }
+        .rowops {
+            height: 25px; padding: 0 10px; border: 1px solid #d5dbe3; border-radius: 999px; background: #fff;
+            font-size: 0.72rem; font-weight: 600; color: #4a5462;
+        }
+        .rowops:hover { background: #f5f7fa; border-color: #b9c3cf; }
+        #math-box-grid .det-grid-row.row-drop-hover { outline: 1.5px dashed #0d6efd; outline-offset: -1px; border-radius: 4px; }  
+        .row-drag-ghost {
+            position: fixed; z-index: 100000; pointer-events: none;
+            background: #fff; border: 2px solid #0d6efd; border-radius: 10px;
+            padding: 4px 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            opacity: 0.95;
+        }
+        .row-drag-ghost .det-grid-row { display: flex; }
+        .row-drag-ghost .det-cell { cursor: default; }
+
+        .stage-body { display: flex; align-items: stretch; gap: 10px; padding: 10px 12px; }
+        .fs-btn { border: none; background: none; cursor: pointer; height: auto; padding: 0 4px; font-size: 0.82rem; color: #8a93a0; line-height: 1; }
+        .fs-btn:hover { background: none; color: #2b3440; }
+        .panel.panel-fullscreen {
+            position: fixed; inset: 0; z-index: 5000; margin: 0;
+            border: none; border-radius: 0; background: #fff;
+            display: flex !important; flex-direction: column;
+            overflow: auto;
+        }
+        .panel.panel-fullscreen .stage-body { flex: 1; }
+        .history-btn {
+            width: 30px; height: 30px; border-radius: 50%; border: 1px solid #d5dbe3;
+            background: #fff; color: #4a5462; font-size: 0.85rem; padding: 0;
+            align-self: center; flex-shrink: 0; z-index: 10;
+        }
+        .history-btn:hover:not(:disabled) { background: #f5f7fa; }
+        .history-btn:disabled { background: #fff; opacity: 0.35; }
+        .board {
+            flex: 1; min-width: 0; position: relative; text-align: center;
+            padding: 14px 12px 8px; min-height: 190px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+
+        
+        .mini-preview {
+            position: fixed; top: 10px; right: 10px; width: 200px; height: 140px;
+            padding: 15px; background: rgba(255, 255, 255, 0.5);
+            border: 2px solid #0d6efd; border-radius: 8px; resize: both; overflow: hidden;
+            z-index: 5500; /* above .panel-fullscreen (5000) so it survives fullscreen mode */
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: move; box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .mini-preview-label { font-size: 0.6rem; font-weight: bold; color: #0d6efd; position: absolute; top: 5px; left: 8px; text-transform: uppercase; pointer-events: none; }
+        .mini-preview-hide {
+            position: absolute; top: 2px; right: 4px; width: 18px; height: 18px;
+            border: none; background: none; color: #0d6efd; font-size: 0.85rem; font-weight: 700;
+            cursor: pointer; line-height: 1; padding: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mini-preview-hide:hover { color: #0b5ed7; }
+
+        #math-box { font-size: 1.25rem; min-height: 80px; display: flex; justify-content: center; align-items: center; }
+        #math-box .katex-display { margin: 0; }
+        #op-log { margin-top: 12px; font-size: 0.85rem; color: #7a838d; border-top: 1px solid #eef1f5; padding-top: 8px; }
+        #op-log .katex-display { margin: 0; }
+        .formula-scroll { display: flex; align-items: center; overflow-x: auto; overflow-y: hidden; }
+        .formula-scroll .katex-display { margin: 0 auto; padding: 2px 0 14px; }
+
+        #history-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #history-content {
+            background: white; width: 95%; max-width: 900px; height: 90%; border-radius: 12px;
+            padding: 20px; overflow-y: auto; position: relative;
+        }
+        .close-history { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; font-weight: bold; }
+
+        #echelon-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #echelon-content {
+            background: white; width: 95%; max-width: 900px; height: 90%; border-radius: 12px;
+            padding: 20px; overflow-y: auto; position: relative;
+        }
+        .echelon-node { padding: 10px 0; border-bottom: 1px solid #eef1f5; }
+        .echelon-condition { font-weight: 600; font-size: 0.85em; color: #4a5462; margin-bottom: 6px; }
+        .echelon-matrix-wrap { display: flex; justify-content: flex-start; }
+
+        .history-row { display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 8px 0; }
+        .history-desc { flex: 0 0 320px; font-size: 1.1em; color: #444; text-align: right; padding-right: 20px; border-left: 2px solid #0d6efd; }
+        .history-matrix { flex: 1; display: flex; justify-content: center; align-items: center; padding-left: 20px; }
+
+        /* Row operation modal */
+        #rowop-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;
+        }
+        #rowop-modal {
+            background: white; border-radius: 12px; padding: 24px; width: 95%; max-width: 620px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25); position: relative;
+        }
+        #rowop-modal h3 { margin: 0 0 18px 0; font-size: 1.1em; color: #333; }
+        .rowop-cols { display: flex; gap: 12px; }
+        .rowop-col {
+            flex: 1; border: 2px solid #dee2e6; border-radius: 8px; padding: 14px 12px;
+            cursor: pointer; transition: border-color 0.15s, background 0.15s;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .rowop-col.active   { border-color: #0d6efd; background: #f0f5ff; }
+        .rowop-col.inactive { background: #f8f9fa; opacity: 0.5; }
+        .rowop-col-title {
+            display: flex; align-items: center; gap: 8px;
+            font-weight: bold; font-size: 1em; color: #333;
+        }
+        .rowop-col-title input[type="radio"] { accent-color: #0d6efd; width: 16px; height: 16px; cursor: pointer; }
+        .rowop-col label { font-size: 0.82em; color: #555; margin-bottom: 2px; display: block; }
+        .rowop-col input[type="text"] {
+            width: 100%; box-sizing: border-box; padding: 6px 8px;
+            border: 1px solid #ced4da; border-radius: 4px; font-size: 0.95em;
+            text-align: center; font-family: monospace;
+        }
+        .rowop-col input[type="text"]:disabled { background: #e9ecef; color: #aaa; cursor: not-allowed; }
+        .combine-field-group { display: flex; flex-direction: column; gap: 10px; }
+        .rowop-fixed-val {
+            width: 100%; height: 28px; box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center;
+            padding: 6px 8px; border: 1px solid #ced4da; border-radius: 4px;
+            font-size: 0.95em; font-family: monospace; color: #aaa; background: #e9ecef;
+        }
+        .rowop-confirm {
+            margin-top: 18px; display: flex; justify-content: center; gap: 12px;
+        }
+        .rowop-confirm button { min-width: 100px; }
+        .close-rowop { position: absolute; top: 10px; right: 15px; font-size: 22px; cursor: pointer; font-weight: bold; color: #666; background: none; border: none; padding: 0; }
+
+        /* Tabs */
+        .tab-bar { display: inline-flex; gap: 2px; background: #eaeef3; border-radius: 10px; padding: 4px; }
+        .tab-btn { background: none; border: none; height: auto; border-radius: 7px; padding: 7px 18px; font-weight: 600; font-size: 0.84rem; color: #5b6570; }
+        .tab-btn:hover { background: none; color: #2b3440; }
+        .tab-btn.active { color: #0d6efd; background: #fff; box-shadow: 0 1px 3px rgba(20,30,50,0.14); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Collapsible panels */
+        .panel { border: 1px solid #e3e8ee; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+        .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #f8fafc; border-bottom: 1px solid #eef1f5; min-height: 24px; }
+        .panel-title { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a0; }
+        .panel-title-group { display: flex; align-items: center; gap: 6px; }
+        .collapse-btn { border: none; background: none; cursor: pointer; height: auto; padding: 0 4px; font-size: 0.7rem; color: #8a93a0; line-height: 1; transition: transform 0.15s; }
+        .collapse-btn:hover { background: none; color: #2b3440; }
+        .panel.collapsed .collapse-btn { transform: rotate(-90deg); }
+        .panel.collapsed .panel-body { display: none; }
+        .panel.collapsed .panel-head { border-bottom: none; }
+
+        .toolbar-body { padding: 2px 12px; }
+        .toolbar-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 7px 0; }
+        .toolbar-row + .toolbar-row { border-top: 1px solid #eef1f5; }
+        .lbl { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a0; flex: 0 0 74px; }
+        .num { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #4a5462; }
+        .num input { width: 46px; }
+        .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #4a5462; margin-left: auto; cursor: pointer; }
+        .chk input[type="checkbox"] { accent-color: #0d6efd; width: 14px; height: 14px; }
+        .grid-wrap { padding: 12px; display: flex; justify-content: center; }
+
+        /* Determinant tab: cofactor expansion visualizer */
+        .det-matrix-area { display: flex; flex-direction: column; align-items: center; width: fit-content; margin: 10px auto; }
+        .det-col-triggers { display: flex; }
+        .det-col-trigger { width: var(--det-cell-w, 44px); height: 16px; cursor: crosshair; border-radius: 3px; }
+        .det-col-trigger:hover { background: rgba(13,110,253,0.12); }
+        .det-matrix-row { display: flex; align-items: center; }
+        .det-row-triggers { display: flex; flex-direction: column; margin-right: 4px; }
+        .det-row-trigger { width: 16px; height: var(--det-cell-h, 44px); cursor: crosshair; border-radius: 3px; }
+        .det-row-trigger:hover { background: rgba(13,110,253,0.12); }
+        .det-paren { display: flex; align-items: center; color: #333; }
+        .det-grid { display: flex; flex-direction: column; position: relative; user-select: none; }
+        .det-grid-row { display: flex; position: relative; }
+        .det-grid-row.row-struck::after {
+            content: ''; position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+            height: 2px; background: #dc3545; z-index: 3; pointer-events: none;
+        }
+        .det-cell {
+            width: var(--det-cell-w, 44px); height: var(--det-cell-h, 44px);
+            display: flex; align-items: center; justify-content: center; white-space: nowrap;
+            position: relative; font-size: 1rem; transition: background 0.12s;
+        }
+        .det-cell.minor-hi { background: #fff3cd; }
+        .det-cell.selected-active { background: rgba(25, 135, 84, 0.15); cursor: pointer; }
+        .det-cell.row-struck .katex, .det-cell.col-struck .katex, .det-cell.cell-struck .katex { opacity: 0.3; }
+        .det-cell.coef-red .katex, .det-cell.coef-red .katex * { color: #dc3545 !important; opacity: 1 !important; }
+        .det-cell.det-locked, .det-row-trigger.det-locked, .det-col-trigger.det-locked {
+            box-sizing: border-box; border: 1px dashed #000;
+        }
+        .det-cell.rc-cell-hover { background: rgba(25, 135, 84, 0.15); }
+        #rc-result-grid .det-cell { cursor: pointer; }
+        .det-cell.rc-highlight-row { background: rgba(13, 110, 253, 0.18); }
+        .det-cell.rc-highlight-col { background: rgba(220, 53, 69, 0.18); }
+        .det-col-strike-overlay {
+            position: absolute; top: 0; bottom: 0; width: 2px; background: #dc3545;
+            display: none; z-index: 3; pointer-events: none;
+        }
+        .det-sign {
+            position: absolute; top: 2px; left: 4px; font-size: 0.62rem; font-weight: bold;
+            opacity: 0; transition: opacity 0.15s; pointer-events: none;
+        }
+        .det-sign.plus { color: #198754; }
+        .det-sign.minus { color: #dc3545; }
+        .det-cell.row-struck .det-sign, .det-cell.col-struck .det-sign, .det-cell.cell-struck .det-sign { opacity: 1; }
+        .det-cell.selected-active .det-sign { opacity: 1; }
+        .det-trigger-inactive { opacity: 0.2; }
+        .det-trigger-inactive:hover { background: none !important; }
+    
+/* ===================== branching canvas ====================== */
+/* ===== echelon-manual: page frame, tree canvas, drawer =====
+   Loaded after matrici's stylesheet, so shared selectors (body, .container,
+   button, .tab-bar…) are deliberately overridden here. */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+    margin: 0; font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #eef1f5; color: #2b3440;
+    display: flex; flex-direction: column;
+}
+
+header.page-top {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 12px 20px; background: #fff; border-bottom: 1px solid #e2e7ee;
+}
+header.page-top h1 { font-size: 1.05rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+header.page-top .sub { font-size: 0.78rem; color: #7a8492; }
+header.page-top .spacer { flex: 1; }
+
+main.page-main { flex: 1; display: flex; min-height: 0; }
+
+/* ---------- left: matrix panel ---------- */
+aside.matrix-panel {
+    width: 340px; flex: 0 0 340px; background: #fff; border-right: 1px solid #e2e7ee;
+    padding: 14px; overflow-y: auto;
+}
+body.aside-hidden aside.matrix-panel { display: none; }
+.side-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a93a0; margin: 0 0 8px; }
+.field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; flex-wrap: wrap; }
+.field-row label { font-size: 0.8rem; color: #4a5462; font-weight: 600; }
+.entries-field { flex: 1 1 140px; min-width: 120px; font-family: Consolas, monospace; text-align: left; }
+
+/* the matrix and its two actions, centred in the panel */
+.matrix-stage { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 16px 0 6px; }
+.stage-actions { display: flex; flex-direction: column; gap: 6px; }
+hr.side-sep { border: none; border-top: 1px solid #eef1f5; margin: 14px 0; }
+#preview { min-height: 40px; }
+#preview .katex-display { margin: 0; }
+
+/* ---------- right: tree canvas ---------- */
+section.tree-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.tree-toolbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 14px; background: #fff; border-bottom: 1px solid #e2e7ee;
+}
+.tree-toolbar .zoom-label { font-size: 0.75rem; color: #7a8492; min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
+.tree-toolbar .spacer { flex: 1; }
+.legend { display: flex; gap: 10px; font-size: 0.72rem; color: #7a8492; align-items: center; }
+.legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; border:black 1px solid; margin-right: 4px; vertical-align: -1px; }
+
+#tree-scroll { flex: 1; position: relative; overflow: hidden; cursor: grab;
+    background: radial-gradient(circle at 1px 1px, #dde3ea 1px, transparent 0) 0 0 / 22px 22px, #f4f6f9; }
+#tree-scroll.dragging { cursor: grabbing; }
+#tree-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+.node-card {
+    position: absolute; background: #fff; border: 2px solid #2b3440; border-radius: 12px;
+    padding: 8px 10px 6px; box-shadow: 0 1px 2px rgba(20,30,50,0.06), 0 6px 16px rgba(20,30,50,0.06);
+    cursor: pointer; user-select: none;
+    display: flex; flex-direction: column; resize: both; overflow: hidden;
+    min-width: 90px; min-height: 54px;
+}
+.node-card.selected { box-shadow: 0 0 0 3px rgba(13,110,253,0.18), 0 6px 16px rgba(20,30,50,0.08); }
+.node-card.dragging { cursor: grabbing; box-shadow: 0 6px 20px rgba(20,30,50,0.18); z-index: 5; }
+.node-card .card-matrix { display: flex; justify-content: center; justify-content: safe center; flex: 1 1 auto; min-height: 0; overflow: auto; }
+.node-card .card-matrix .katex-display { margin: 0; }
+.node-card .card-foot {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 6px; padding-top: 5px; border-top: 1px solid #f1f4f8;
+    font-size: 0.9em; color: #7a8492; white-space: nowrap;
+}
+/* verdict palette (matches the toolbar legend dots); the black outline keeps
+   the bright fills readable on white */
+.verdict { font-weight: 700; -webkit-text-stroke: 1px black; paint-order: stroke fill; }
+.verdict.unique { color: #3bb87e; }
+.verdict.infinite { color: #ffe000; }
+.verdict.none { color: #ff0000; }
+.collapse-btn {
+    height: 20px; padding: 0 8px; font-size: 0.68rem; font-weight: 700;
+    background: #eef3fb; color: #0d6efd; border: 1px solid #d6e2f7; border-radius: 999px;
+}
+.collapse-btn:hover { background: #e2ecfb; }
+
+.edge-label {
+    position: absolute; background: #fff; border: 1px solid #d9e0e8; border-radius: 999px;
+    padding: 2px 9px; font-size: 0.76rem; white-space: nowrap; max-width: 420px; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(20,30,50,0.06);
+}
+#empty-state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #98a2b0; font-size: 0.9rem; text-align: center; padding: 20px; }
+
+/* ---------- bottom drawer: the operations behind a case ---------- */
+#drawer { border-top: 1px solid #e2e7ee; background: #fff; height: 0; overflow: hidden; transition: height 0.12s ease; }
+#drawer.open { height: 210px; }
+.drawer-head { display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-bottom: 1px solid #f1f4f8; }
+.drawer-head .title { font-size: 0.78rem; font-weight: 700; color: #4a5462; }
+.drawer-head .cond { font-size: 0.8rem; color: #2b3440; flex: 1 1 auto; min-width: 0; max-height: 58px; overflow: auto; }
+#drawer-body { height: calc(210px - 38px); overflow-y: auto; padding: 8px 14px 14px; }
+.step-line { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; font-size: 0.85rem; }
+.step-line .idx { font-size: 0.7rem; color: #a3acb9; min-width: 20px; text-align: right; font-variant-numeric: tabular-nums; }
+.step-line .step-math { min-width: 0; overflow-x: auto; }
+.step-line.new-step { background: #fff8e0; border-left: 3px solid #f0c86a; border-radius: 0 6px 6px 0; padding: 3px 8px; margin-left: -8px; }
+.drawer-empty { color: #98a2b0; font-size: 0.82rem; }
+
+/* ---------- the editor overlay that hosts matrici's row operations ---------- */
+#editor-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(20,30,50,0.35);
+    z-index: 50; align-items: center; justify-content: center; padding: 24px;
+}
+#editor-overlay.open { display: flex; }
+#editor-panel {
+    background: #fff; border-radius: 16px; width: min(1220px, 100%); height: 100%;
+    display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(20,30,50,0.28); overflow: hidden;
+}
+.editor-head, .editor-foot { flex: 0 0 auto; }
+.editor-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #eef1f5; }
+.editor-head .title { font-weight: 700; font-size: 0.95rem; }
+.editor-head .case { font-size: 0.85rem; color: #4a5462; }
+.editor-head .spacer { flex: 1; }
+.cog-btn { height: 28px; width: 30px; padding: 0; font-size: 1.15rem; line-height: 1; }
+
+/* matrici's own markup lives here */
+#matrici-host { flex: 1 1 auto; overflow: auto; min-height: 200px; }
+#matrici-host .container { max-width: none !important; box-shadow: none !important; padding: 4px 12px 10px !important; background: transparent !important; }
+#matrici-host .page-head { display: none !important; }       /* title/tabs/cog: this page provides them */
+#matrici-host #input-panel { display: none !important; }      /* the matrix comes from the tree */
+#matrici-host #tab-product, #matrici-host #tab-det { display: none !important; }
+#viewHistoryBtn, #downloadBtn, #exportOcBtn, #echelonBtn { display: none !important; }
+
+.editor-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #eef1f5; background: #fbfcfd; flex-wrap: wrap; }
+.editor-foot label { font-size: 0.8rem; font-weight: 600; color: #4a5462; }
+#case-input { flex: 0 1 380px; min-width: 200px; font-family: Consolas, monospace; text-align: left; }
+
+/* upward dropdown (a native select would drop off the bottom of the panel) */
+.dd { position: relative; }
+.dd-btn { display: flex; align-items: center; gap: 8px; min-width: 148px; justify-content: space-between; }
+.dd-caret { font-size: 0.7rem; color: #8a93a0; }
+.dd-menu {
+    display: none; position: absolute; bottom: calc(100% + 4px); left: 0; min-width: 100%;
+    flex-direction: column; background: #fff; border: 1px solid #d5dbe3; border-radius: 9px;
+    padding: 4px; gap: 2px; box-shadow: 0 8px 24px rgba(20,30,50,0.16); z-index: 10;
+}
+.dd.open .dd-menu { display: flex; }
+.dd-menu button {
+    background: transparent; border: none; color: #2b3440; font-weight: 500;
+    text-align: left; height: 26px; padding: 0 10px; border-radius: 6px; white-space: nowrap;
+}
+.dd-menu button:hover { background: #eef3fb; color: #0d6efd; }
+.dd-menu button.active { background: #eef3fb; color: #0d6efd; font-weight: 700; }
+
+</style>
+</head>
+<body>
+
+<header class="page-top">
+    <h1>Echelon Tree — manual</h1>
+    <span class="sub">Reduce by hand, split into parameter cases, keep the whole branching on one canvas</span>
+    <span class="spacer"></span>
+    <button class="btn-ghost btn-sm" onclick="copyCasesLatex()">Copy cases (LaTeX)</button>
+</header>
+
+<main class="page-main">
+    <aside class="matrix-panel">
+        <p class="side-title">Matrix</p>
+
+        <div class="field-row">
+            <label>Entries</label>
+            <input type="text" id="entries-field" class="entries-field"
+                   title="Rows separated by ; and cells by , — or paste a LaTeX pmatrix/array (e.g. from OneClaute or matrici). Enter sets it and starts."
+                   placeholder="1,h,k,k;k,0,1,0;1,h,1,2">
+            <button class="btn-sm" onclick="confirmEntries()">Set</button>
+        </div>
+
+        <div class="field-row">
+            <label><input type="checkbox" id="aug-toggle" checked onchange="renderMatrixEditor()"> Augmented after col</label>
+            <input type="text" id="aug-after" style="width:66px" placeholder="m-1" value="m-1"
+                   title="Separator position(s), comma-separated (e.g. 2,3). Type m-1 to keep it before the last column whatever the shape becomes; numbers are clamped to the current width when the shape changes. Blank = last column."
+                   oninput="renderMatrixEditor()">
+        </div>
+
+        <div class="matrix-stage">
+            <div id="preview"></div>
+            <div class="stage-actions">
+                <button class="btn-ghost btn-sm" onclick="transposeMatrix()"
+                        title="Swap rows and columns (show the transpose)">Row &harr; Col</button>
+                <button onclick="startManual()" id="start-btn">Start</button>
+            </div>
+        </div>
+
+        <hr class="side-sep">
+        <p class="side-title">Examples</p>
+        <div class="field-row">
+            <button class="chip" onclick="loadPreset('hkSystem')">h,k system</button>
+            <button class="chip" onclick="loadPreset('system')">3&times;4 system</button>
+            <button class="chip" onclick="loadPreset('oneParam')">1 param</button>
+            <button class="chip" onclick="loadPreset('twoParam')">2 params</button>
+            <button class="chip" onclick="loadPreset('quadratic')">Quadratic</button>
+            <button class="chip" onclick="loadPreset('product')">a&middot;b pivot</button>
+            <button class="chip" onclick="loadPreset('diffSquares')">a&sup2;&minus;b&sup2;</button>
+            <button class="chip" onclick="loadPreset('numeric')">Numeric</button>
+        </div>
+    </aside>
+
+    <section class="tree-area">
+        <div class="tree-toolbar">
+            <button class="btn-ghost btn-sm" id="panel-btn" onclick="togglePanel()" title="Hide/show the matrix panel">&#9666; Matrix</button>
+            <button class="btn-ghost btn-sm" onclick="zoomBy(1/1.2)">&minus;</button>
+            <span class="zoom-label" id="zoom-label">100%</span>
+            <button class="btn-ghost btn-sm" onclick="zoomBy(1.2)">+</button>
+            <button class="btn-ghost btn-sm" onclick="fitToView()">Fit</button>
+            <button class="btn-ghost btn-sm" onclick="expandAll()">Expand all</button>
+            <button class="btn-ghost btn-sm" onclick="collapseDeep()">Collapse branches</button>
+            <button class="btn-ghost btn-sm" onclick="resetLayout()" title="Undo card dragging, resizing and scaling">Reset layout</button>
+            <label style="font-size:0.74rem;color:#5a6472;display:flex;align-items:center;gap:4px;"
+                   title="Entries longer than 60 characters are shown as decimals. Export keeps the exact form.">
+                <input type="checkbox" id="decimals-toggle" checked onchange="rerenderTree()"> decimals for long entries
+            </label>
+            <span class="spacer"></span>
+            <span class="legend">
+                <span><span class="dot" style="background:#3bb87e"></span>unique</span>
+                <span><span class="dot" style="background:#ffe000"></span>&infin; solutions</span>
+                <span><span class="dot" style="background:#ff0000"></span>no solution</span>
+            </span>
+        </div>
+
+        <div id="tree-scroll">
+            <div id="tree-canvas">
+                <svg id="edges"></svg>
+            </div>
+            <div id="empty-state">Set a matrix on the left, then press <strong>Start</strong>.<br>
+                Double-click a card for row operations and to declare the cases that split it.</div>
+        </div>
+
+        <div id="editor-overlay">
+            <div id="editor-panel">
+                <div class="editor-head">
+                    <span class="title">Row operations</span>
+                    <span class="case" id="editor-case"></span>
+                    <span class="spacer"></span>
+                    <button class="btn-ghost cog-btn" onclick="openPageSettings(event)"
+                            title="Row operation settings (type 3 anchor, linear combination, button/drag mode)">&#x2699;&#xfe0e;</button>
+                    <button class="btn-ghost btn-sm" onclick="closeEditor()">Close</button>
+                </div>
+
+                <div id="matrici-host"><div class="container">
+    <div class="page-head">
+        <div style="display:flex; align-items:center; gap:6px;">
+            <h2>Matrix Operations</h2>
+            <button class="fs-btn" id="pageSettingsBtn" onclick="openPageSettings(event)" title="Settings" style="font-size:1.3rem; line-height:1;">&#x2699;&#xfe0e;</button>
+        </div>
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('tab-rowops', this)">Row Operations</button>
+            <button class="tab-btn" onclick="switchTab('tab-product', this)">Row/Col Product</button>
+            <button class="tab-btn" onclick="switchTab('tab-det', this)">Determinant</button>
+        </div>
+    </div>
+
+    <div id="page-settings-menu" class="mcm-menu">
+        <div class="mcm-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+            <label style="font-size:0.78em; color:#555; font-weight:600;">Type 3 operations</label>
+            <div class="tab-bar" style="width:100%;">
+                <button type="button" class="tab-btn active" id="type3-btn-i" onclick="setType3Anchor('i')" style="flex:1;"><span id="type3-label-i"></span></button>
+                <button type="button" class="tab-btn" id="type3-btn-j" onclick="setType3Anchor('j')" style="flex:1;"><span id="type3-label-j"></span></button>
+            </div>
+        </div>
+        <div class="mcm-row">
+            <label class="chk" style="margin-left:0;">
+                <input type="checkbox" id="type3-lincomb-checkbox" onchange="setType3LinComb(this.checked)">
+                <span id="type3-lincomb-label"></span>
+            </label>
+        </div>
+        <div class="mcm-row" style="flex-direction:column; align-items:stretch; gap:6px;">
+            <label style="font-size:0.78em; color:#555; font-weight:600;">Row operations</label>
+            <select id="rowops-mode-select" onchange="setRowOpsMode(this.value)" style="width:100%;">
+                <option value="both" selected>Both</option>
+                <option value="button">Button</option>
+                <option value="drag">Drag</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="tab-rowops" class="tab-panel active">
+    <div class="panel" id="input-panel">
+        <div class="panel-head">
+            <div class="panel-title-group">
+                <button class="collapse-btn" onclick="document.getElementById('input-panel').classList.toggle('collapsed')">&#9660;</button>
+                <span class="panel-title">Input</span>
+            </div>
+        </div>
+        <div class="panel-body toolbar-body">
+            <div class="toolbar-row">
+                <span class="lbl">Entries</span>
+                <input type="text" id="quick-input-field" class="quick-input-field"
+                    placeholder="1,0;0,1"
+                    title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors)">
+                <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                    <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'roword')">Rows</button>
+                    <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'roword')">Cols</button>
+                </div>
+                <button onclick="confirmQuickInput()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="matrix-settings-menu" class="mcm-menu">
+        <div class="mcm-row">
+            <button class="btn-ghost" style="width:100%;" onclick="toggleIdentityBlock()"><span id="identity-btn-label">Add block</span> <span id="identity-btn-math"></span></button>
+        </div>
+        <div class="mcm-row">
+            <label class="chk" style="margin-left:0;">
+                <input type="checkbox" id="showAugmented" onchange="updateUI()">
+                Separator after col
+            </label>
+        </div>
+        <div class="mcm-row">
+            <input type="text" id="augmentedAfterCols" style="width:100%; cursor: text;" placeholder="e.g. 2,3" onchange="validateAugmentedCols()">
+        </div>
+    </div>
+
+    <div id="display-area" class="panel" style="display:none;">
+        <div class="panel-head">
+            <div class="panel-title-group">
+                <button class="fs-btn" id="historyFsBtn" onclick="togglePanelFullscreen('display-area')" title="Toggle full screen">&#x26F6;&#xfe0e;</button>
+                <span class="panel-title">Matrix</span>
+                <button class="fs-btn" id="matrixSettingsBtn" onclick="openMatrixSettings(event)" title="Matrix settings">&#x2699;&#xfe0e;</button>
+            </div>
+            <div class="chips">
+                <button id="styleUndoBtn" class="btn-ghost btn-sm" onclick="undoStyleEdit()" disabled title="Undo the last cell value/color/expand-tidy edit — does not affect row operations">Undo edit</button>
+                <button id="showMiniBoxBtn" class="btn-ghost btn-sm" onclick="showMiniBox()" style="display:none;" title="Show the previous-state preview">Prev state</button>
+                <button id="viewHistoryBtn" class="btn-ghost btn-sm" onclick="openHistoryOverlay()" style="display:none;">Print</button>
+                <button id="downloadBtn" class="btn-ghost btn-sm" onclick="downloadHistory()" style="display:none;">Text log</button>
+                <button id="exportOcBtn" class="btn-ghost btn-sm" onclick="exportHistoryToOneClaute()" style="display:none;">Export</button>
+                <button id="echelonBtn" class="btn-ghost btn-sm" onclick="runEchelon()" style="display:none;">Auto-reduce</button>
+            </div>
+        </div>
+        <div class="stage-body">
+            <button class="history-btn" id="undoBtn" onclick="undo()">&#10094;</button>
+            <div class="board">
+                <div class="math-row">
+                    <div id="math-box">
+                        <div class="det-paren" id="math-box-paren-left"></div>
+                        <div class="det-grid" id="math-box-grid"></div>
+                        <div class="det-paren" id="math-box-paren-right"></div>
+                    </div>
+                    <div id="rowops-stack" class="rowops-stack"></div>
+                </div>
+                <div id="op-log"></div>
+            </div>
+            <button class="history-btn" id="redoBtn" onclick="redo()">&#10095;</button>
+        </div>
+    </div>
+    </div>
+
+    <div id="tab-product" class="tab-panel">
+        <div class="panel" id="rc-input-panel">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="collapse-btn" onclick="document.getElementById('rc-input-panel').classList.toggle('collapsed')">&#9660;</button>
+                    <span class="panel-title">Input</span>
+                </div>
+                <button class="btn-success btn-sm" style="margin-left:0;" onclick="computeProduct()">Compute A &middot; B</button>
+            </div>
+            <div class="panel-body toolbar-body">
+                <div class="toolbar-row">
+                    <span class="lbl">Matrix A</span>
+                    <input type="text" id="rcA-quick" class="quick-input-field" placeholder="1,0;0,1"
+                        title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors)">
+                    <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                        <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'rcA')">Rows</button>
+                        <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'rcA')">Cols</button>
+                    </div>
+                    <button onclick="rcConfirmQuickInput('A')">Confirm</button>
+                </div>
+                <div class="toolbar-row">
+                    <span class="lbl">Matrix B</span>
+                    <input type="text" id="rcB-quick" class="quick-input-field" placeholder="1,0;0,1"
+                        title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors)">
+                    <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                        <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'rcB')">Rows</button>
+                        <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'rcB')">Cols</button>
+                    </div>
+                    <button onclick="rcConfirmQuickInput('B')">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="rc-result-panel">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="fs-btn" onclick="togglePanelFullscreen('rc-result-panel')" title="Toggle full screen">&#x26F6;&#xfe0e;</button>
+                    <span class="panel-title">Product</span>
+                </div>
+            </div>
+            <div class="stage-body">
+            <div class="board">
+            <div style="display:flex; align-items:center; justify-content:center; flex-wrap:wrap;">
+                <div class="det-paren" id="rc-eq-a-paren-left"></div>
+                <div class="det-grid" id="rc-eq-a-grid"></div>
+                <div class="det-paren" id="rc-eq-a-paren-right"></div>
+
+                <div style="font-size:1.8rem; color:#6c757d; margin:0 10px;">&middot;</div>
+
+                <div class="det-paren" id="rc-eq-b-paren-left"></div>
+                <div class="det-grid" id="rc-eq-b-grid"></div>
+                <div class="det-paren" id="rc-eq-b-paren-right"></div>
+
+                <div style="font-size:1.8rem; color:#6c757d; margin:0 10px;">=</div>
+
+                <div class="det-paren" id="rc-paren-left"></div>
+                <div class="det-grid" id="rc-result-grid"></div>
+                <div class="det-paren" id="rc-paren-right"></div>
+            </div>
+            <div id="rc-result-formula" class="formula-scroll" style="min-height:60px; margin-top:15px; font-size:1.1rem;"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-det" class="tab-panel">
+        <div class="panel" id="det-input-panel">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="collapse-btn" onclick="document.getElementById('det-input-panel').classList.toggle('collapsed')">&#9660;</button>
+                    <span class="panel-title">Input</span>
+                </div>
+            </div>
+            <div class="panel-body toolbar-body">
+                <div class="toolbar-row">
+                    <span class="lbl">Entries</span>
+                    <input type="text" id="det-quick" class="quick-input-field" placeholder="1,0;0,1"
+                        title="Comma/semicolon grid, or LaTeX pasted from OneClaute (\begin{pmatrix}…\end{pmatrix}, one or several vectors) — must be square">
+                    <div class="tab-bar qi-orient" title="How semicolon-groups (or multiple pasted vectors) are interpreted">
+                        <button type="button" class="tab-btn active" onclick="setQuickInputOrientation('row', this, 'det')">Rows</button>
+                        <button type="button" class="tab-btn" onclick="setQuickInputOrientation('col', this, 'det')">Cols</button>
+                    </div>
+                    <button onclick="detConfirmQuickInput()">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="det-viz-area" class="panel" style="display:none;">
+            <div class="panel-head">
+                <div class="panel-title-group">
+                    <button class="fs-btn" onclick="togglePanelFullscreen('det-viz-area')" title="Toggle full screen">&#x26F6;&#xfe0e;</button>
+                    <span class="panel-title">Cofactor expansion</span>
+                </div>
+            </div>
+            <div class="stage-body">
+            <div class="board">
+            <div id="det-expand-controls" style="text-align:center; margin-bottom: 12px; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">
+                <span class="quick-input-label">Expand along:</span>
+                <select id="det-expand-type-select"></select>
+                <select id="det-expand-idx-select"></select>
+                <button class="btn-success btn-sm" onclick="detCompute()">Compute Determinant</button>
+            </div>
+            <div class="det-matrix-area">
+                <div class="det-col-triggers" id="det-col-triggers"></div>
+                <div class="det-matrix-row">
+                    <div class="det-row-triggers" id="det-row-triggers"></div>
+                    <div class="det-paren" id="det-paren-left"></div>
+                    <div class="det-grid" id="det-grid"></div>
+                    <div class="det-paren" id="det-paren-right"></div>
+                </div>
+            </div>
+            <div id="det-formula-area" class="formula-scroll" style="font-size: 1.1rem; min-height:80px; margin-top:12px; border-top: 1px solid #eef1f5; padding-top: 8px;"></div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Per-cell context menu, shared by every interactive matrix grid (row-ops,
+     Product's A/B, Determinant) — kept outside all .tab-panel divs so it
+     isn't hidden when a different tab is active (see activeEditorId). -->
+<div id="matrix-cell-menu" class="mcm-menu">
+    <div class="mcm-row">
+        <input type="text" id="mcm-value-input" class="matrix-input" style="width:100%;"
+            onkeydown="if(event.key==='Enter'){mcmApplyValue(); closeMatrixCellMenu();}">
+        <button class="chip" onclick="mcmApplyValue(); closeMatrixCellMenu()">Apply</button>
+    </div>
+    <div class="mcm-row">
+        <button class="chip" onclick="modifyActiveCell('expand'); closeMatrixCellMenu()">Expand</button>
+        <button class="chip" onclick="modifyActiveCell('simplify'); closeMatrixCellMenu()">Tidy up</button>
+    </div>
+    <div id="mcm-swatches" class="mcm-row mcm-swatches"></div>
+</div>
+
+<div id="history-overlay">
+    <div id="history-content">
+        <span class="close-history" onclick="closeHistoryOverlay()">&times;</span>
+        <button style="margin: 10px;" onclick="window.print()">Print / PDF</button>
+        <div id="history-list"></div>
+    </div>
+</div>
+
+<div id="echelon-overlay">
+    <div id="echelon-content">
+        <span class="close-history" onclick="closeEchelonOverlay()">&times;</span>
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:10px;">
+            <h3 style="margin:0;">Automatic reduction</h3>
+            <button class="btn-ghost btn-sm" onclick="openInEchelonTree()">Open as branching tree</button>
+        </div>
+        <div id="echelon-tree"></div>
+    </div>
+</div>
+
+<div id="rowop-overlay">
+    <div id="rowop-modal">
+        <button class="close-rowop" onclick="closeRowOpModal()">&times;</button>
+        <h3 id="rowop-title">Row operations</h3>
+        <div class="rowop-cols">
+            <!-- Swap -->
+            <div class="rowop-col" id="col-swap" onclick="selectRowOpCol('swap')">
+                <div class="rowop-col-title">
+                    <input type="radio" name="rowop" id="radio-swap" value="swap" onchange="selectRowOpCol('swap')">
+                    <span>Swap</span>
+                </div>
+                <div>
+                    <label for="swap-with">Swap with row</label>
+                    <input type="text" id="swap-with" placeholder="e.g. 2" disabled>
+                </div>
+            </div>
+            <!-- Scalar -->
+            <div class="rowop-col inactive" id="col-scalar" onclick="selectRowOpCol('scalar')">
+                <div class="rowop-col-title">
+                    <input type="radio" name="rowop" id="radio-scalar" value="scalar" onchange="selectRowOpCol('scalar')">
+                    <span>Scalar</span>
+                </div>
+                <div>
+                    <label for="scalar-k">Multiply by</label>
+                    <input type="text" id="scalar-k" placeholder="e.g. 1/2" disabled>
+                </div>
+            </div>
+            <!-- Combine -->
+            <div class="rowop-col inactive" id="col-combine" onclick="selectRowOpCol('combine')">
+                <div class="rowop-col-title">
+                    <input type="radio" name="rowop" id="radio-combine" value="combine" onchange="selectRowOpCol('combine')">
+                    <span>Combine</span>
+                </div>
+                <div id="combine-classic-fields" class="combine-field-group">
+                    <div id="combine-k-wrap">
+                        <label for="combine-k" id="combine-k-label">Multiply by</label>
+                        <input type="text" id="combine-k" placeholder="e.g. -2" disabled>
+                    </div>
+                    <div id="combine-row-wrap">
+                        <label for="combine-row" id="combine-row-label">Add to row</label>
+                        <input type="text" id="combine-row" placeholder="e.g. 3" disabled>
+                    </div>
+                </div>
+                <div id="combine-lincomb-fields" class="combine-field-group" style="display:none;">
+                    <div id="lincomb-dest-wrap">
+                        <label for="lincomb-dest">Replace row</label>
+                        <input type="text" id="lincomb-dest" placeholder="e.g. 3" disabled>
+                        <span id="lincomb-dest-fixed" class="rowop-fixed-val" style="display:none;"></span>
+                    </div>
+                    <div>
+                        <label for="lincomb-expr">With</label>
+                        <input type="text" id="lincomb-expr" placeholder="e.g. 1R2-4R3" disabled>
+                    </div>
+                </div>
+                <!-- Drag-drop Replace: both rows already known (dragged-from / dropped-on), only coefficients needed -->
+                <div id="combine-drag-fields" class="combine-field-group" style="display:none;">
+                    <div>
+                        <label for="drag-combo-input" id="drag-combo-label">Add row</label>
+                        <input type="text" id="drag-combo-input" placeholder="e.g. -2" disabled>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="rowop-confirm">
+            <button onclick="confirmRowOp()">Confirm</button>
+            <button style="background:#6c757d;" onclick="closeRowOpModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Independent of the History panel's DOM/layout so it can float freely
+     (position:fixed, viewport-relative) above everything else on the page. -->
+<div id="mini-box" class="mini-preview" style="display:none;">
+    <span class="mini-preview-label">Previous state</span>
+    <button class="mini-preview-hide" onclick="hideMiniBox()"
+        onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()"
+        title="Hide">_</button>
+    <div id="mini-math"></div>
+</div></div>
+
+                <div class="editor-foot">
+                    <label>Special cases</label>
+                    <input type="text" id="case-input" placeholder="a,b \neq 0; a=0; b=1"
+                           title="One case per ';', in the order you want the branches. A case containing '=' substitutes that value (several assignments can be comma-separated); anything else (\neq, !=, plain text) is just a label.">
+                    <div class="dd" id="case-mode-dd">
+                        <button type="button" class="btn-ghost dd-btn" onclick="toggleCaseMode(event)">
+                            <span id="case-mode-label">cases</span><span class="dd-caret">&#9652;</span>
+                        </button>
+                        <div class="dd-menu">
+                            <button type="button" onclick="pickCaseMode('cases')">cases</button>
+                            <button type="button" onclick="pickCaseMode('none')">no solution</button>
+                            <button type="button" onclick="pickCaseMode('unique')">1 solution</button>
+                            <button type="button" onclick="pickCaseMode('infinite')">infinite solutions</button>
+                        </div>
+                    </div>
+                    <button onclick="confirmCases()">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="drawer">
+            <div class="drawer-head">
+                <span class="title">Case</span>
+                <span class="cond" id="drawer-cond"></span>
+                <span style="font-size:0.72rem;color:#a3acb9;">highlighted = performed after this case split</span>
+                <button class="btn-ghost btn-sm" onclick="closeDrawer()">Close</button>
+            </div>
+            <div id="drawer-body"></div>
+        </div>
+    </section>
+</main>
+
+
+<script>
+/* ===================== from matrici.html ===================== */
+
+    let history = [];
+    let historyStep = -1;
+    // Currently targeted (row, col) for whichever per-cell menu is open,
+    // plus which matrixEditors[] entry owns it — all cell edits read/write
+    // through that editor's getState()/setState() rather than a fixed array.
+    let editRow = null, editCol = null, activeEditorId = null;
+
+    // Registry of independently-editable matrices (row-ops' current step,
+    // plus Product's A/B and Determinant's single matrix). Row-ops' data
+    // changes *identity* as historyStep moves, so editors store accessors
+    // rather than raw array references.
+    const matrixEditors = {};
+    function registerMatrixEditor(id, undoBtnId, getState, setState, renderOpts) {
+        matrixEditors[id] = { getState, setState, styleUndoStack: [], pendingStyleSnapshot: null, undoBtnId, renderOpts: renderOpts || {} };
+    }
+    registerMatrixEditor('roword', 'styleUndoBtn',
+        () => history[historyStep],
+        (data, colors) => { history[historyStep].data = data; history[historyStep].colors = colors; }
+    );
+
+    function readAtom(str, i) {
+        if (str[i] === '(') {
+            let depth = 1, j = i + 1;
+            while (j < str.length && depth > 0) {
+                if (str[j] === '(') depth++;
+                else if (str[j] === ')') depth--;
+                j++;
+            }
+            if (depth > 0) return { atom: str.slice(i), next: str.length };
+            const inner = str.slice(i + 1, j - 1);
+            return { atom: '(' + convertDivisions(inner) + ')', next: j };
+        }
+        const m = /^[a-zA-Z0-9.^]+/.exec(str.slice(i));
+        if (m) return { atom: m[0], next: i + m[0].length };
+        return null;
+    }
+
+    function convertDivisions(str) {
+        let result = "", i = 0;
+        while (i < str.length) {
+            const first = readAtom(str, i);
+            if (!first) { result += str[i]; i++; continue; }
+            const chain = [first.atom];
+            i = first.next;
+            while (str[i] === '/') {
+                const next = readAtom(str, i + 1);
+                if (!next) break;
+                chain.push(next.atom);
+                i = next.next;
+            }
+            result += chain.length > 1
+                ? chain.reduce((acc, part) => acc === null ? part : `\\frac{${acc}}{${part}}`, null)
+                : chain[0];
+        }
+        return result;
+    }
+
+    function customLatexFormatter(str) {
+        return convertDivisions(str).replace(/\*/g, " ");
+    }
+
+    // Removes one pair of parentheses wrapping the whole expression, so a
+    // coefficient typed as "(k+1)" isn't parenthesised a second time. Leaves
+    // "(k+1)(k-1)" alone - there the first '(' doesn't match the last ')'.
+    function stripOuterParens(expr) {
+        let t = String(expr).trim();
+        while (t.startsWith('(') && t.endsWith(')')) {
+            let depth = 0, wrapsWhole = true;
+            for (let i = 0; i < t.length; i++) {
+                if (t[i] === '(') depth++;
+                else if (t[i] === ')') {
+                    depth--;
+                    if (depth === 0 && i < t.length - 1) { wrapsWhole = false; break; }
+                }
+            }
+            if (!wrapsWhole) break;
+            t = t.slice(1, -1).trim();
+        }
+        return t;
+    }
+
+    // Is there a +/- outside every parenthesis (past a leading sign)? Such a
+    // coefficient is a sum and needs parentheses in front of a row label.
+    function hasTopLevelSum(expr) {
+        let depth = 0;
+        for (let i = 0; i < expr.length; i++) {
+            const ch = expr[i];
+            if (ch === '(') depth++;
+            else if (ch === ')') depth--;
+            else if ((ch === '+' || ch === '-') && depth === 0 && i > 0) {
+                if ('*/^+-('.includes(expr[i - 1])) continue; // a sign, not a term separator
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Splits a coefficient into the sign shown before the row label and the
+    // LaTeX for the rest (empty when it is 1). A leading minus is only pulled
+    // out when what follows is a single term: "-k-1" is NOT -(k-1), so a sum
+    // keeps its own sign inside the parentheses.
+    function coefficientParts(kRaw) {
+        let k = stripOuterParens(kRaw);
+        let sign = '+';
+        if (!hasTopLevelSum(k)) {
+            if (k.startsWith('-')) { sign = '-'; k = stripOuterParens(k.slice(1)); }
+            else if (k.startsWith('+')) { k = stripOuterParens(k.slice(1)); }
+        }
+        if (k === '1' || k === '') return { sign, tex: '' };
+        const tex = customLatexFormatter(k);
+        return { sign, tex: hasTopLevelSum(k) ? `\\left(${tex}\\right)` : tex };
+    }
+
+    function formatOpDescription(type, rDest, rSrc, k) {
+        let dest = `R_{${rDest + 1}}`;
+        let src = `R_{${rSrc + 1}}`;
+        if (type === 'swap') return `${dest} \\leftrightarrow ${src}`;
+        const { sign, tex } = coefficientParts(k);
+        if (type === 'multiply') {
+            if (tex === '') return sign === '-' ? `${dest} \\rightarrow -${dest}` : `${dest} \\rightarrow ${dest}`;
+            return `${dest} \\rightarrow ${sign === '-' ? '-' : ''}${tex}${dest}`;
+        }
+        if (type === 'add') {
+            return `${dest} \\rightarrow ${dest} ${sign} ${tex}${src}`;
+        }
+    }
+
+    function reorderPolynomial(str) {
+        let terms = []; let currentTerm = ""; let parenLevel = 0;
+        for (let i = 0; i < str.length; i++) {
+            let char = str[i];
+            if (char === '(') parenLevel++; if (char === ')') parenLevel--;
+            if ((char === '+' || char === '-') && parenLevel === 0 && i !== 0) {
+                terms.push(currentTerm.trim()); currentTerm = char;
+            } else { currentTerm += char; }
+        }
+        terms.push(currentTerm.trim());
+        const getPower = (t) => { if (!/[a-zA-Z]/.test(t)) return -1; let m = t.match(/\^(\d+)/); return m ? parseInt(m[1]) : 1; };
+        terms.sort((a, b) => getPower(b) - getPower(a));
+        let res = "";
+        terms.forEach((t, i) => {
+            if (i > 0 && !t.startsWith('+') && !t.startsWith('-')) res += "+" + t;
+            else if (i === 0 && t.startsWith('+')) res += t.substring(1);
+            else res += t;
+        });
+        return res;
+    }
+
+    function parseAugmentedCols(cols) {
+        const raw = document.getElementById('augmentedAfterCols').value.trim();
+        if (!raw) return [cols - 1];
+        const nums = raw.split(',').map(s => parseInt(s.trim(), 10));
+        const valid = nums.filter(n => !isNaN(n) && n >= 1 && n <= cols - 1);
+        return valid.length ? [...new Set(valid)] : [cols - 1];
+    }
+
+    function validateAugmentedCols() {
+        if (historyStep < 0) { updateUI(); return; }
+        const cols = history[historyStep].data[0].length;
+        const raw = document.getElementById('augmentedAfterCols').value.trim();
+        if (raw) {
+            const bad = raw.split(',').map(s => s.trim()).filter(s => s !== '')
+                .filter(s => { const n = parseInt(s, 10); return isNaN(n) || n < 1 || n > cols - 1; });
+            if (bad.length) alert(`Invalid column${bad.length > 1 ? 's' : ''}: ${bad.join(', ')}. Must be between 1 and ${cols - 1}.`);
+        }
+        updateUI();
+    }
+
+    function generateMatrixLatex(gridData, colorData) {
+        const isAugmented = document.getElementById('showAugmented').checked;
+        const rows = gridData.length, cols = gridData[0].length;
+        let latex;
+        if (isAugmented && cols > 1) {
+            const afterCols = new Set(parseAugmentedCols(cols));
+            let colSpec = "";
+            for (let c = 1; c <= cols; c++) { colSpec += "c"; if (afterCols.has(c)) colSpec += "|"; }
+            latex = "\\left( \\begin{array}{" + colSpec + "} ";
+        } else {
+            latex = "\\begin{pmatrix} ";
+        }
+        const rowTexList = [];
+        for (let i = 0; i < rows; i++) {
+            let rowEntries = gridData[i].map((val, j) => {
+                let tex = customLatexFormatter(val);
+                let color = colorData[i][j];
+                return (color && color !== "#000000") ? `\\color{${color}}{${tex}}` : tex;
+            });
+            rowTexList.push(rowEntries.join(" & "));
+        }
+        const rowSep = rowTexList.some(r => r.includes("\\frac")) ? " \\\\[0.2em] " : " \\\\ ";
+        latex += rowTexList.join(rowSep);
+        return latex + (isAugmented && cols > 1 ? " \\end{array} \\right)" : " \\end{pmatrix}");
+    }
+
+    // Renders a matrix as an interactive grid (one DOM element + one click
+    // listener per cell) instead of a single flat KaTeX string, so each entry
+    // can open its own edit/color context menu (see openMatrixCellMenu).
+    // Defaults target the row-ops "Matrix" display; other editors (Product's
+    // A/B, Determinant) pass their own gridId/cellPrefix/editorId/paren ids.
+    function renderMathBoxGrid(data, colors, opts) {
+        const { gridId = 'math-box-grid', cellPrefix = 'math-box-cell', editorId = 'roword',
+            parenLeftId = 'math-box-paren-left', parenRightId = 'math-box-paren-right' } = opts || {};
+        const rows = data.length, cols = data[0].length;
+        renderStretchyParens(rows, parenLeftId, parenRightId);
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = "";
+        // Augmented-separator display only applies to the row-ops matrix.
+        const isAugmented = editorId === 'roword' && document.getElementById('showAugmented').checked;
+        const afterCols = (isAugmented && cols > 1) ? new Set(parseAugmentedCols(cols)) : new Set();
+        for (let i = 0; i < rows; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'det-grid-row';
+            for (let j = 0; j < cols; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.id = `${cellPrefix}-${i}-${j}`;
+                if (afterCols.has(j + 1)) cell.style.borderRight = '2px solid #333';
+                const kspan = document.createElement('span');
+                const tex = customLatexFormatter(data[i][j]);
+                const color = colors[i][j];
+                katex.render((color && color !== "#000000") ? `\\color{${color}}{${tex}}` : tex, kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+                cell.dataset.rowIdx = String(i);
+                if (editorId === 'roword') {
+                    cell.addEventListener('mousedown', (e) => {
+                        if (rowOpsMode === 'drag' || rowOpsMode === 'both') {
+                            e.preventDefault();
+                            startRowDragTracking(e, i);
+                        }
+                    });
+                    cell.addEventListener('click', (e) => {
+                        if (_suppressNextCellClick) { _suppressNextCellClick = false; return; }
+                        if (rowOpsMode !== 'drag' && rowOpsMode !== 'both') return;
+                        if (cell._clickTimer) { clearTimeout(cell._clickTimer); cell._clickTimer = null; return; }
+                        cell._clickTimer = setTimeout(() => {
+                            cell._clickTimer = null;
+                            openScalarModal(i);
+                        }, 250);
+                    });
+                    cell.addEventListener('dblclick', (e) => {
+                        if (cell._clickTimer) { clearTimeout(cell._clickTimer); cell._clickTimer = null; }
+                        openMatrixCellMenu(e, editorId, i, j);
+                    });
+                } else {
+                    cell.addEventListener('click', (e) => openMatrixCellMenu(e, editorId, i, j));
+                }
+                rowDiv.appendChild(cell);
+            }
+            grid.appendChild(rowDiv);
+        }
+        fitDetCells(grid);
+    }
+
+    // Re-renders whichever editor owns `id` using its own registered
+    // gridId/cellPrefix/paren ids, from its own getState().
+    function renderEditor(id) {
+        const ed = matrixEditors[id];
+        if (!ed) return;
+        const state = ed.getState();
+        if (!state) return;
+        renderMathBoxGrid(state.data, state.colors, { ...ed.renderOpts, editorId: id });
+    }
+
+    // Pushes a brand new history entry built from explicit data/colors arrays
+    // (the caller already has the new grid in hand — no DOM read needed).
+    function saveState(data, colors, description) {
+        if (historyStep < history.length - 1) history = history.slice(0, historyStep + 1);
+        history.push({ data, colors, log: description });
+        historyStep++; updateUI();
+        resetStyleUndo();
+        saveStateToParent();
+    }
+
+    // Re-renders editor `id` (row-ops' updateUI() for 'roword', a plain
+    // grid re-render otherwise) and persists, after a caller has mutated
+    // that editor's current data/colors in place (no new undo step).
+    function refreshEditor(id = 'roword') {
+        if (id === 'roword') {
+            if (historyStep < 0) return;
+            updateUI();
+        } else {
+            renderEditor(id);
+        }
+        saveStateToParent();
+    }
+
+    // ── Style-edit undo: a separate stack per editor for cell value/color/
+    // expand-tidy edits, deliberately independent of the row-operation
+    // history rewind (undo()/redo() below). Opening the per-cell menu
+    // snapshots that editor's data/colors once; further edits within that
+    // same session reuse it, so closing the menu (or switching cells)
+    // commits ONE undo step covering the whole session rather than one per
+    // keystroke. For row-ops, scoped to whichever history entry is current —
+    // moving through row-operation history clears it.
+    const MAX_STYLE_UNDO = 30;
+
+    function captureStyleSnapshotIfNeeded(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed || ed.pendingStyleSnapshot) return;
+        const state = ed.getState();
+        if (!state) return;
+        ed.pendingStyleSnapshot = { data: state.data.map(r => r.slice()), colors: state.colors.map(r => r.slice()) };
+    }
+
+    function flushStyleCheckpoint(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed || !ed.pendingStyleSnapshot) return;
+        ed.styleUndoStack.push(ed.pendingStyleSnapshot);
+        if (ed.styleUndoStack.length > MAX_STYLE_UNDO) ed.styleUndoStack.shift();
+        ed.pendingStyleSnapshot = null;
+        updateStyleUndoButton(id);
+    }
+
+    function resetStyleUndo(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed) return;
+        ed.styleUndoStack = [];
+        ed.pendingStyleSnapshot = null;
+        updateStyleUndoButton(id);
+    }
+
+    function updateStyleUndoButton(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed) return;
+        const btn = document.getElementById(ed.undoBtnId);
+        if (btn) btn.disabled = !ed.pendingStyleSnapshot && ed.styleUndoStack.length === 0;
+    }
+
+    function undoStyleEdit(id = 'roword') {
+        const ed = matrixEditors[id];
+        if (!ed || !ed.getState()) return;
+        let snap;
+        if (ed.pendingStyleSnapshot) {
+            // still mid-session (menu open) — revert the in-progress edits
+            snap = ed.pendingStyleSnapshot;
+            ed.pendingStyleSnapshot = null;
+        } else if (ed.styleUndoStack.length) {
+            snap = ed.styleUndoStack.pop();
+        } else {
+            return;
+        }
+        ed.setState(snap.data, snap.colors);
+        refreshEditor(id);
+        updateStyleUndoButton(id);
+    }
+
+    // Independent of historyStep-driven visibility — set by the mini-box's own
+    // "_" button and cleared by the "Prev state" button in the History header,
+    // which only appears while there's a previous state AND it's hidden.
+    let miniBoxHidden = false;
+
+    function updateMiniBoxButton() {
+        document.getElementById('showMiniBoxBtn').style.display =
+            (historyStep > 0 && miniBoxHidden) ? "block" : "none";
+    }
+
+    function hideMiniBox() {
+        miniBoxHidden = true;
+        document.getElementById('mini-box').style.display = "none";
+        updateMiniBoxButton();
+    }
+    function showMiniBox() {
+        miniBoxHidden = false;
+        updateUI();
+    }
+
+    function updateUI() {
+        const state = history[historyStep]; if (!state) return;
+        renderMathBoxGrid(state.data, state.colors);
+        katex.render(`\\text{Operation: } ${state.log}`, document.getElementById('op-log'), { displayMode: true, throwOnError: false });
+
+        const miniBox = document.getElementById('mini-box'), miniMath = document.getElementById('mini-math');
+        if (historyStep > 0) {
+            katex.render(generateMatrixLatex(history[historyStep-1].data, history[historyStep-1].colors), miniMath, { displayMode: true, throwOnError: false });
+            miniBox.style.display = miniBoxHidden ? "none" : "flex";
+        } else { miniBox.style.display = "none"; }
+        updateMiniBoxButton();
+
+        fitMiniMath();
+        document.getElementById('undoBtn').disabled = historyStep <= 0;
+        document.getElementById('redoBtn').disabled = historyStep >= history.length - 1;
+        document.getElementById('viewHistoryBtn').style.display = "block";
+    }
+
+    // Which role the clicked row-op button ("R_i" label) plays in the type-3
+    // (combine) operation: 'i' (default) = clicked row is the source added
+    // FROM (matches the on-screen R_i label); 'j' = clicked row is the
+    // destination added TO. Toggled from the page-settings popup.
+    let type3Anchor = 'i';
+
+    function openPageSettings(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('page-settings-menu');
+        if (menu.style.display === 'flex') { closePageSettings(); return; }
+        menu.style.display = 'flex';
+        const rect = event.currentTarget.getBoundingClientRect();
+        const mRect = menu.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        let left = rect.left;
+        if (left + mRect.width > window.innerWidth) left = window.innerWidth - mRect.width - 8;
+        if (top + mRect.height > window.innerHeight) top = rect.top - mRect.height - 4;
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+    }
+    function closePageSettings() {
+        document.getElementById('page-settings-menu').style.display = 'none';
+    }
+    document.addEventListener('mousedown', (e) => {
+        const menu = document.getElementById('page-settings-menu');
+        if (menu.style.display === 'flex' && !menu.contains(e.target) && e.target.id !== 'pageSettingsBtn')
+            closePageSettings();
+    });
+
+    function setType3Anchor(mode) {
+        type3Anchor = mode;
+        document.getElementById('type3-btn-i').classList.toggle('active', mode === 'i');
+        document.getElementById('type3-btn-j').classList.toggle('active', mode === 'j');
+        updateCombineRowLabel();
+        updateCombineFieldsMode();
+    }
+
+    function updateCombineRowLabel() {
+        const rowLabel = document.getElementById('combine-row-label');
+        const kLabel = document.getElementById('combine-k-label');
+        const kWrap = document.getElementById('combine-k-wrap');
+        const rowWrap = document.getElementById('combine-row-wrap');
+        if (!rowLabel || !kLabel || !kWrap || !rowWrap) return;
+        if (type3Anchor === 'j') {
+            rowLabel.textContent = 'Add row';
+            kLabel.textContent = 'multiplied by';
+            rowWrap.style.order = '1';
+            kWrap.style.order = '2';
+        } else {
+            rowLabel.textContent = 'Add to row';
+            kLabel.textContent = 'Multiply by';
+            kWrap.style.order = '1';
+            rowWrap.style.order = '2';
+        }
+    }
+
+    (function initType3Toggle() {
+        katex.render('R_i', document.getElementById('type3-label-i'), { throwOnError: false });
+        katex.render('R_j', document.getElementById('type3-label-j'), { throwOnError: false });
+        katex.render('\\lambda_i R_i+\\lambda_jR_j', document.getElementById('type3-lincomb-label'), { throwOnError: false });
+    })();
+
+    // Whether the Combine column uses the classic "multiply by k / add to
+    // row t" form (off, default) or the general replace-row linear
+    // combination form "row[dest] = coef1*row[idx1] + coef2*row[idx2]" (on).
+    // Toggled from the page-settings popup checkbox.
+    let type3LinComb = false;
+
+    function setType3LinComb(checked) {
+        type3LinComb = checked;
+        updateCombineFieldsMode();
+    }
+
+    function updateCombineFieldsMode() {
+        const classic = document.getElementById('combine-classic-fields');
+        const lincomb = document.getElementById('combine-lincomb-fields');
+        const dragFields = document.getElementById('combine-drag-fields');
+        if (!classic || !lincomb || !dragFields) return;
+        if (rowOpModalMode === 'drag') {
+            classic.style.display = 'none';
+            lincomb.style.display = 'none';
+            dragFields.style.display = '';
+            return;
+        }
+        dragFields.style.display = 'none';
+        classic.style.display = type3LinComb ? 'none' : '';
+        lincomb.style.display = type3LinComb ? '' : 'none';
+        if (type3LinComb) {
+            const destInput = document.getElementById('lincomb-dest');
+            const destFixed = document.getElementById('lincomb-dest-fixed');
+            if (type3Anchor === 'j') {
+                destInput.style.display = 'none';
+                destFixed.style.display = '';
+                destFixed.textContent = (_rowOpIdx !== null) ? String(_rowOpIdx + 1) : '';
+            } else {
+                destInput.style.display = '';
+                destFixed.style.display = 'none';
+            }
+        }
+    }
+
+    // Parses "1R2-4R3" into { coef1: '1', idx1: 1, coef2: '-4', idx2: 2 }
+    // (indices returned 0-based). Everything before the first R is coef1,
+    // the digits right after it are idx1, everything between the end of
+    // idx1 and the second R is coef2, and the digits after that are idx2.
+    // A blank coefficient means 1, a lone sign means +-1.
+    function parseLinCombExpr(str) {
+        const m = /^([^Rr]*)[Rr](\d+)([^Rr]*)[Rr](\d+)$/.exec(str.trim());
+        if (!m) return null;
+        const parseCoef = (raw) => {
+            const t = raw.trim();
+            if (t === '') return '1';
+            if (t === '-') return '-1';
+            if (t === '+') return '1';
+            return t;
+        };
+        return {
+            coef1: parseCoef(m[1]),
+            idx1: parseInt(m[2], 10) - 1,
+            coef2: parseCoef(m[3]),
+            idx2: parseInt(m[4], 10) - 1,
+        };
+    }
+
+    function formatLinCombDescription(dest, coef1, idx1, coef2, idx2) {
+        const fmtTerm = (coef, idx, isFirst) => {
+            const { sign, tex } = coefficientParts(coef);
+            const body = `${tex}R_{${idx + 1}}`;
+            if (isFirst) return sign === '-' ? `-${body}` : body;
+            return sign === '-' ? ` - ${body}` : ` + ${body}`;
+        };
+        return `R_{${dest + 1}} \\rightarrow ${fmtTerm(coef1, idx1, true)}${fmtTerm(coef2, idx2, false)}`;
+    }
+
+    let _rowOpIdx = null;
+    let rowOpModalMode = 'full';
+    let _dragToIdx = null;
+
+    function resetRowOpModalChrome() {
+        rowOpModalMode = 'full';
+        _dragToIdx = null;
+        document.getElementById('col-swap').style.display = '';
+        document.getElementById('col-scalar').style.display = '';
+        document.getElementById('col-combine').style.display = '';
+        document.getElementById('swap-with').disabled = false;
+    }
+
+    function doRowOp(rIdx) {
+        resetRowOpModalChrome();
+        _rowOpIdx = rIdx;
+        document.getElementById('rowop-title').textContent = `Row ${rIdx + 1} — choose operation`;
+        updateCombineRowLabel();
+        selectRowOpCol('swap');
+        document.getElementById('swap-with').value = '';
+        document.getElementById('scalar-k').value = '';
+        document.getElementById('combine-k').value = '';
+        document.getElementById('combine-row').value = '';
+        document.getElementById('lincomb-dest').value = '';
+        document.getElementById('lincomb-expr').value = '';
+        updateCombineFieldsMode();
+        document.getElementById('rowop-overlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('swap-with').focus(), 50);
+    }
+
+    function openRowOpModalForDrag(fromIdx, toIdx) {
+        resetRowOpModalChrome();
+        rowOpModalMode = 'drag';
+        _rowOpIdx = fromIdx;
+        _dragToIdx = toIdx;
+        document.getElementById('rowop-title').textContent = `Row ${toIdx + 1} — swap or replace using row ${fromIdx + 1}`;
+        document.getElementById('col-scalar').style.display = 'none';
+        selectRowOpCol('swap');
+        document.getElementById('swap-with').value = String(toIdx + 1);
+        document.getElementById('swap-with').disabled = true;
+        document.getElementById('drag-combo-input').value = '';
+        if (type3LinComb) {
+            document.getElementById('drag-combo-label').textContent = `Replace row ${toIdx + 1} with`;
+            document.getElementById('drag-combo-input').placeholder = 'e.g. 1R2-4R3';
+        } else {
+            document.getElementById('drag-combo-label').textContent = `Add row ${fromIdx + 1} multiplied by`;
+            document.getElementById('drag-combo-input').placeholder = 'e.g. -2';
+        }
+        updateCombineFieldsMode();
+        document.getElementById('rowop-overlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('drag-combo-input').focus(), 50);
+    }
+
+    function openScalarModal(rIdx) {
+        resetRowOpModalChrome();
+        rowOpModalMode = 'scalarOnly';
+        _rowOpIdx = rIdx;
+        document.getElementById('rowop-title').textContent = `Row ${rIdx + 1} — scalar multiply`;
+        document.getElementById('col-swap').style.display = 'none';
+        document.getElementById('col-combine').style.display = 'none';
+        selectRowOpCol('scalar');
+        document.getElementById('scalar-k').value = '';
+        document.getElementById('rowop-overlay').style.display = 'flex';
+        setTimeout(() => document.getElementById('scalar-k').focus(), 50);
+    }
+
+    function selectRowOpCol(type) {
+        ['swap','scalar','combine'].forEach(t => {
+            const col = document.getElementById(`col-${t}`);
+            const radio = document.getElementById(`radio-${t}`);
+            const inputs = col.querySelectorAll('input[type="text"]');
+            if (t === type) {
+                col.classList.add('active');
+                col.classList.remove('inactive');
+                radio.checked = true;
+                inputs.forEach(i => i.disabled = false);
+            } else {
+                col.classList.remove('active');
+                col.classList.add('inactive');
+                radio.checked = false;
+                inputs.forEach(i => i.disabled = true);
+            }
+        });
+        if (rowOpModalMode === 'drag') document.getElementById('swap-with').disabled = true;
+    }
+
+    function closeRowOpModal() {
+        document.getElementById('rowop-overlay').style.display = 'none';
+        _rowOpIdx = null;
+    }
+
+    function algebriteEval(expr) {
+        let result;
+        try {
+            result = Algebrite.run(expr).toString();
+        } catch (e) {
+            throw new Error('Invalid expression.');
+        }
+        if (result.includes('Stop:')) throw new Error('Invalid expression.');
+        return result;
+    }
+
+    function confirmRowOp() {
+        const rIdx = _rowOpIdx;
+        if (rIdx === null) return;
+        const cur = history[historyStep];
+        const rows = cur.data.length, cols = cur.data[0].length;
+        const type = document.querySelector('input[name="rowop"]:checked').value;
+
+        if (type === 'swap') {
+            const t = parseInt(document.getElementById('swap-with').value) - 1;
+            if (isNaN(t) || t < 0 || t==rIdx || t >= rows) { alert('Invalid row number.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            const newColors = cur.colors.map(r => r.slice());
+            [newData[rIdx], newData[t]] = [newData[t], newData[rIdx]];
+            [newColors[rIdx], newColors[t]] = [newColors[t], newColors[rIdx]];
+            saveState(newData, newColors, formatOpDescription('swap', rIdx, t));
+
+        } else if (type === 'scalar') {
+            const k = document.getElementById('scalar-k').value.trim();
+            if (!k) { alert('Enter a scalar.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[rIdx][j] = reorderPolynomial(algebriteEval(`(${k})*(${cur.data[rIdx][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('multiply', rIdx, null, k));
+
+        } else if (type === 'combine' && rowOpModalMode === 'drag' && !type3LinComb) {
+            const destIdx = _dragToIdx;
+            const srcIdx = rIdx;
+            const k = document.getElementById('drag-combo-input').value.trim();
+            if (!k) { alert('Enter a scalar.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${cur.data[destIdx][j]})+(${k})*(${cur.data[srcIdx][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k));
+
+        } else if (type === 'combine' && rowOpModalMode === 'drag' && type3LinComb) {
+            const destIdx = _dragToIdx;
+            const parsed = parseLinCombExpr(document.getElementById('drag-combo-input').value);
+            if (!parsed) { alert('Expression must look like "1R2-4R3".'); return; }
+            const { coef1, idx1, coef2, idx2 } = parsed;
+            if (idx1 < 0 || idx1 >= rows || idx2 < 0 || idx2 >= rows) { alert('Row index out of range.'); return; }
+            if (idx1 === idx2) { alert('The two rows in the expression must be different.'); return; }
+            if (destIdx !== idx1 && destIdx !== idx2) { alert(`Row ${destIdx + 1} must appear in the expression.`); return; }
+            const destCoef = (destIdx === idx1) ? coef1 : coef2;
+            let destCoefVal;
+            try {
+                destCoefVal = algebriteEval(`(${destCoef})`);
+            } catch (e) {
+                alert('Invalid coefficient expression.');
+                return;
+            }
+            if (destCoefVal === '0') { alert('The coefficient of the destination row cannot be zero.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${coef1})*(${cur.data[idx1][j]})+(${coef2})*(${cur.data[idx2][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2));
+
+        } else if (type === 'combine' && !type3LinComb) {
+            const k = document.getElementById('combine-k').value.trim();
+            const t = parseInt(document.getElementById('combine-row').value) - 1;
+            if (!k) { alert('Enter a scalar.'); return; }
+            if (isNaN(t) || t < 0 || t == rIdx || t >= rows) { alert('Invalid row number.'); return; }
+            // type3Anchor decides which role the clicked row (rIdx) plays:
+            // 'i' (default) -> clicked row is the source (R_dest = t), 'j' -> clicked row is the destination (R_src = t).
+            const destIdx = (type3Anchor === 'j') ? rIdx : t;
+            const srcIdx = (type3Anchor === 'j') ? t : rIdx;
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${cur.data[destIdx][j]})+(${k})*(${cur.data[srcIdx][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatOpDescription('add', destIdx, srcIdx, k));
+
+        } else if (type === 'combine' && type3LinComb) {
+            // General replace-row form: row[dest] = coef1*row[idx1] + coef2*row[idx2].
+            // dest is the clicked row in R_j mode (automatic), or the typed "Replace row" field in R_i mode.
+            let destIdx;
+            if (type3Anchor === 'j') {
+                destIdx = rIdx;
+            } else {
+                destIdx = parseInt(document.getElementById('lincomb-dest').value) - 1;
+                if (isNaN(destIdx) || destIdx < 0 || destIdx >= rows) { alert('Invalid destination row.'); return; }
+            }
+            const parsed = parseLinCombExpr(document.getElementById('lincomb-expr').value);
+            if (!parsed) { alert('Expression must look like "1R2-4R3".'); return; }
+            const { coef1, idx1, coef2, idx2 } = parsed;
+            if (idx1 < 0 || idx1 >= rows || idx2 < 0 || idx2 >= rows) { alert('Row index out of range.'); return; }
+            if (idx1 === idx2) { alert('The two rows in the expression must be different.'); return; }
+            if (destIdx !== idx1 && destIdx !== idx2) { alert(`Row ${destIdx + 1} must appear in the expression.`); return; }
+            const destCoef = (destIdx === idx1) ? coef1 : coef2;
+            let destCoefVal;
+            try {
+                destCoefVal = algebriteEval(`(${destCoef})`);
+            } catch (e) {
+                alert('Invalid coefficient expression.');
+                return;
+            }
+            if (destCoefVal === '0') { alert('The coefficient of the destination row cannot be zero.'); return; }
+            const newData = cur.data.map(r => r.slice());
+            try {
+                for (let j = 0; j < cols; j++) {
+                    newData[destIdx][j] = reorderPolynomial(algebriteEval(`(${coef1})*(${cur.data[idx1][j]})+(${coef2})*(${cur.data[idx2][j]})`));
+                }
+            } catch (e) {
+                alert('Invalid scalar or cell expression - operation cancelled.');
+                return;
+            }
+            saveState(newData, cur.colors.map(r => r.slice()), formatLinCombDescription(destIdx, coef1, idx1, coef2, idx2));
+        }
+
+        closeRowOpModal();
+    }
+
+    // Close on backdrop click or touch
+    ['mousedown','touchstart'].forEach(evt =>
+        document.getElementById('rowop-overlay').addEventListener(evt, (e) => {
+            if (e.target === document.getElementById('rowop-overlay')) closeRowOpModal();
+        }, { passive: true })
+    );
+
+    // Confirm on Enter
+    document.getElementById('rowop-modal').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmRowOp();
+    });
+
+    function openHistoryOverlay() {
+        const list = document.getElementById('history-list');
+        list.innerHTML = "";
+        history.forEach((state, i) => {
+            const nextState = history[i + 1]; // Look ahead to the next item
+            const row = document.createElement('div');
+            row.className = "history-row";
+
+            const matrixDiv = document.createElement('div');
+            matrixDiv.className = "history-matrix";
+            const matrixInner = document.createElement('div');
+            matrixInner.style.fontSize = "1.8rem";
+            katex.render(generateMatrixLatex(state.data, state.colors), matrixInner, { displayMode: true, throwOnError: false });
+            matrixDiv.appendChild(matrixInner);
+            row.appendChild(matrixDiv);
+
+            const descDiv = document.createElement('div');
+            descDiv.className = "history-desc";
+            if (nextState) katex.render(`\\text{Step ${i+1}: } ${nextState.log}`, descDiv, { displayMode: true, throwOnError: false });
+            row.appendChild(descDiv);
+
+            list.appendChild(row);
+        });
+        document.getElementById('history-overlay').style.display = "flex";
+    }
+
+    function closeHistoryOverlay() { document.getElementById('history-overlay').style.display = "none"; }
+    // Palette colours (same set as the old row palette)
+    const PALETTE = [
+        { hex: '#000000', title: 'Black' },
+        { hex: '#FFFFFF', title: 'White (Invisible)' },
+        { hex: '#FF0000', title: 'Red' },
+        { hex: '#00FF00', title: 'Lime' },
+        { hex: '#0000FF', title: 'Blue' },
+        { hex: '#FFFF00', title: 'Yellow' },
+        { hex: '#00FFFF', title: 'Cyan' },
+        { hex: '#FF00FF', title: 'Magenta' },
+        { hex: '#FFC0CB', title: 'Light Pink' },
+        { hex: '#C0C0C0', title: 'Silver' },
+        { hex: '#808080', title: 'Gray' },
+        { hex: '#FF8C00', title: 'Orange' },
+        { hex: '#00CC00', title: 'Bright Green' },
+        { hex: '#00BEFF', title: 'Bright Cyan' }
+    ];
+
+    // Build the swatch row for the per-cell context menu (matrix-cell-menu)
+    (function buildMcmSwatches() {
+        const wrap = document.getElementById('mcm-swatches');
+        PALETTE.forEach(({ hex, title }) => {
+            const s = document.createElement('div');
+            s.className = 'swatch';
+            s.style.background = hex;
+            if (hex === '#FFFFFF') s.style.border = '1px solid #ccc';
+            s.title = title;
+            s.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                applyQuickColor(hex);
+                closeMatrixCellMenu();
+            });
+            wrap.appendChild(s);
+        });
+        // Custom colour swatch (wraps a hidden native picker)
+        const custom = document.createElement('div');
+        custom.className = 'swatch-custom';
+        custom.title = 'Custom colour…';
+        custom.innerHTML = '✎<input type="color" id="mcm-custom-color-input" value="#000000">';
+        custom.querySelector('input').addEventListener('input', (e) => {
+            applyQuickColor(e.target.value);
+        });
+        custom.querySelector('input').addEventListener('change', () => closeMatrixCellMenu());
+        wrap.appendChild(custom);
+    })();
+
+    // Close on outside click/touch
+    document.addEventListener('mousedown', (e) => {
+        const mcm = document.getElementById('matrix-cell-menu');
+        if (mcm.style.display === 'flex' && !mcm.contains(e.target) && !e.target.closest('.det-grid'))
+            closeMatrixCellMenu();
+    });
+
+    function openMatrixCellMenu(event, editorId, row, col) {
+        event.stopPropagation();
+        flushStyleCheckpoint(activeEditorId); // commit any pending session from a previously opened cell
+        activeEditorId = editorId;
+        editRow = row;
+        editCol = col;
+
+        const state = matrixEditors[editorId].getState();
+        const valInput = document.getElementById('mcm-value-input');
+        valInput.value = state.data[row][col];
+        document.getElementById('mcm-custom-color-input').value = state.colors[row][col];
+
+        const menu = document.getElementById('matrix-cell-menu');
+        menu.style.display = 'flex';
+        const rect = event.currentTarget.getBoundingClientRect();
+        const mRect = menu.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        let left = rect.left;
+        if (left + mRect.width > window.innerWidth) left = window.innerWidth - mRect.width - 8;
+        if (top + mRect.height > window.innerHeight) top = rect.top - mRect.height - 4;
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+        setTimeout(() => valInput.focus(), 30);
+    }
+
+    function closeMatrixCellMenu() {
+        document.getElementById('matrix-cell-menu').style.display = 'none';
+        flushStyleCheckpoint(activeEditorId);
+    }
+
+    document.addEventListener('mousedown', (e) => {
+        const menu = document.getElementById('matrix-settings-menu');
+        if (menu.style.display === 'flex' && !menu.contains(e.target) && e.target.id !== 'matrixSettingsBtn')
+            closeMatrixSettings();
+    });
+
+    function openMatrixSettings(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('matrix-settings-menu');
+        if (menu.style.display === 'flex') { closeMatrixSettings(); return; }
+        menu.style.display = 'flex';
+        const rect = event.currentTarget.getBoundingClientRect();
+        const mRect = menu.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        let left = rect.left;
+        if (left + mRect.width > window.innerWidth) left = window.innerWidth - mRect.width - 8;
+        if (top + mRect.height > window.innerHeight) top = rect.top - mRect.height - 4;
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+    }
+    function closeMatrixSettings() {
+        document.getElementById('matrix-settings-menu').style.display = 'none';
+    }
+
+    function mcmApplyValue() {
+        if (editRow === null || !activeEditorId) return;
+        captureStyleSnapshotIfNeeded(activeEditorId);
+        matrixEditors[activeEditorId].getState().data[editRow][editCol] = document.getElementById('mcm-value-input').value;
+        refreshEditor(activeEditorId);
+    }
+
+    function togglePanelFullscreen(id) {
+        document.getElementById(id).classList.toggle('panel-fullscreen');
+        fitMiniMath();
+    }
+
+    function applyQuickColor(color) {
+        if (editRow === null || editCol === null || !activeEditorId) return;
+        captureStyleSnapshotIfNeeded(activeEditorId);
+        matrixEditors[activeEditorId].getState().colors[editRow][editCol] = color;
+        refreshEditor(activeEditorId);
+    }
+    function modifyActiveCell(op) {
+        if (editRow === null || !activeEditorId) return;
+        const state = matrixEditors[activeEditorId].getState();
+        const curVal = state.data[editRow][editCol];
+        try {
+            let res = (op === 'expand') ? Algebrite.run(`expand(${curVal})`) : Algebrite.run(`simplify(${curVal})`);
+            let ordered = reorderPolynomial(res.toString());
+            captureStyleSnapshotIfNeeded(activeEditorId);
+            state.data[editRow][editCol] = ordered;
+            refreshEditor(activeEditorId);
+        } catch (e) { console.error(e); }
+    }
+    // Builds the R_i row-operation buttons and reveals the History panel.
+    // (There's no editor table anymore — the History grid IS the editor.)
+    let rowOpsMode = 'both';
+
+    function setRowOpsMode(mode) {
+        rowOpsMode = mode;
+        if (historyStep >= 0) buildRowOpsUI(history[historyStep].data);
+    }
+
+    function wireRowOpButton(btn, i) {
+        if (rowOpsMode === 'button' || rowOpsMode === 'both') {
+            btn.addEventListener('click', () => doRowOp(i));
+        }
+    }
+
+    let _rowDragState = null;
+    let _suppressNextCellClick = false;
+
+    function startRowDragTracking(e, i) {
+        if (e.button !== 0) return;
+        _rowDragState = { fromIdx: i, dragging: false, startX: e.clientX, startY: e.clientY, ghostEl: null, overIdx: null };
+        const onMove = (ev) => onRowDragMove(ev);
+        const onUp = (ev) => onRowDragEnd(onMove, onUp);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    function onRowDragMove(e) {
+        if (!_rowDragState) return;
+        const dx = e.clientX - _rowDragState.startX, dy = e.clientY - _rowDragState.startY;
+        if (!_rowDragState.dragging) {
+            if (Math.hypot(dx, dy) < 6) return;
+            _rowDragState.dragging = true;
+            document.getElementById('math-box-grid').classList.add('dragging-row');
+            const ghost = document.createElement('div');
+            const rowEl = document.querySelectorAll('#math-box-grid .det-grid-row')[_rowDragState.fromIdx];
+            if (rowEl) ghost.appendChild(rowEl.cloneNode(true));
+            else katex.render(`R_{${_rowDragState.fromIdx + 1}}`, ghost, { throwOnError: false });
+            document.body.appendChild(ghost);
+            _rowDragState.ghostEl = ghost;
+        }
+        _rowDragState.ghostEl.style.left = (e.clientX + 12) + 'px';
+        _rowDragState.ghostEl.style.top = (e.clientY + 12) + 'px';
+
+        document.querySelectorAll('#math-box-grid .det-grid-row.row-drop-hover').forEach(el => el.classList.remove('row-drop-hover'));
+        _rowDragState.overIdx = null;
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        const cell = target && target.closest && target.closest('#math-box-grid .det-cell');
+        if (cell && cell.dataset.rowIdx !== undefined) {
+            const idx = parseInt(cell.dataset.rowIdx, 10);
+            if (idx !== _rowDragState.fromIdx) {
+                cell.closest('.det-grid-row').classList.add('row-drop-hover');
+                _rowDragState.overIdx = idx;
+            }
+        }
+    }
+
+    function onRowDragEnd(onMove, onUp) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.getElementById('math-box-grid').classList.remove('dragging-row');
+        if (!_rowDragState) return;
+        const { dragging, fromIdx, overIdx, ghostEl } = _rowDragState;
+        if (ghostEl) ghostEl.remove();
+        document.querySelectorAll('#math-box-grid .det-grid-row.row-drop-hover').forEach(el => el.classList.remove('row-drop-hover'));
+        _rowDragState = null;
+        if (dragging) {
+            _suppressNextCellClick = true;
+            setTimeout(() => { _suppressNextCellClick = false; }, 0);
+            if (overIdx !== null && overIdx !== undefined) openRowOpModalForDrag(fromIdx, overIdx);
+        }
+    }
+
+    function buildRowOpsUI(dataArray) {
+        const rows = dataArray.length;
+        document.getElementById('downloadBtn').style.display = "block";
+        document.getElementById('exportOcBtn').style.display = isEmbeddedInOneClaute() ? "block" : "none";
+        document.getElementById('echelonBtn').style.display = "block";
+        const stack = document.getElementById('rowops-stack');
+        stack.innerHTML = "";
+        for (let i = 0; i < rows; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'rowops';
+            btn.dataset.rowIdx = String(i);
+            btn.innerHTML = `<span id="rowop-label-${i}"></span>&nbsp;ops`;
+            wireRowOpButton(btn, i);
+            stack.appendChild(btn);
+            katex.render(`R_{${i+1}}`, document.getElementById(`rowop-label-${i}`), { throwOnError: false });
+        }
+        document.getElementById('display-area').style.display = "block";
+    }
+    function rebuildMatrixUI(dataArray) {
+        buildRowOpsUI(dataArray);
+        history = []; historyStep = -1;
+        identityBlockAdded = false;
+        saveState(dataArray, dataArray.map(row => row.map(() => '#000000')), "\\text{Matrix Initialized}");
+        updateIdentityBlockButton();
+    }
+    function initializeMatrix() {
+        rebuildMatrixUI([["1", "0"], ["0", "1"]]);
+    }
+    let identityBlockAdded = false;
+    function updateIdentityBlockButton() {
+        const label = document.getElementById('identity-btn-label');
+        if (label) label.textContent = identityBlockAdded ? 'Remove block' : 'Add block';
+    }
+    function toggleIdentityBlock() {
+        if (identityBlockAdded) removeIdentityBlock();
+        else insertIdentity();
+    }
+    function insertIdentity() {
+        if (historyStep < 0) { alert('Initialize a matrix first.'); return; }
+        const gridData = history[historyStep].data;
+        const rows = gridData.length, origCols = gridData[0].length;
+        const newGrid = gridData.map((row, i) => row.concat(Array.from({ length: rows }, (_, j) => (i === j ? '1' : '0'))));
+        document.getElementById('showAugmented').checked = true;
+        document.getElementById('augmentedAfterCols').value = String(origCols);
+        rebuildMatrixUI(newGrid);
+        identityBlockAdded = true;
+        updateIdentityBlockButton();
+    }
+    function removeIdentityBlock() {
+        if (historyStep < 0) return;
+        const gridData = history[historyStep].data;
+        const rows = gridData.length, totalCols = gridData[0].length;
+        const origCols = totalCols - rows;
+        if (origCols < 1) return;
+        const newGrid = gridData.map(row => row.slice(0, origCols));
+        document.getElementById('showAugmented').checked = false;
+        document.getElementById('augmentedAfterCols').value = '';
+        rebuildMatrixUI(newGrid);
+        identityBlockAdded = false;
+        updateIdentityBlockButton();
+    }
+    function undo() { if (historyStep > 0) { historyStep--; updateUI(); resetStyleUndo(); } }
+    function redo() { if (historyStep < history.length - 1) { historyStep++; updateUI(); resetStyleUndo(); } }
+    
+    function fitMiniMath() {
+        const box = document.getElementById('mini-box'), content = document.getElementById('mini-math');
+        if (!content || !box || box.style.display === "none") return;
+        
+        content.style.transform = "scale(1)";
+        content.style.display = "inline-block"; 
+        
+        // Account for label height and padding
+        const ratio = 1; 
+        const availableW = box.clientWidth * ratio;
+        const availableH = (box.clientHeight - 20) * ratio; 
+        const contentW = content.scrollWidth;
+        const contentH = content.scrollHeight;
+        
+        if (contentW > 0 && contentH > 0) {
+            const scale = Math.max(0.1, Math.min(availableW / contentW, availableH / contentH));
+            content.style.transformOrigin = "center center";
+            content.style.transform = `scale(${scale})`;
+        }
+    }
+
+    // 'row': semicolon-groups (or several pasted vectors) become rows.
+    // 'col': they become columns instead. Tracked per editor since each
+    // Entries field (row-ops, Product's A/B, Determinant) is independent.
+    const quickInputOrientation = { roword: 'row', rcA: 'row', rcB: 'row', det: 'row' };
+
+    // Maps an editorKey to its Entries <input> id and confirm function, so
+    // the orientation toggle and paste-handling below can be attached once
+    // per editor instead of duplicated per tab.
+    const quickInputConfig = {
+        roword: { fieldId: 'quick-input-field', confirm: () => confirmQuickInput() },
+        rcA: { fieldId: 'rcA-quick', confirm: () => rcConfirmQuickInput('A') },
+        rcB: { fieldId: 'rcB-quick', confirm: () => rcConfirmQuickInput('B') },
+        det: { fieldId: 'det-quick', confirm: () => detConfirmQuickInput() },
+    };
+
+    function setQuickInputOrientation(mode, btn, editorKey) {
+        quickInputOrientation[editorKey] = mode;
+        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cfg = quickInputConfig[editorKey];
+        if (document.getElementById(cfg.fieldId).value.trim()) cfg.confirm();
+    }
+
+    function transposeGrid(grid) {
+        return grid[0].map((_, j) => grid.map(row => row[j]));
+    }
+
+    // Cleans up one pasted LaTeX cell into an Algebrite-compatible expression.
+    function latexCellToExpr(s) {
+        s = s.trim();
+        let prev;
+        do {
+            prev = s;
+            s = s.replace(/\\d?frac\s*\{([^{}]*)\}\{([^{}]*)\}/g, '(($1)/($2))');
+        } while (s !== prev);
+        s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, 'sqrt($1)');
+        s = s.replace(/\\left|\\right/g, '');
+        s = s.replace(/\\cdot|\\times/g, '*');
+        s = s.replace(/\\pi\b/g, 'pi');
+        s = s.replace(/\^\{([^{}]*)\}/g, '^($1)');
+        s = s.replace(/\{([^{}]*)\}/g, '$1');
+        s = s.replace(/\\,|\\;|\\:|\\!/g, '');
+        return s.replace(/\s+/g, ' ').trim();
+    }
+
+    // OneClaute sometimes wraps an augmented matrix as a delimiter env directly
+    // around an inner array carrying the real grid + colspec, e.g.
+    // \begin{pmatrix}\begin{array}{c|c|c}a&b&c\\d&e&f\end{array}\end{pmatrix}.
+    // Peels off wrapper envs that hold nothing but one inner env, returning the
+    // innermost body and which env it came from (only 'array' carries a colspec).
+    function unwrapNestedEnv(body){
+        let b = body.trim(), env = null, changed = true;
+        while (changed) {
+            changed = false;
+            const m = b.match(/^\\begin\{(pmatrix|bmatrix|vmatrix|Vmatrix|Bmatrix|matrix|array)\}([\s\S]*)\\end\{\1\}$/);
+            if (m) { env = m[1]; b = m[2]; changed = true; }
+        }
+        return { body: b, env };
+    }
+
+    // "c|c|c" → [1,2] (1-indexed "separator after this column"), matching
+    // the app's own augmentedAfterCols format.
+    function parseColSpecSeparators(spec){
+        const afterCols = [];
+        let col = 0;
+        for (const ch of spec) {
+            if (ch === 'c' || ch === 'l' || ch === 'r') col++;
+            else if (ch === '|') afterCols.push(col);
+        }
+        return afterCols;
+    }
+
+    // Extracts every \begin{...matrix...}...\end{...} block pasted from
+    // OneClaute (one matrix, or several vectors copied side by side) into
+    // 2D arrays of cleaned-up expression strings, unwrapping a nested array
+    // (with its column spec, for augmented pastes) when present.
+    function parseLatexBlocks(text) {
+        const re = /\\begin\{(pmatrix|bmatrix|vmatrix|Vmatrix|Bmatrix|matrix|array)\}([\s\S]*?)\\end\{\1\}/g;
+        const blocks = [];
+        let m;
+        while ((m = re.exec(text))) {
+            let body = m[2];
+            let colSpec = null;
+            if (m[1] === 'array') {
+                const cm = body.match(/^\s*\{([^{}]*)\}/);
+                if (cm) colSpec = cm[1];
+                body = body.replace(/^\s*\{[^{}]*\}/, '');
+            }
+            const unwrapped = unwrapNestedEnv(body);
+            body = unwrapped.body;
+            if (unwrapped.env === 'array') {
+                const cm = body.match(/^\s*\{([^{}]*)\}/);
+                if (cm) colSpec = cm[1];
+                body = body.replace(/^\s*\{[^{}]*\}/, '');
+            }
+            const rows = body.split('\\\\')
+                .map(r => r.replace(/^\s*\[[^\]]*\]/, '').trim())
+                .filter(r => r.length);
+            blocks.push({ grid: rows.map(r => r.split('&').map(latexCellToExpr)), colSpec });
+        }
+        return blocks;
+    }
+
+    // Shared by Confirm and the paste-translate handler: parses either a
+    // plain "a,b;c,d" string or pasted LaTeX into a grid, plus any augmented
+    // column separators detected from a single matrix's array colspec.
+    function resolveQuickInputRows(raw, editorKey = 'roword') {
+        let rows;
+        let augAfterCols = null;
+        const latexBlocks = raw.includes('\\begin{') ? parseLatexBlocks(raw) : [];
+        const orientation = quickInputOrientation[editorKey];
+
+        if (latexBlocks.length === 1) {
+            // A single pasted matrix — used exactly as written.
+            rows = latexBlocks[0].grid;
+            if (latexBlocks[0].colSpec) {
+                const afterCols = parseColSpecSeparators(latexBlocks[0].colSpec);
+                if (afterCols.length) augAfterCols = afterCols;
+            }
+        } else if (latexBlocks.length > 1) {
+            // Several pasted vectors — combine them as rows or columns per the toggle.
+            const vectors = latexBlocks.map(b => b.grid.flat());
+            rows = orientation === 'col' ? transposeGrid(vectors) : vectors;
+        } else {
+            rows = raw.split(';').map(r => r.split(',').map(c => c.trim()));
+            if (orientation === 'col') rows = transposeGrid(rows);
+        }
+        return { rows, augAfterCols };
+    }
+
+    function quickInputRowsToText(rows) {
+        return rows.map(r => r.join(',')).join(';');
+    }
+
+    // Wires an Entries field for editorKey: LaTeX paste -> plain-text
+    // translation + auto-confirm; plain paste -> native insertion detected
+    // via inputType + auto-confirm; normal typing is left alone.
+    // onAugDetected (row-ops only) receives the augmented-colspec info a
+    // LaTeX paste carried, since confirmQuickInput needs it a tick later.
+    function attachQuickInputPaste(editorKey, onAugDetected) {
+        const cfg = quickInputConfig[editorKey];
+        const field = document.getElementById(cfg.fieldId);
+        field.addEventListener('paste', function (e) {
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (!text || !text.includes('\\begin{')) return; // plain paste — default happens, 'input' listener below auto-confirms it
+            e.preventDefault();
+            try {
+                const { rows, augAfterCols } = resolveQuickInputRows(text.trim(), editorKey);
+                this.value = quickInputRowsToText(rows);
+                if (onAugDetected) onAugDetected(augAfterCols);
+            } catch (err) {
+                this.value = text; // translation failed — fall back to the raw paste, nothing to auto-confirm
+                return;
+            }
+            cfg.confirm();
+        });
+        field.addEventListener('input', function (e) {
+            if (onAugDetected) onAugDetected(null); // only trust it immediately after the paste that set it
+            if (e.inputType === 'insertFromPaste' && this.value.trim()) cfg.confirm();
+        });
+    }
+
+    let pendingAugAfterCols = null;
+    attachQuickInputPaste('roword', (aug) => { pendingAugAfterCols = aug; });
+
+    function confirmQuickInput() {
+        const raw = document.getElementById('quick-input-field').value.trim();
+        if (!raw) return;
+
+        const { rows, augAfterCols } = resolveQuickInputRows(raw, 'roword');
+        const finalAugAfterCols = augAfterCols || pendingAugAfterCols;
+        pendingAugAfterCols = null;
+
+        const expectedCols = rows[0].length;
+        const badRow = rows.findIndex(r => r.length !== expectedCols);
+        if (badRow !== -1) {
+            alert(`Group ${badRow + 1} has ${rows[badRow].length} value(s), expected ${expectedCols}. All groups must be the same length.`);
+            return;
+        }
+        // A fresh paste fully determines the augmented view — don't leave a
+        // previous paste's separator settings stuck on if this one has none.
+        document.getElementById('showAugmented').checked = !!finalAugAfterCols;
+        document.getElementById('augmentedAfterCols').value = finalAugAfterCols ? finalAugAfterCols.join(',') : '';
+        rebuildMatrixUI(rows);
+    }
+    function closeEchelonOverlay() {
+        document.getElementById('echelon-overlay').style.display = 'none';
+    }
+
+    function runEchelon() {
+        if (historyStep < 0) { alert('No matrix to reduce.'); return; }
+        const data = history[historyStep].data;
+        let tree;
+        try {
+            tree = window.toEchelonForm(data.map(r => r.slice()));
+        } catch (e) {
+            alert('Could not complete automatic reduction: ' + e.message);
+            return;
+        }
+        const container = document.getElementById('echelon-tree');
+        container.innerHTML = '';
+        renderEchelonNode(tree, container, 0);
+        document.getElementById('echelon-overlay').style.display = 'flex';
+    }
+
+    // Hands the current matrix to echelon.html, which draws the same
+    // toEchelonForm() tree as an actual branching diagram (pan/zoom, per-case
+    // row operations, rank/solution verdicts).
+    function openInEchelonTree() {
+        if (historyStep < 0) { alert('No matrix to reduce.'); return; }
+        const data = history[historyStep].data;
+        // mode=auto: this button means "let echelon.js branch it for me"
+        let url = 'echelon.html?mode=auto&m=' + encodeURIComponent(data.map(r => r.join(',')).join(';'));
+        if (document.getElementById('showAugmented').checked) {
+            url += '&aug=' + encodeURIComponent(parseAugmentedCols(data[0].length).join(','));
+        }
+        window.open(url, '_blank');
+    }
+
+    function renderEchelonNode(node, container, depth) {
+        const wrap = document.createElement('div');
+        wrap.className = 'echelon-node';
+        wrap.style.marginLeft = (depth * 24) + 'px';
+
+        const condDiv = document.createElement('div');
+        condDiv.className = 'echelon-condition';
+        condDiv.textContent = node.condition;
+        wrap.appendChild(condDiv);
+
+        const matrixDiv = document.createElement('div');
+        matrixDiv.className = 'echelon-matrix-wrap';
+        const colors = node.rows.map(r => r.map(() => "#000000"));
+        katex.render(generateMatrixLatex(node.rows, colors), matrixDiv, { displayMode: true, throwOnError: false });
+        wrap.appendChild(matrixDiv);
+
+        container.appendChild(wrap);
+        node.children.forEach(child => renderEchelonNode(child, container, depth + 1));
+    }
+
+    function downloadHistory() {
+        let output = history.map((s, i) => `Step ${i}: ${s.log}\nLaTeX: ${generateMatrixLatex(s.data, s.colors)}`).join('\n\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([output], {type: 'text/plain'}));
+        a.download = 'matrix_log.txt'; a.click();
+    }
+
+    function isEmbeddedInOneClaute() {
+        try { return window.parent !== window; } catch (e) { return false; }
+    }
+
+    function escHtmlAttr(s) {
+        return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function buildOneClauteHistoryHtml() {
+        let html = '';
+        history.forEach((state, i) => {
+            const matrixLatex = generateMatrixLatex(state.data, state.colors);
+            html += `<p>Step ${i}: <span class="math-atom" contenteditable="false" data-latex="${escHtmlAttr(state.log)}"></span></p>`;
+            html += `<div class="display-block" data-align="center" data-latex="${escHtmlAttr(matrixLatex)}" data-mode="mathlive" contenteditable="false"><div class="display-block-inner" data-layer="mathlive"></div><div class="display-block-inner" data-layer="katex"></div></div>`;
+        });
+        return html;
+    }
+
+    function exportHistoryToOneClaute() {
+        if (history.length === 0) { alert('Nothing to export yet.'); return; }
+        if (!isEmbeddedInOneClaute()) { alert('This only works when the page is embedded inside a OneClaute page.'); return; }
+        window.parent.postMessage({
+            type: 'embed-insert-block',
+            content: buildOneClauteHistoryHtml(),
+            height: Math.max(300, history.length * 220),
+        }, '*');
+    }
+
+    function serializeAppState() {
+        const activeTabEl = document.querySelector('.tab-panel.active');
+        return {
+            activeTab: activeTabEl ? activeTabEl.id : 'tab-rowops',
+            rowops: {
+                history: history,
+                historyStep: historyStep,
+                showAugmented: document.getElementById('showAugmented').checked,
+                augmentedAfterCols: document.getElementById('augmentedAfterCols').value,
+            },
+            product: {
+                aData: rcAState.data, aColors: rcAState.colors,
+                bData: rcBState.data, bColors: rcBState.colors,
+            },
+            det: {
+                data: detState.data, colors: detState.colors,
+                expandAlong: detExpandAlong,
+            },
+        };
+    }
+
+    function saveStateToParent() {
+        if (!isEmbeddedInOneClaute()) return;
+        window.parent.postMessage({ type: 'embed-save', state: serializeAppState() }, '*');
+    }
+
+    function restoreAppState(state) {
+        if (!state) return;
+        try {
+            if (state.rowops && state.rowops.history && state.rowops.history.length) {
+                history = state.rowops.history;
+                historyStep = state.rowops.historyStep;
+                document.getElementById('showAugmented').checked = !!state.rowops.showAugmented;
+                document.getElementById('augmentedAfterCols').value = state.rowops.augmentedAfterCols || '';
+                const dims = history[historyStep].data;
+                buildRowOpsUI(dims);
+                identityBlockAdded = false;
+                updateIdentityBlockButton();
+                updateUI();
+                resetStyleUndo();
+            }
+            if (state.product) {
+                const p = state.product;
+                if (p.aData) rcAState = { data: p.aData, colors: p.aColors || p.aData.map(r => r.map(() => '#000000')) };
+                if (p.bData) rcBState = { data: p.bData, colors: p.bColors || p.bData.map(r => r.map(() => '#000000')) };
+                if (p.aData && p.bData) computeProduct();
+            }
+            if (state.det && state.det.data) {
+                detState = { data: state.det.data, colors: state.det.colors || state.det.data.map(r => r.map(() => '#000000')) };
+                if (state.det.expandAlong) detExpandAlong = state.det.expandAlong;
+                detCompute();
+            }
+            if (state.activeTab) {
+                const btn = document.querySelector(`.tab-btn[onclick*="${state.activeTab}"]`);
+                if (btn) switchTab(state.activeTab, btn);
+            }
+        } catch (e) { console.error('restoreAppState failed', e); }
+    }
+
+    window.addEventListener('message', (e) => {
+        if (e.data?.type === 'embed-init') restoreAppState(e.data.state);
+    });
+
+    (function initMiniBox(el) {
+        let p3=0, p4=0;
+
+        // --- Mouse drag ---
+        el.onmousedown = (e) => {
+            if (e.clientX > el.getBoundingClientRect().right - 25 && 
+                e.clientY > el.getBoundingClientRect().bottom - 25) return;
+            e.preventDefault(); 
+            p3 = e.clientX; 
+            p4 = e.clientY;
+            document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; };
+            document.onmousemove = (e) => {
+                el.style.top  = (el.offsetTop  - (p4 - e.clientY)) + "px";
+                el.style.left = (el.offsetLeft - (p3 - e.clientX)) + "px";
+                p3 = e.clientX; p4 = e.clientY;
+                el.style.right = "auto";
+            };
+        };
+
+        // --- Touch drag & pinch-resize ---
+        let lastTouchX = 0, lastTouchY = 0;
+        let lastPinchDist = null;
+        let startW = 0, startH = 0;
+
+        el.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                // Single finger: drag
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+                lastPinchDist = null;
+            } else if (e.touches.length === 2) {
+                // Two fingers: pinch-resize
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastPinchDist = Math.hypot(dx, dy);
+                startW = el.offsetWidth;
+                startH = el.offsetHeight;
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        el.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1 && lastPinchDist === null) {
+                // Drag
+                const dx = e.touches[0].clientX - lastTouchX;
+                const dy = e.touches[0].clientY - lastTouchY;
+                el.style.top  = (el.offsetTop  + dy) + "px";
+                el.style.left = (el.offsetLeft + dx) + "px";
+                el.style.right = "auto";
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+            } else if (e.touches.length === 2 && lastPinchDist !== null) {
+                // Pinch resize
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.hypot(dx, dy);
+                const ratio = dist / lastPinchDist;
+                el.style.width  = Math.max(80,  startW * ratio) + "px";
+                el.style.height = Math.max(60, startH * ratio) + "px";
+                fitMiniMath();
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        el.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) lastPinchDist = null;
+        });
+
+        // Trigger fitMiniMath whenever the box is resized (mouse or touch)
+        const ro = new ResizeObserver(() => fitMiniMath());
+        ro.observe(el);
+    })(document.getElementById("mini-box"));
+
+    // ---------- Tab switching ----------
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        btn.classList.add('active');
+        saveStateToParent();
+    }
+
+    function renderStretchyParens(n, leftId, rightId) {
+        const phantomRows = Array(n).fill('1').join('\\\\[0.2em]');
+        const phantomMatrix = `\\begin{matrix}${phantomRows}\\end{matrix}`;
+        katex.render(`\\left(\\vphantom{${phantomMatrix}}\\right.`, document.getElementById(leftId), { throwOnError: false });
+        katex.render(`\\left.\\vphantom{${phantomMatrix}}\\right)`, document.getElementById(rightId), { throwOnError: false });
+    }
+
+    // ---------- Row/Col Product tab ----------
+    let rcLastA = null, rcLastB = null, rcLastResult = null;
+    let rcLock = null;
+
+    function rcDefaultState() {
+        return { data: [["1", "0"], ["0", "1"]], colors: [["#000000", "#000000"], ["#000000", "#000000"]] };
+    }
+    // No interactive editor grid for A/B — Entries is the only way to set
+    // them, so rcAState/rcBState are plain data holders, not matrixEditors.
+    let rcAState = rcDefaultState();
+    let rcBState = rcDefaultState();
+    attachQuickInputPaste('rcA');
+    attachQuickInputPaste('rcB');
+
+    function rcClearOutputs() {
+        rcLastA = rcLastB = rcLastResult = null;
+        ['rc-eq-a-grid', 'rc-eq-a-paren-left', 'rc-eq-a-paren-right',
+         'rc-eq-b-grid', 'rc-eq-b-paren-left', 'rc-eq-b-paren-right',
+         'rc-result-grid', 'rc-paren-left', 'rc-paren-right',
+         'rc-result-formula'].forEach(id => document.getElementById(id).innerHTML = "");
+    }
+
+    function rcInitDefaults() {
+        computeProduct();
+    }
+
+    function rcConfirmQuickInput(which) {
+        const editorId = `rc${which}`;
+        const raw = document.getElementById(`${editorId}-quick`).value.trim();
+        if (!raw) return;
+        const { rows } = resolveQuickInputRows(raw, editorId);
+        const expectedCols = rows[0].length;
+        const badRow = rows.findIndex(r => r.length !== expectedCols);
+        if (badRow !== -1) {
+            alert(`Row ${badRow + 1} has ${rows[badRow].length} value(s), expected ${expectedCols}. All rows must have the same number of columns.`);
+            return;
+        }
+        const newState = { data: rows, colors: rows.map(r => r.map(() => '#000000')) };
+        if (which === 'A') rcAState = newState; else rcBState = newState;
+        rcClearOutputs();
+        computeProduct();
+    }
+
+    function rcFormatFactor(raw) {
+        const tex = customLatexFormatter(raw);
+        return raw.trim().startsWith('-') ? `(${tex})` : tex;
+    }
+
+    function rcBuildExpansionFormula(A, B, i, j, resultValue) {
+        const n = A[0].length;
+        const terms = [];
+        for (let k = 0; k < n; k++) {
+            const aTex = `{\\color{#0d6efd}${rcFormatFactor(A[i][k])}}`;
+            const bTex = `{\\color{#dc3545}${rcFormatFactor(B[k][j])}}`;
+            terms.push(`${aTex}\\cdot${bTex}`);
+        }
+        const coloredResult = `{\\color{#198754}${customLatexFormatter(resultValue)}}`;
+        return `${terms.join('+')} = ${coloredResult}`;
+    }
+
+    function rcHighlightRow(eqPrefix, rowIdx, cols, add) {
+        for (let j = 0; j < cols; j++) {
+            const el = document.getElementById(`${eqPrefix}-${rowIdx}-${j}`);
+            if (el) el.classList.toggle('rc-highlight-row', add);
+        }
+    }
+    function rcHighlightCol(eqPrefix, colIdx, rows, add) {
+        for (let i = 0; i < rows; i++) {
+            const el = document.getElementById(`${eqPrefix}-${i}-${colIdx}`);
+            if (el) el.classList.toggle('rc-highlight-col', add);
+        }
+    }
+
+    function fitDetCells(scopeEl) {
+        let w = 32, h = 32;
+        scopeEl.querySelectorAll('.det-cell .katex').forEach(k => {
+            w = Math.max(w, k.offsetWidth + 8);
+            h = Math.max(h, k.offsetHeight + 6);
+        });
+        scopeEl.style.setProperty('--det-cell-w', w + 'px');
+        scopeEl.style.setProperty('--det-cell-h', h + 'px');
+    }
+
+    function rcBuildReadOnlyGrid(gridId, leftParenId, rightParenId, idPrefix, data) {
+        const rows = data.length, cols = data[0].length;
+        renderStretchyParens(rows, leftParenId, rightParenId);
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = "";
+        for (let i = 0; i < rows; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'det-grid-row';
+            for (let j = 0; j < cols; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.id = `${idPrefix}-${i}-${j}`;
+                const kspan = document.createElement('span');
+                katex.render(customLatexFormatter(data[i][j]), kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+                rowDiv.appendChild(cell);
+            }
+            grid.appendChild(rowDiv);
+        }
+        fitDetCells(grid);
+    }
+
+    function rcHoverResult(i, j) {
+        document.getElementById(`rc-result-cell-${i}-${j}`).classList.add('rc-cell-hover');
+        rcHighlightRow('rc-eq-a', i, rcLastA[0].length, true);
+        rcHighlightCol('rc-eq-b', j, rcLastB.length, true);
+        katex.render(
+            rcBuildExpansionFormula(rcLastA, rcLastB, i, j, rcLastResult[i][j]),
+            document.getElementById('rc-result-formula'), { displayMode: true, throwOnError: false }
+        );
+    }
+    function rcClearHoverResult(i, j) {
+        document.getElementById(`rc-result-cell-${i}-${j}`).classList.remove('rc-cell-hover');
+        rcHighlightRow('rc-eq-a', i, rcLastA[0].length, false);
+        rcHighlightCol('rc-eq-b', j, rcLastB.length, false);
+        document.getElementById('rc-result-formula').innerHTML = "";
+    }
+
+    function rcToggleLock(i, j, cellEl) {
+        if (rcLock && rcLock.i === i && rcLock.j === j) {
+            rcLock = null;
+            rcClearHoverResult(i, j);
+            cellEl.classList.remove('det-locked');
+            return;
+        }
+        rcLock = { i, j };
+        document.querySelectorAll('#rc-result-grid .det-locked').forEach(el => el.classList.remove('det-locked'));
+        rcHoverResult(i, j);
+        cellEl.classList.add('det-locked');
+    }
+
+    function rcRenderResultGrid(result) {
+        rcLock = null;
+        const rows = result.length, cols = result[0].length;
+        renderStretchyParens(rows, 'rc-paren-left', 'rc-paren-right');
+        const grid = document.getElementById('rc-result-grid');
+        grid.innerHTML = "";
+        for (let i = 0; i < rows; i++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'det-grid-row';
+            for (let j = 0; j < cols; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.id = `rc-result-cell-${i}-${j}`;
+                const kspan = document.createElement('span');
+                katex.render(customLatexFormatter(result[i][j]), kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+                cell.addEventListener('mouseenter', () => { if (!rcLock) rcHoverResult(i, j); });
+                cell.addEventListener('mouseleave', () => { if (!rcLock) rcClearHoverResult(i, j); });
+                cell.addEventListener('click', () => rcToggleLock(i, j, cell));
+                rowDiv.appendChild(cell);
+            }
+            grid.appendChild(rowDiv);
+        }
+        fitDetCells(grid);
+    }
+
+    function rcShowUndefinedResult() {
+        document.getElementById('rc-paren-left').innerHTML = '';
+        document.getElementById('rc-paren-right').innerHTML = '';
+        document.getElementById('rc-result-formula').innerHTML = '';
+        const resultGrid = document.getElementById('rc-result-grid');
+        resultGrid.innerHTML = '';
+        katex.render('\\text{undefined}', resultGrid, { throwOnError: false });
+    }
+
+    function computeProduct() {
+        const A = rcAState.data, B = rcBState.data;
+        const aRows = A.length, aCols = A[0].length, bRows = B.length, bCols = B[0].length;
+        rcBuildReadOnlyGrid('rc-eq-a-grid', 'rc-eq-a-paren-left', 'rc-eq-a-paren-right', 'rc-eq-a', A);
+        rcBuildReadOnlyGrid('rc-eq-b-grid', 'rc-eq-b-paren-left', 'rc-eq-b-paren-right', 'rc-eq-b', B);
+        if (aCols !== bRows) {
+            rcLastA = A; rcLastB = B; rcLastResult = null;
+            rcShowUndefinedResult();
+            saveStateToParent();
+            return;
+        }
+        const result = [];
+        for (let i = 0; i < aRows; i++) {
+            const row = [];
+            for (let j = 0; j < bCols; j++) {
+                const terms = [];
+                for (let k = 0; k < aCols; k++) terms.push(`(${A[i][k]})*(${B[k][j]})`);
+                let val;
+                try {
+                    val = algebriteEval(terms.join('+'));
+                } catch (e) {
+                    rcLastA = A; rcLastB = B; rcLastResult = null;
+                    rcShowUndefinedResult();
+                    saveStateToParent();
+                    return;
+                }
+                row.push(reorderPolynomial(val));
+            }
+            result.push(row);
+        }
+        rcLastA = A; rcLastB = B; rcLastResult = result;
+        rcRenderResultGrid(result);
+        saveStateToParent();
+    }
+
+    // ---------- Determinant tab ----------
+    let detValues = [];
+    let detExpandAlong = { type: 'row', idx: 0 };
+    let detLastResult = null;
+    let detLock = null;
+
+    function detLockMatches(target) {
+        if (!detLock) return false;
+        if (detLock.kind !== target.kind) return false;
+        if (target.kind === 'cell') return detLock.i === target.i && detLock.j === target.j;
+        return detLock.idx === target.idx;
+    }
+
+    function detClearLockVisual() {
+        document.querySelectorAll('.det-locked').forEach(el => el.classList.remove('det-locked'));
+    }
+
+    function detToggleLock(target, el) {
+        if (detLockMatches(target)) {
+            detLock = null;
+            detClearStrike();
+            detHideFormula();
+            detClearLockVisual();
+            return;
+        }
+        detLock = target;
+        if (target.kind === 'row') {
+            detStrikeRow(target.idx);
+        } else if (target.kind === 'col') {
+            detStrikeCol(target.idx);
+        } else {
+            detStrikeCell(target.i, target.j);
+            document.getElementById(`det-viz-cell-${target.i}-${target.j}`).classList.add('coef-red');
+            const k = detExpandAlong.type === 'row' ? target.j : target.i;
+            detShowHighlightedExpansion(k);
+        }
+        detClearLockVisual();
+        el.classList.add('det-locked');
+    }
+
+    function detOnExpandAlongChange() {
+        const type = document.getElementById('det-expand-type-select').value;
+        const idx = parseInt(document.getElementById('det-expand-idx-select').value, 10);
+        detExpandAlong = { type, idx };
+        detRenderViz();
+        detHideFormula(); // shows the resting full-expansion state
+    }
+
+    function detBuildExpandRadios(n) {
+        const typeSel = document.getElementById('det-expand-type-select');
+        const idxSel = document.getElementById('det-expand-idx-select');
+        typeSel.innerHTML = '<option value="row">Row</option><option value="col">Col</option>';
+        typeSel.value = detExpandAlong.type;
+        idxSel.innerHTML = Array.from({ length: n }, (_, i) => `<option value="${i}">${i + 1}</option>`).join('');
+        idxSel.value = String(detExpandAlong.idx);
+        typeSel.onchange = detOnExpandAlongChange;
+        idxSel.onchange = detOnExpandAlongChange;
+    }
+
+    function detDefaultState(n = 2) {
+        return {
+            data: Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? '1' : '0')),
+            colors: Array.from({ length: n }, () => Array(n).fill('#000000')),
+        };
+    }
+    // No interactive editor grid — Entries is the only way to set it, so
+    // detState is a plain data holder, not a matrixEditors entry.
+    let detState = detDefaultState();
+    attachQuickInputPaste('det');
+
+    // Row/1 is only the default at page creation (via detExpandAlong's initial
+    // value above) — a later Confirm with a new matrix keeps the current
+    // expand-along choice, only clamping it if the new size makes it invalid.
+    function detResetVizForNewMatrix(n) {
+        if (detExpandAlong.idx >= n) detExpandAlong = { ...detExpandAlong, idx: n - 1 };
+        detLastResult = null;
+        detBuildExpandRadios(n);
+    }
+
+    function detInitDefaults() {
+        detResetVizForNewMatrix(detState.data.length);
+        detCompute();
+    }
+
+    function detConfirmQuickInput() {
+        const raw = document.getElementById('det-quick').value.trim();
+        if (!raw) return;
+        const { rows } = resolveQuickInputRows(raw, 'det');
+        const n = rows.length;
+        const badRow = rows.findIndex(r => r.length !== n);
+        if (badRow !== -1) {
+            alert(`A determinant matrix must be square (n×n). Row ${badRow + 1} has ${rows[badRow].length} value(s), expected ${n}.`);
+            return;
+        }
+        detState = { data: rows, colors: rows.map(r => r.map(() => '#000000')) };
+        detResetVizForNewMatrix(n);
+        detCompute();
+    }
+
+    function detReadGrid() {
+        return detState.data;
+    }
+
+    function detMinor(m, r, c) {
+        return m.filter((_, i) => i !== r).map(row => row.filter((_, j) => j !== c));
+    }
+
+    // Matrix content only, no surrounding delimiters -- the caller wraps it in
+    // \left( \right) itself so a colorbox can be applied to just the interior.
+    function detMinorContentLatex(m) {
+        if (m.length === 0) return "";
+        return "\\begin{matrix} " + m.map(row => row.map(v => customLatexFormatter(v)).join(" & ")).join(" \\\\ ") + " \\end{matrix}";
+    }
+
+    function detBuildTermLatex(m, i, j, highlight) {
+        const sign = (i + j) % 2 === 0 ? '+' : '-';
+        const rawCoef = customLatexFormatter(m[i][j]);
+        const trimmed = m[i][j].trim();
+        const needsParens = trimmed.startsWith('-') || trimmed.slice(1).includes('+') || trimmed.slice(1).includes('-');
+        const coefDisplay = needsParens ? `(${rawCoef})` : rawCoef;
+        const minorContent = detMinorContentLatex(detMinor(m, i, j));
+        if (highlight) {
+            const coloredCoef = `{\\color{#dc3545}${coefDisplay}}`;
+            const boxedMinor = `\\left(\\colorbox{#fff3cd}{$${minorContent}$}\\right)`;
+            return `${sign}${coloredCoef}\\cdot\\det${boxedMinor}`;
+        }
+        return `${sign}${coefDisplay}\\cdot\\det\\left(${minorContent}\\right)`;
+    }
+
+    function detBuildFullExpansion(m, type, idx, finalValue, highlightK) {
+        const n = m.length;
+        const terms = [];
+        for (let k = 0; k < n; k++) {
+            const i = type === 'row' ? idx : k;
+            const j = type === 'row' ? k : idx;
+            terms.push(detBuildTermLatex(m, i, j, k === highlightK));
+        }
+        const body = terms.join('');
+        const formula = '\\det A = ' + (body.startsWith('+') ? body.slice(1) : body);
+        return `${formula} = ${customLatexFormatter(finalValue)}`;
+    }
+
+    function detShowFormula(latex) {
+        const area = document.getElementById('det-formula-area');
+        area.style.fontSize = detValues.length >= 4 ? '0.88rem' : '1.1rem';
+        katex.render(latex, area, { displayMode: true, throwOnError: false });
+    }
+    // Mouse-leave restores the resting state: the full expansion for the currently
+    // selected row/col (if a determinant has been computed), rather than clearing.
+    function detHideFormula() {
+        if (detLastResult === null) { document.getElementById('det-formula-area').innerHTML = ''; return; }
+        detShowFormula(detBuildFullExpansion(detValues, detExpandAlong.type, detExpandAlong.idx, detLastResult, null));
+    }
+    function detShowHighlightedExpansion(k) {
+        if (detLastResult === null) return;
+        detShowFormula(detBuildFullExpansion(detValues, detExpandAlong.type, detExpandAlong.idx, detLastResult, k));
+    }
+
+    function detRenderViz() {
+        detValues = detReadGrid();
+        const n = detValues.length;
+        detLock = null;
+        document.getElementById('det-viz-area').style.display = 'block';
+        renderStretchyParens(n, 'det-paren-left', 'det-paren-right');
+
+        const grid = document.getElementById('det-grid');
+        const rowT = document.getElementById('det-row-triggers');
+        const colT = document.getElementById('det-col-triggers');
+        grid.innerHTML = ''; rowT.innerHTML = ''; colT.innerHTML = '';
+        detHideFormula();
+
+        const colOverlays = [];
+        for (let j = 0; j < n; j++) {
+            const ov = document.createElement('div');
+            ov.className = 'det-col-strike-overlay';
+            ov.id = 'det-col-overlay-' + j;
+            grid.appendChild(ov);
+            colOverlays.push(ov);
+        }
+
+        for (let j = 0; j < n; j++) {
+            const t = document.createElement('div');
+            t.className = 'det-col-trigger';
+            if (detExpandAlong.type === 'col' && detExpandAlong.idx === j) {
+                t.addEventListener('mouseenter', () => { if (!detLock) detStrikeCol(j); });
+                t.addEventListener('mouseleave', () => { if (!detLock) detClearStrike(); });
+                t.addEventListener('click', () => detToggleLock({ kind: 'col', idx: j }, t));
+            } else {
+                t.classList.add('det-trigger-inactive');
+            }
+            colT.appendChild(t);
+        }
+
+        for (let i = 0; i < n; i++) {
+            const rt = document.createElement('div');
+            rt.className = 'det-row-trigger';
+            if (detExpandAlong.type === 'row' && detExpandAlong.idx === i) {
+                rt.addEventListener('mouseenter', () => { if (!detLock) detStrikeRow(i); });
+                rt.addEventListener('mouseleave', () => { if (!detLock) detClearStrike(); });
+                rt.addEventListener('click', () => detToggleLock({ kind: 'row', idx: i }, rt));
+            } else {
+                rt.classList.add('det-trigger-inactive');
+            }
+            rowT.appendChild(rt);
+
+            const row = document.createElement('div');
+            row.className = 'det-grid-row';
+            row.id = 'det-grid-row-' + i;
+
+            for (let j = 0; j < n; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'det-cell';
+                cell.dataset.row = i; cell.dataset.col = j;
+                cell.id = `det-viz-cell-${i}-${j}`;
+
+                const isActive = (detExpandAlong.type === 'row' && detExpandAlong.idx === i) ||
+                                  (detExpandAlong.type === 'col' && detExpandAlong.idx === j);
+
+                if (isActive) {
+                    cell.classList.add('selected-active');
+                    const sign = document.createElement('span');
+                    sign.className = 'det-sign ' + ((i + j) % 2 === 0 ? 'plus' : 'minus');
+                    sign.textContent = (i + j) % 2 === 0 ? '+' : '−';
+                    cell.appendChild(sign);
+                }
+
+                const kspan = document.createElement('span');
+                katex.render(customLatexFormatter(detValues[i][j]), kspan, { throwOnError: false });
+                cell.appendChild(kspan);
+
+                if (isActive) {
+                    const k = detExpandAlong.type === 'row' ? j : i;
+                    cell.addEventListener('mouseenter', () => {
+                        if (detLock) return;
+                        detStrikeCell(i, j);
+                        cell.classList.add('coef-red');
+                        detShowHighlightedExpansion(k);
+                    });
+                    cell.addEventListener('mouseleave', () => {
+                        if (detLock) return;
+                        detClearStrike();
+                        detHideFormula();
+                    });
+                    cell.addEventListener('click', () => detToggleLock({ kind: 'cell', i, j }, cell));
+                }
+
+                row.appendChild(cell);
+            }
+            grid.appendChild(row);
+        }
+
+        fitDetCells(document.querySelector('.det-matrix-area'));
+    }
+
+    function detAllCells() { return document.querySelectorAll('.det-cell'); }
+
+    // Positions a column-strike overlay right before it's shown, rather than
+    // once at render time — detRenderViz() can run while tab-det isn't the
+    // active tab yet (e.g. the on-load auto-compute), where getBoundingClientRect()
+    // on a display:none subtree returns zero-size rects and bakes in a wrong
+    // position that never gets corrected.
+    function detPositionColOverlay(c) {
+        const grid = document.getElementById('det-grid');
+        const cell = document.getElementById(`det-viz-cell-0-${c}`);
+        const gridRect = grid.getBoundingClientRect();
+        const cr = cell.getBoundingClientRect();
+        document.getElementById('det-col-overlay-' + c).style.left = (cr.left - gridRect.left + cr.width / 2 - 1) + 'px';
+    }
+
+    function detStrikeRow(r) {
+        detClearStrike();
+        document.getElementById('det-grid-row-' + r)?.classList.add('row-struck');
+        document.querySelectorAll(`.det-cell[data-row="${r}"]`).forEach(c => c.classList.add('row-struck'));
+    }
+    function detStrikeCol(c) {
+        detClearStrike();
+        detPositionColOverlay(c);
+        document.getElementById('det-col-overlay-' + c).style.display = 'block';
+        document.querySelectorAll(`.det-cell[data-col="${c}"]`).forEach(cell => cell.classList.add('col-struck'));
+    }
+    function detStrikeCell(r, c) {
+        detClearStrike();
+        document.getElementById('det-grid-row-' + r)?.classList.add('row-struck');
+        detPositionColOverlay(c);
+        document.getElementById('det-col-overlay-' + c).style.display = 'block';
+        detAllCells().forEach(cell => {
+            const ci = +cell.dataset.row, cj = +cell.dataset.col;
+            if (ci === r || cj === c) cell.classList.add('cell-struck');
+            else cell.classList.add('minor-hi');
+        });
+    }
+    function detClearStrike() {
+        document.querySelectorAll('.det-grid-row').forEach(r => r.classList.remove('row-struck'));
+        detAllCells().forEach(c => c.classList.remove('row-struck', 'col-struck', 'cell-struck', 'minor-hi', 'coef-red'));
+        document.querySelectorAll('.det-col-strike-overlay').forEach(o => o.style.display = 'none');
+    }
+
+    function detComputeDeterminant(m) {
+        const n = m.length;
+        if (n === 1) return reorderPolynomial(algebriteEval(m[0][0]));
+        if (n === 2) return reorderPolynomial(algebriteEval(`(${m[0][0]})*(${m[1][1]})-(${m[0][1]})*(${m[1][0]})`));
+        const terms = [];
+        for (let j = 0; j < n; j++) {
+            const minorDet = detComputeDeterminant(detMinor(m, 0, j));
+            const sign = j % 2 === 0 ? '+' : '-';
+            terms.push(`${sign}(${m[0][j]})*(${minorDet})`);
+        }
+        return reorderPolynomial(algebriteEval(terms.join('')));
+    }
+
+    function detCompute() {
+        const m = detReadGrid();
+        let result;
+        try {
+            result = detComputeDeterminant(m);
+        } catch (e) {
+            alert('Invalid expression in one or more cells.');
+            return;
+        }
+        detLastResult = result;
+        detRenderViz();
+        detHideFormula(); // shows the resting full-expansion state
+        saveStateToParent();
+    }
+
+    window.onload = () => {
+        initializeMatrix();
+        rcInitDefaults();
+        detInitDefaults();
+        katex.render('I_n', document.getElementById('identity-btn-math'), { throwOnError: false });
+    };
+
+</script>
+
+<script>
+/* =========================================================================
+   echelon-manual — the branching canvas.
+   Wrapped in an IIFE so its names can't collide with matrici's globals (both
+   files define e.g. renderEditor/updateUI); the handful of functions the markup
+   calls are exported explicitly at the bottom.
+
+   Deliberately reuses matrici's own globals rather than re-implementing them:
+   algebriteEval, reorderPolynomial, customLatexFormatter, latexCellToExpr,
+   parseLatexBlocks, parseColSpecSeparators, transposeGrid, and for the editor
+   rebuildMatrixUI / restoreAppState / serializeAppState.
+   ========================================================================= */
+(function () {
+'use strict';
+
+/* ---------------------------------------------------------------- state ---- */
+const state = {
+    data: [['1', 'h', 'k', 'k'], ['k', '0', '1', '0'], ['1', 'h', '1', '2']],
+    tree: null,
+    nodes: [],
+    collapsed: new Set(),
+    selected: null,
+    editing: null,
+    caseMode: 'cases',
+    view: { x: 40, y: 30, s: 1 },
+    manualPos: new Map(),
+    manualSize: new Map(),
+    cardScale: new Map(),
+};
+
+let nextNodeId = 0;
+
+/* Branch colours are decided at the main split (the root's children); every
+   descendant — and the arch leading to it — keeps its ancestor's colour. */
+const ROOT_COLOR = '#2b3440';
+const PALETTE = ['#0d6efd', '#198754', '#d63384', '#fd7e14', '#6f42c1', '#0dcaf0', '#dc3545', '#20c997'];
+
+/* Same set as echelon.html's. */
+const PRESETS = {
+    hkSystem:    { text: '1,h,k,k;k,0,1,0;1,h,1,2', aug: 3 },
+    system:      { text: '1,2,k,1;2,4,3,k;1,1,1,0', aug: 3 },
+    oneParam:    { text: 't-2,3;t+1,5', aug: 1 },
+    twoParam:    { text: 'a-2*b,1,3;0,1,a', aug: 2 },
+    quadratic:   { text: 't^2-2,1;1,t', aug: null },
+    product:     { text: 'a*b,1,2;0,a,1;0,0,b', aug: null },
+    diffSquares: { text: 'a^2-b^2,1,1;0,a-b,2;0,0,1', aug: null },
+    numeric:     { text: '2,4,-2,2;1,2,3,9;4,8,-4,4;3,6,1,11', aug: 3 },
+};
+
+/* --------------------------------------------------------------- LaTeX ---- */
+function katexInto(el, latex, fallbackText) {
+    try {
+        katex.render(latex, el, { throwOnError: true });
+    } catch (e) {
+        el.textContent = fallbackText !== undefined ? fallbackText : latex;
+    }
+}
+
+/* Matrix LaTeX with an optional augmented rule (1-indexed "separator after
+   this column", same format as matrici's augmentedAfterCols) and optional
+   per-cell colours (same grid shape as `rows`, matrici's colour convention). */
+function matrixLatex(rows, afterCols, colors) {
+    const cols = rows[0].length;
+    const seps = new Set((afterCols || []).filter(c => c >= 1 && c <= cols - 1));
+    let latex;
+    if (seps.size) {
+        let spec = '';
+        for (let c = 1; c <= cols; c++) { spec += 'c'; if (seps.has(c)) spec += '|'; }
+        latex = '\\left( \\begin{array}{' + spec + '} ';
+    } else {
+        latex = '\\begin{pmatrix} ';
+    }
+    const rowTex = rows.map((r, i) => r.map((v, j) => {
+        const tex = customLatexFormatter(v);
+        const color = colors && colors[i] ? colors[i][j] : null;
+        return (color && color !== '#000000') ? `\\color{${color}}{${tex}}` : tex;
+    }).join(' & '));
+    latex += rowTex.join(rowTex.some(r => r.includes('\\frac')) ? ' \\\\[0.2em] ' : ' \\\\ ');
+    return latex + (seps.size ? ' \\end{array} \\right)' : ' \\end{pmatrix}');
+}
+
+/* A case is shown as written — it may already be LaTeX ("a,b \neq 0"), and
+   must never be second-guessed into another form. */
+function caseLatex(text) {
+    const t = String(text).replace(/!=/g, '\\neq ').replace(/≠/g, '\\neq ');
+    return t.includes('\\') ? t : customLatexFormatter(t);
+}
+
+function condParts(condition) {
+    if (!condition || condition === 'General case') return [];
+    return condition.split('; ').map(s => s.trim()).filter(Boolean);
+}
+
+function conditionsLatex(condition) {
+    const parts = condParts(condition);
+    if (!parts.length) return '\\text{general case}';
+    return parts.map(caseLatex).join(',\\quad ');
+}
+
+/* ------------------------------------------------- left panel: the matrix -- */
+/* "m-1" (or "n-1") is a symbolic position meaning "before the last column". It
+   stays symbolic in the field, so it keeps tracking the last column whatever
+   the matrix shape becomes; plain numbers are positions and get clamped. */
+const AUG_LAST = /^[mn]\s*-\s*1$/i;
+
+function augAfterCols() {
+    if (!document.getElementById('aug-toggle').checked) return [];
+    const cols = state.data[0].length;
+    const raw = document.getElementById('aug-after').value.trim();
+    if (!raw) return [cols - 1];
+    const out = [];
+    raw.split(',').forEach(tok => {
+        const t = tok.trim();
+        if (!t) return;
+        if (AUG_LAST.test(t)) { out.push(cols - 1); return; }
+        const n = parseInt(t, 10);
+        if (!isNaN(n) && n >= 1 && n <= cols - 1) out.push(n);
+    });
+    return out.length ? [...new Set(out)] : [cols - 1];
+}
+
+/* Keeps the field honest: after any shape change every numeric position is
+   rewritten as min(position, cols-1) so what the box says is what is drawn,
+   while "m-1" is left alone. Called on transpose and on Set. */
+function normalizeAugField() {
+    const field = document.getElementById('aug-after');
+    const raw = field.value.trim();
+    const cols = state.data[0].length;
+    if (!raw || cols < 2) return;   // blank already means "last column"
+    const seen = new Set();
+    const out = [];
+    raw.split(',').forEach(tok => {
+        const t = tok.trim();
+        if (!t) return;
+        if (AUG_LAST.test(t)) {
+            if (!seen.has('m-1')) { seen.add('m-1'); out.push('m-1'); }
+            return;
+        }
+        const n = parseInt(t, 10);
+        if (isNaN(n)) return;
+        const clamped = Math.max(1, Math.min(n, cols - 1));
+        if (!seen.has(clamped)) { seen.add(clamped); out.push(String(clamped)); }
+    });
+    field.value = out.join(',');
+}
+
+/* The panel shows the matrix as a rendered preview only — entries are typed in
+   the Entries field (or pasted as LaTeX), never cell by cell. */
+function renderMatrixEditor() {
+    document.getElementById('entries-field').value = state.data.map(r => r.join(',')).join(';');
+    renderPreview();
+}
+
+/* Shows the transpose instead — the way to enter a system column-wise. */
+function transposeMatrix() {
+    state.data = transposeGrid(state.data.map(r => r.slice()));
+    normalizeAugField();
+    renderMatrixEditor();
+}
+
+function renderPreview() {
+    const cells = state.data.map(r => r.map(c => (c.trim() === '' ? '0' : c)));
+    katexInto(document.getElementById('preview'), '\\displaystyle ' + matrixLatex(cells, augAfterCols()), '(invalid entries)');
+}
+
+/* Plain "a,b;c,d" or a pasted LaTeX matrix (parsed with matrici's own helpers).
+   Semicolon groups and pasted vectors are always read as rows — the
+   Row <-> Col button flips the matrix afterwards if that wasn't what you meant. */
+function resolveEntries(raw) {
+    let rows, augCols = null;
+    const blocks = raw.includes('\\begin{') ? parseLatexBlocks(raw) : [];
+    if (blocks.length === 1) {
+        rows = blocks[0].grid;
+        if (blocks[0].colSpec) {
+            const after = parseColSpecSeparators(blocks[0].colSpec);
+            if (after.length) augCols = after;
+        }
+    } else if (blocks.length > 1) {
+        rows = blocks.map(b => b.grid.flat());
+    } else {
+        rows = raw.split(';').map(r => r.split(',').map(c => c.trim()));
+    }
+    return { rows, augCols };
+}
+
+function confirmEntries() {
+    const raw = document.getElementById('entries-field').value.trim();
+    if (!raw) return;
+    const { rows, augCols } = resolveEntries(raw);
+    const width = rows[0].length;
+    const bad = rows.findIndex(r => r.length !== width);
+    if (bad !== -1) {
+        alert(`Group ${bad + 1} has ${rows[bad].length} value(s), expected ${width}. All groups must be the same length.`);
+        return;
+    }
+    state.data = rows.map(r => r.map(c => (c.trim() === '' ? '0' : c.trim())));
+    if (augCols) {
+        document.getElementById('aug-toggle').checked = true;
+        document.getElementById('aug-after').value = augCols.join(',');
+    }
+    normalizeAugField();   // the new shape may not admit the old positions
+    renderMatrixEditor();
+}
+
+function loadPreset(name) {
+    const p = PRESETS[name];
+    document.getElementById('entries-field').value = p.text;
+    document.getElementById('aug-toggle').checked = p.aug !== null;
+    document.getElementById('aug-after').value = p.aug !== null ? String(p.aug) : '';
+    confirmEntries();
+    startManual();
+}
+
+/* ----------------------------------------------------------- the tree ----- */
+/* A node carries its matrix, the operations done on it, its case label, and
+   (once declared) a solution verdict. `matrici` is that card's saved row-ops
+   state, so reopening the editor restores its own history. */
+function makeNode(rows, colors, edgeParts, parentSteps) {
+    return {
+        rows: rows.map(r => r.slice()),
+        // Per-cell colours travel with the matrix: colour a pivot once and every
+        // branch below keeps that entry highlighted.
+        colors: colors ? colors.map(r => r.slice()) : rows.map(r => r.map(() => '#000000')),
+        condition: '',
+        steps: (parentSteps || []).slice(),
+        log: [],
+        children: [],
+        __edgeText: edgeParts || [],
+        __solution: null,
+        matrici: null,
+    };
+}
+
+function startManual() {
+    const matrix = state.data.map(r => r.map(c => (c.trim() === '' ? '0' : c.trim())));
+    clearCanvas();
+    state.tree = makeNode(matrix, null, [], []);
+    refresh();
+    fitToView();
+}
+
+function clearCanvas() {
+    state.tree = null;
+    state.nodes = [];
+    state.collapsed = new Set();
+    state.manualPos.clear();
+    state.manualSize.clear();
+    state.cardScale.clear();
+    state.selected = null;
+    const canvas = document.getElementById('tree-canvas');
+    canvas.querySelectorAll('.node-card, .edge-label').forEach(el => el.remove());
+    document.getElementById('edges').innerHTML = '';
+    document.getElementById('empty-state').style.display = 'flex';
+}
+
+/* Recomputes accumulated conditions/steps, then redraws. */
+function refresh() {
+    if (!state.tree) return;
+    (function walk(node, parentCond, parentSteps) {
+        const parts = parentCond.concat(node.__edgeText || []);
+        node.condition = parts.length ? parts.join('; ') : 'General case';
+        node.steps = parentSteps.concat(node.log.map(e => e.latex));
+        node.children.forEach(c => walk(c, parts, node.steps));
+    })(state.tree, [], []);
+
+    prepare(state.tree);
+    buildCards();
+    layoutTree();
+    if (state.selected && state.selected.__el) state.selected.__el.classList.add('selected');
+}
+
+function prepare(root) {
+    state.nodes = [];
+    (function walk(node, parent, depth) {
+        if (node.__id === undefined) node.__id = nextNodeId++;   // handed out once and kept
+        node.__parent = parent;
+        node.__depth = depth;
+        node.__isLeaf = !node.children.length;
+        node.__color = depth === 0 ? ROOT_COLOR
+            : (depth === 1 ? PALETTE[parent.children.indexOf(node) % PALETTE.length] : parent.__color);
+        node.__edge = node.__edgeText || [];
+        node.__newSteps = node.steps.slice(parent ? parent.steps.length : 0);
+        state.nodes.push(node);
+        node.children.forEach(c => walk(c, node, depth + 1));
+    })(root, null, 0);
+}
+
+function visibleChildren(node) {
+    return state.collapsed.has(node.__id) ? [] : node.children;
+}
+
+/* Long fully-numeric entries (nested radicals and the like) can be shown as
+   decimals so a card stays readable; the exact form stays in the tooltip and in
+   the LaTeX export. Anything with a letter in it is left exactly as computed. */
+function approxValue(expr) {
+    const s = String(expr).replace(/\s+/g, '');
+    if (!/^[0-9.+\-*/()^]+$/.test(s) || s.length > 4000) return null;
+    try {
+        const v = Function('"use strict";return (' + s.replace(/\^/g, '**') + ')')();
+        if (typeof v === 'number' && isFinite(v)) return String(Number(v.toFixed(4)));
+    } catch (e) { /* e.g. a negative base under a fractional exponent */ }
+    try {
+        const f = Algebrite.run(`float(${s})`).toString();
+        if (/\bi\b/.test(f)) {   // never show the real part of a complex value as the value
+            const im = parseFloat(Algebrite.run(`float(imag(${s}))`).toString());
+            if (!isFinite(im) || Math.abs(im) > 1e-6) return null;
+        }
+        const v = parseFloat(f);
+        return isFinite(v) ? String(Number(v.toFixed(4))) : null;
+    } catch (e) { return null; }
+}
+
+function displayCell(cell) {
+    const el = document.getElementById('decimals-toggle');
+    if (!el || !el.checked || String(cell).length <= 60) return cell;
+    const a = approxValue(cell);
+    return a === null ? cell : a;
+}
+
+function rerenderTree() { rerender(); }
+
+function buildCards() {
+    const canvas = document.getElementById('tree-canvas');
+    canvas.querySelectorAll('.node-card, .edge-label').forEach(el => el.remove());
+    document.getElementById('empty-state').style.display = state.tree ? 'none' : 'flex';
+
+    state.nodes.forEach(node => {
+        const card = document.createElement('div');
+        card.className = 'node-card';
+        card.__node = node;
+        card.style.borderColor = node.__color;
+        card.title = 'Double-click for row operations and cases';
+        const scale = state.cardScale.get(node.__id);
+        if (scale) card.style.fontSize = (scale * 100) + '%';
+
+        const shown = node.rows.map(r => r.map(displayCell));
+        const approximated = shown.some((r, i) => r.some((c, j) => c !== node.rows[i][j]));
+        const mat = document.createElement('div');
+        mat.className = 'card-matrix';
+        katexInto(mat, '\\displaystyle ' + matrixLatex(shown, augAfterCols(), node.colors),
+            shown.map(r => r.join('  ')).join(' | '));
+        if (approximated) card.title = 'Some entries shown as decimals — exact forms:\n'
+            + node.rows.map(r => r.join('   ')).join('\n');
+        card.appendChild(mat);
+
+        const foot = document.createElement('div');
+        foot.className = 'card-foot';
+        if (node.__solution && node.__solution.verdict) {
+            const v = document.createElement('span');
+            v.className = 'verdict ' + node.__solution.verdict.kind;
+            v.textContent = node.__solution.verdict.text;
+            foot.appendChild(v);
+        }
+        if (!node.__isLeaf) {
+            const btn = document.createElement('button');
+            btn.className = 'collapse-btn';
+            const setLabel = () => {
+                btn.textContent = (state.collapsed.has(node.__id) ? '▸ ' : '▾ ') + node.children.length + ' cases';
+            };
+            setLabel();
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (state.collapsed.has(node.__id)) state.collapsed.delete(node.__id);
+                else state.collapsed.add(node.__id);
+                setLabel();
+                layoutTree();
+            });
+            foot.appendChild(btn);
+        }
+        if (foot.childNodes.length) card.appendChild(foot);
+
+        const size = state.manualSize.get(node.__id);
+        if (size) { card.style.width = size.w + 'px'; card.style.height = size.h + 'px'; }
+        card.addEventListener('mousedown', (e) => startCardDrag(e, node, card));
+        card.addEventListener('dblclick', (e) => { e.preventDefault(); openEditor(node); });
+        canvas.appendChild(card);
+        node.__el = card;
+
+        if (node.__edge.length) {
+            const label = document.createElement('div');
+            label.className = 'edge-label';
+            label.title = node.__edge.join('; ');
+            label.style.borderColor = node.__color;
+            label.style.color = node.__color;
+            katexInto(label, node.__edge.map(caseLatex).join(',\\ '), node.__edge.join(', '));
+            canvas.appendChild(label);
+            node.__labelEl = label;
+        }
+    });
+}
+
+function rerender() {
+    if (!state.tree) return;
+    buildCards();
+    layoutTree();
+    if (state.selected && state.selected.__el) state.selected.__el.classList.add('selected');
+}
+
+/* ------------------------------------------------------------- layout ----- */
+const H_GAP = 34, V_GAP = 78;
+
+function layoutTree() {
+    if (!state.tree) return;
+    const depthH = [];
+
+    state.nodes.forEach(n => {
+        n.__w = n.__el.offsetWidth;
+        n.__h = n.__el.offsetHeight;
+        n.__visible = false;
+    });
+
+    (function width(node) {
+        node.__visible = true;
+        depthH[node.__depth] = Math.max(depthH[node.__depth] || 0, node.__h);
+        const kids = visibleChildren(node);
+        if (!kids.length) { node.__subW = node.__w; return node.__subW; }
+        let total = 0;
+        kids.forEach((k, i) => { total += width(k) + (i ? H_GAP : 0); });
+        node.__subW = Math.max(node.__w, total);
+        return node.__subW;
+    })(state.tree);
+
+    const depthY = [0];
+    for (let d = 1; d < depthH.length; d++) depthY[d] = depthY[d - 1] + (depthH[d - 1] || 0) + V_GAP;
+
+    (function place(node, left) {
+        node.__cx = left + node.__subW / 2;
+        node.__x = node.__cx - node.__w / 2;
+        node.__y = depthY[node.__depth];
+        const kids = visibleChildren(node);
+        const total = kids.reduce((s, k, i) => s + k.__subW + (i ? H_GAP : 0), 0);
+        let cursor = left + (node.__subW - total) / 2;
+        kids.forEach(k => { place(k, cursor); cursor += k.__subW + H_GAP; });
+    })(state.tree, 0);
+
+    let maxX = 0, maxY = 0;
+    state.nodes.forEach(n => {
+        if (!n.__visible) {
+            n.__el.style.display = 'none';
+            if (n.__labelEl) n.__labelEl.style.display = 'none';
+            return;
+        }
+        n.__el.style.display = '';
+        applyNodePosition(n);
+        maxX = Math.max(maxX, n.__px + n.__w);
+        maxY = Math.max(maxY, n.__py + n.__h);
+    });
+
+    drawEdges();
+
+    const canvas = document.getElementById('tree-canvas');
+    canvas.style.width = (maxX + 40) + 'px';
+    canvas.style.height = (maxY + 40) + 'px';
+    applyView();
+}
+
+/* Final position = layout slot + whatever the user dragged. */
+function applyNodePosition(n) {
+    const off = state.manualPos.get(n.__id) || { dx: 0, dy: 0 };
+    n.__px = n.__x + off.dx;
+    n.__py = n.__y + off.dy;
+    n.__el.style.left = n.__px + 'px';
+    n.__el.style.top = n.__py + 'px';
+}
+
+function drawEdges() {
+    const svg = document.getElementById('edges');
+    svg.innerHTML = '';
+    let maxX = 0, maxY = 0;
+
+    state.nodes.forEach(parent => {
+        if (!parent.__visible) return;
+        visibleChildren(parent).forEach(child => {
+            const x1 = parent.__px + parent.__w / 2, y1 = parent.__py + parent.__h;
+            const x2 = child.__px + child.__w / 2, y2 = child.__py;
+            const mid = (y1 + y2) / 2;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', child.__color || '#c3ccd8');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('opacity', '0.85');
+            svg.appendChild(path);
+            maxX = Math.max(maxX, x1, x2); maxY = Math.max(maxY, y2);
+
+            if (child.__labelEl) {
+                const el = child.__labelEl;
+                el.style.display = '';
+                el.style.left = (x2 - el.offsetWidth / 2) + 'px';
+                el.style.top = (y2 - el.offsetHeight - 8) + 'px';
+            }
+        });
+    });
+
+    svg.setAttribute('width', maxX + 40);
+    svg.setAttribute('height', maxY + 40);
+}
+
+/* ---------------------------------------------------------- pan / zoom ---- */
+function applyView() {
+    const { x, y, s } = state.view;
+    document.getElementById('tree-canvas').style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+    document.getElementById('zoom-label').textContent = Math.round(s * 100) + '%';
+}
+
+function zoomBy(factor, cx, cy) {
+    const scroll = document.getElementById('tree-scroll');
+    const rect = scroll.getBoundingClientRect();
+    const px = cx === undefined ? rect.width / 2 : cx;
+    const py = cy === undefined ? rect.height / 2 : cy;
+    const s0 = state.view.s;
+    const s1 = Math.max(0.15, Math.min(3, s0 * factor));
+    state.view.x = px - (px - state.view.x) * (s1 / s0);
+    state.view.y = py - (py - state.view.y) * (s1 / s0);
+    state.view.s = s1;
+    applyView();
+}
+
+function fitToView() {
+    if (!state.tree) return;
+    const scroll = document.getElementById('tree-scroll');
+    const canvas = document.getElementById('tree-canvas');
+    const w = parseFloat(canvas.style.width) || 1;
+    const h = parseFloat(canvas.style.height) || 1;
+    const pad = 24;
+    const s = Math.max(0.15, Math.min(1, Math.min((scroll.clientWidth - pad * 2) / w, (scroll.clientHeight - pad * 2) / h)));
+    state.view.s = s;
+    state.view.x = Math.max(pad, (scroll.clientWidth - w * s) / 2);
+    state.view.y = pad;
+    applyView();
+}
+
+function expandAll() { state.collapsed.clear(); rerender(); }
+
+function collapseDeep() {
+    state.collapsed.clear();
+    state.nodes.forEach(n => { if (n.children.length && n.__depth >= 1) state.collapsed.add(n.__id); });
+    rerender();
+}
+
+/* Wheel over a card enlarges that card alone; over the canvas it zooms. */
+function scaleCard(node, factor) {
+    const prev = state.cardScale.get(node.__id) || 1;
+    const next = Math.max(0.5, Math.min(5, prev * factor));
+    if (next === prev) return;
+    state.cardScale.set(node.__id, next);
+    node.__el.style.fontSize = (next * 100) + '%';
+    const size = state.manualSize.get(node.__id);
+    if (size) {
+        const ratio = next / prev;
+        const scaled = { w: size.w * ratio, h: size.h * ratio };
+        state.manualSize.set(node.__id, scaled);
+        node.__el.style.width = scaled.w + 'px';
+        node.__el.style.height = scaled.h + 'px';
+    }
+    layoutTree();
+}
+
+function resetLayout() {
+    state.manualPos.clear();
+    state.manualSize.clear();
+    state.cardScale.clear();
+    rerender();
+    fitToView();
+}
+
+function togglePanel() {
+    document.body.classList.toggle('aside-hidden');
+    document.getElementById('panel-btn').textContent =
+        document.body.classList.contains('aside-hidden') ? '▸ Matrix' : '◂ Matrix';
+}
+
+/* ------------------------------------------------ dragging / resizing ---- */
+let dragNode = null, dragStartX = 0, dragStartY = 0, dragOrigin = null, dragMoved = false;
+let resizeNode = null;
+const RESIZE_HANDLE = 18;
+
+function startCardDrag(e, node, card) {
+    if (e.button !== 0 || e.target.closest('.collapse-btn')) return;
+    const rect = card.getBoundingClientRect();
+    const localX = (e.clientX - rect.left) / state.view.s;
+    const localY = (e.clientY - rect.top) / state.view.s;
+    if (localX > card.offsetWidth - RESIZE_HANDLE && localY > card.offsetHeight - RESIZE_HANDLE) {
+        resizeNode = node;   // let the browser's native resize handle take it
+        return;
+    }
+    e.preventDefault();
+    dragNode = node;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragOrigin = state.manualPos.get(node.__id) || { dx: 0, dy: 0 };
+    dragMoved = false;
+    card.classList.add('dragging');
+}
+
+function initInteractions() {
+    const scroll = document.getElementById('tree-scroll');
+    let panning = false, sx = 0, sy = 0, ox = 0, oy = 0;
+
+    scroll.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.node-card') || e.target.closest('.edge-label')) return;
+        panning = true; sx = e.clientX; sy = e.clientY;
+        ox = state.view.x; oy = state.view.y;
+        scroll.classList.add('dragging');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (panning) {
+            state.view.x = ox + (e.clientX - sx);
+            state.view.y = oy + (e.clientY - sy);
+            applyView();
+        }
+        if (dragNode) {
+            const dx = dragOrigin.dx + (e.clientX - dragStartX) / state.view.s;
+            const dy = dragOrigin.dy + (e.clientY - dragStartY) / state.view.s;
+            if (Math.abs(e.clientX - dragStartX) > 3 || Math.abs(e.clientY - dragStartY) > 3) dragMoved = true;
+            state.manualPos.set(dragNode.__id, { dx, dy });
+            applyNodePosition(dragNode);
+            drawEdges();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        panning = false;
+        scroll.classList.remove('dragging');
+        if (dragNode) {
+            dragNode.__el.classList.remove('dragging');
+            if (!dragMoved) selectNode(dragNode);   // a plain click, not a drag
+            dragNode = null;
+        }
+        if (resizeNode) {
+            const el = resizeNode.__el;
+            state.manualSize.set(resizeNode.__id, { w: el.offsetWidth, h: el.offsetHeight });
+            resizeNode = null;
+            layoutTree();
+        }
+    });
+
+    scroll.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const card = e.target.closest('.node-card');
+        if (card && card.__node) { scaleCard(card.__node, e.deltaY < 0 ? 1.1 : 1 / 1.1); return; }
+        const rect = scroll.getBoundingClientRect();
+        zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+}
+
+/* ------------------------------------------------- drawer (Shift+Enter) --- */
+function selectNode(node) {
+    state.selected = node;
+    state.nodes.forEach(n => n.__el && n.__el.classList.toggle('selected', n === node));
+    if (document.getElementById('drawer').classList.contains('open')) showSteps(node);
+}
+
+function showSteps(node) {
+    if (!node) return;
+    katexInto(document.getElementById('drawer-cond'), conditionsLatex(node.condition), node.condition);
+
+    const body = document.getElementById('drawer-body');
+    body.innerHTML = '';
+    if (!node.steps.length) {
+        const p = document.createElement('div');
+        p.className = 'drawer-empty';
+        p.textContent = 'No row operations yet — this is the matrix as it arrived.';
+        body.appendChild(p);
+    } else {
+        const newFrom = node.steps.length - node.__newSteps.length;
+        node.steps.forEach((step, i) => {
+            const line = document.createElement('div');
+            line.className = 'step-line' + (i >= newFrom ? ' new-step' : '');
+            const idx = document.createElement('span');
+            idx.className = 'idx';
+            idx.textContent = (i + 1) + '.';
+            const math = document.createElement('span');
+            math.className = 'step-math';
+            katexInto(math, step, step);   // matrici's log entries are already LaTeX
+            line.appendChild(idx); line.appendChild(math);
+            body.appendChild(line);
+        });
+    }
+    document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+}
+
+/* ------------------------------------------- the editor (matrici's tab 1) - */
+function openEditor(node) {
+    state.editing = node;
+    document.getElementById('editor-overlay').classList.add('open');
+    katexInto(document.getElementById('editor-case'), conditionsLatex(node.condition), node.condition);
+    document.getElementById('case-input').value = node.__caseText || '';
+    const kind = node.__solution && node.__solution.verdict ? node.__solution.verdict.kind : null;
+    setCaseMode(kind && CASE_MODES[kind] ? kind : 'cases');
+
+    if (node.matrici) {
+        restoreAppState({ rowops: node.matrici });   // reopening: its own history is back
+        return;
+    }
+    // First open: seed matrici's history with this card's matrix AND its colours
+    // (rebuildMatrixUI would reset every cell to black).
+    const seps = augAfterCols();
+    document.getElementById('quick-input-field').value = node.rows.map(r => r.join(',')).join(';');
+    restoreAppState({
+        rowops: {
+            history: [{
+                data: node.rows.map(r => r.slice()),
+                colors: node.colors.map(r => r.slice()),
+                log: '\\text{Matrix Initialized}',
+            }],
+            historyStep: 0,
+            showAugmented: seps.length > 0,
+            augmentedAfterCols: seps.join(','),
+        },
+    });
+}
+
+/* Reads matrici's current row-ops state back into the node. */
+function pullFromEditor() {
+    const node = state.editing;
+    if (!node || typeof serializeAppState !== 'function') return;
+    const rowops = serializeAppState().rowops;
+    if (!rowops || !rowops.history || rowops.historyStep < 0) return;
+    node.matrici = rowops;
+    const current = rowops.history[rowops.historyStep];
+    node.rows = current.data.map(r => r.slice());
+    node.colors = (current.colors || current.data.map(r => r.map(() => '#000000'))).map(r => r.slice());
+    node.log = rowops.history.slice(1, rowops.historyStep + 1).map(h => ({ latex: h.log, rows: h.data }));
+}
+
+function closeEditor() {
+    pullFromEditor();
+    document.getElementById('case-mode-dd').classList.remove('open');
+    document.getElementById('editor-overlay').classList.remove('open');
+    state.editing = null;
+    refresh();
+}
+
+/* ---- Confirm: either split into cases, or state the solution type ----
+   In manual mode the solution type is the user's own call, written on the card
+   as given — no pivot checking. Either choice replaces whatever the card
+   carried before. */
+const CASE_MODES = {
+    cases:    { label: 'cases' },
+    none:     { label: 'no solution',        verdict: { kind: 'none', text: 'no solution' } },
+    unique:   { label: '1 solution',         verdict: { kind: 'unique', text: 'unique solution' } },
+    infinite: { label: 'infinite solutions', verdict: { kind: 'infinite', text: '∞ solutions' } },
+};
+
+function setCaseMode(mode) {
+    state.caseMode = mode;
+    document.getElementById('case-mode-label').textContent = CASE_MODES[mode].label;
+    document.querySelectorAll('#case-mode-dd .dd-menu button').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === CASE_MODES[mode].label);
+    });
+    document.getElementById('case-input').disabled = mode !== 'cases';
+}
+
+function toggleCaseMode(e) {
+    e.stopPropagation();
+    document.getElementById('case-mode-dd').classList.toggle('open');
+}
+
+function pickCaseMode(mode) {
+    setCaseMode(mode);
+    document.getElementById('case-mode-dd').classList.remove('open');
+}
+
+/* "a,b \neq 0; a=0; b=1" -> one branch per ';' case, in the order given.
+   Inside a case, comma-separated fragments containing '=' (but not \neq / != /
+   ≠) are substitutions; everything else is label text only. */
+function parseCases(text) {
+    return text.split(';').map(s => s.trim()).filter(Boolean).map(caseText => {
+        const assignments = [];
+        caseText.split(',').map(s => s.trim()).filter(Boolean).forEach(part => {
+            if (/\\neq|!=|≠|>=|<=|>|</.test(part)) return;
+            const m = part.match(/^([A-Za-z][A-Za-z0-9_]*)\s*=\s*(.+)$/);
+            if (m) assignments.push({ symbol: m[1], value: m[2].trim() });
+        });
+        return { text: caseText, assignments };
+    });
+}
+
+function confirmCases() {
+    const node = state.editing;
+    if (!node) return;
+    pullFromEditor();
+    document.getElementById('case-mode-dd').classList.remove('open');
+
+    const mode = state.caseMode || 'cases';
+    let children = null;
+
+    if (mode === 'cases') {
+        const text = document.getElementById('case-input').value.trim();
+        if (!text) { alert('Write the cases first, e.g.  a,b \\neq 0; a=0; b=1'); return; }
+        const cases = parseCases(text);
+        if (!cases.length) { alert('No cases recognised in "' + text + '".'); return; }
+        try {
+            children = cases.map(c => {
+                let rows = node.rows.map(r => r.slice());
+                c.assignments.forEach(({ symbol, value }) => {
+                    rows = rows.map(r => r.map(cell =>
+                        reorderPolynomial(algebriteEval(`subst(${value},${symbol},${cell})`))));
+                });
+                // Substitution keeps the shape, so colours carry over cell for cell.
+                return makeNode(rows, node.colors, [c.text], node.steps);
+            });
+        } catch (e) {
+            alert('Could not build the cases: ' + e.message);
+            return;
+        }
+        node.__caseText = text;
+    }
+
+    if (node.children.length &&
+        !confirm(`This card already has ${node.children.length} branch(es). Confirming replaces them and everything below. Continue?`)) {
+        return;
+    }
+
+    node.children = children || [];
+    node.__solution = mode === 'cases' ? null : { verdict: CASE_MODES[mode].verdict };
+    closeEditor();
+}
+
+/* --------------------------------------------------------------- export --- */
+// function copyCasesLatex() {    //first version, more stable
+//     if (!state.tree) { alert('Nothing on the canvas yet.'); return; }
+//     const seps = augAfterCols();
+//     const lines = [];
+//     state.nodes.filter(n => n.__isLeaf).forEach(leaf => {
+//         const verdict = leaf.__solution && leaf.__solution.verdict
+//             ? ` \\quad \\text{(${leaf.__solution.verdict.text})}` : '';
+//         lines.push(`${conditionsLatex(leaf.condition)}: \\quad ${matrixLatex(leaf.rows, seps, leaf.colors)}${verdict}`);
+//     });
+//     const text = lines.join('\\\\[1em]\n');
+//     navigator.clipboard.writeText(text).then(
+//         () => alert(`Copied ${lines.length} case(s) to the clipboard as LaTeX.`),
+//         () => {
+//             const w = window.open('', '_blank');
+//             w.document.write('<pre>' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>');
+//         }
+//     );
+// }
+
+// function copyCasesLatex() {  // first update, not tested much
+//     if (!state.tree) { alert('Nothing on the canvas yet.'); return; }
+//     const seps = augAfterCols();
+//     const lines = [];
+//     state.nodes.filter(n => n.__isLeaf).forEach(leaf => {
+//         const verdict = leaf.__solution && leaf.__solution.verdict
+//             ? `\\text{(${leaf.__solution.verdict.text})}` : '';
+//         lines.push(`${conditionsLatex(leaf.condition)}: & ${matrixLatex(leaf.rows, seps, leaf.colors)} & ${verdict}`);
+//     });
+//     const text = `\\begin{array}{l c l}\n${lines.join(' \\\\[2em]\n')}\n\\end{array}`;
+//     navigator.clipboard.writeText(text).then(
+//         () => alert(`Copied ${lines.length} case(s) to the clipboard as LaTeX.`),
+//         () => {
+//             const w = window.open('', '_blank');
+//             w.document.write('<pre>' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>');
+//         }
+//     );
+// }
+
+function copyCasesLatex() {
+    if (!state.tree) { alert('Nothing on the canvas yet.'); return; }
+    const seps = augAfterCols();
+    const lines = [];
+    state.nodes.filter(n => n.__isLeaf).forEach(leaf => {
+        const verdict = leaf.__solution && leaf.__solution.verdict
+            ? `\\text{${leaf.__solution.verdict.text}}` : '';
+        const caseCell = verdict
+            ? `\\begin{array}{l}${conditionsLatex(leaf.condition)}: \\\\ ${verdict}\\end{array}`
+            : `${conditionsLatex(leaf.condition)}:`;
+        lines.push(`${caseCell} & ${matrixLatex(leaf.rows, seps, leaf.colors)}`);
+    });
+    const text = `\\begin{array}{l c}\n${lines.join(' \\\\[2em]\n')}\n\\end{array}`;
+    navigator.clipboard.writeText(text).then(
+        () => alert(`Copied ${lines.length} case(s) to the clipboard as LaTeX.`),
+        () => {
+            const w = window.open('', '_blank');
+            w.document.write('<pre>' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>');
+        }
+    );
+}
+
+/* ----------------------------------------------------------------- boot --- */
+window.addEventListener('load', () => {
+    // Deep link: ?m=1,h,k,k;k,0,1,0;1,h,1,2&aug=3
+    const params = new URLSearchParams(location.search);
+    if (params.has('m')) {
+        const rows = params.get('m').split(';').map(r => r.split(',').map(c => c.trim()));
+        const width = rows[0].length;
+        if (rows.every(r => r.length === width)) {
+            state.data = rows.map(r => r.map(c => (c === '' ? '0' : c)));
+            if (params.has('aug')) {
+                document.getElementById('aug-toggle').checked = true;
+                document.getElementById('aug-after').value = params.get('aug');
+            }
+        }
+    }
+
+    renderMatrixEditor();
+    initInteractions();
+    applyView();
+
+    document.getElementById('entries-field').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { confirmEntries(); startManual(); }
+    });
+    document.getElementById('case-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmCases();
+    });
+    document.getElementById('editor-panel').addEventListener('click', (e) => {
+        if (!e.target.closest('#case-mode-dd')) document.getElementById('case-mode-dd').classList.remove('open');
+    });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && state.editing) { closeEditor(); return; }
+        if (e.key === 'Enter' && e.shiftKey && !state.editing) {
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+            e.preventDefault();
+            showSteps(state.selected);
+        }
+    });
+
+    startManual();
+});
+
+/* Everything the markup's inline handlers need. */
+Object.assign(window, {
+    renderMatrixEditor, confirmEntries, transposeMatrix, loadPreset,
+    startManual, togglePanel, zoomBy, fitToView, expandAll, collapseDeep, resetLayout,
+    closeDrawer, openEditor, closeEditor, toggleCaseMode, pickCaseMode, confirmCases,
+    copyCasesLatex, rerenderTree,
+});
+
+// exposed for debugging / automated checks
+window.__tree = state;
+window.__api = { showSteps, selectNode, scaleCard, refresh, layoutTree, pullFromEditor, setCaseMode };
+})();
+
+</script>
+
+</body>
+</html>
