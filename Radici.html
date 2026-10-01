@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complex Roots - Professional Visualization</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<style>
+body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;background:#f8f9fa;margin:0;padding:20px;user-select:none}
+h1{margin-top:0;color:#333;font-size:2em}
+.controls{background:white;padding:15px;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:20px;width:100%;max-width:600px;z-index:10;box-sizing:border-box}
+.input-row{display:flex;align-items:center;gap:10px;margin-bottom:15px}
+.slider-row{display:flex;align-items:center;gap:15px}
+.button-row{display:flex;align-items:center;gap:8px;margin-bottom:15px;flex-wrap:wrap}label{font-weight:bold;font-size:.95em;color:#444;white-space:nowrap}
+input[type="text"]{width:100px;padding:4px 8px;border:1px solid #ccc;border-radius:4px}
+input[type="range"]{flex-grow:1}
+button{padding:5px 12px;border:1px solid #007bff;background:#007bff;color:white;border-radius:4px;cursor:pointer;font-size:.9em;transition:all .2s;display:flex;align-items:center;justify-content:center}
+button:hover{background:#0056b3;border-color:#0056b3}
+#container{position:relative;touch-action:none}
+canvas{background:white;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.1);cursor:crosshair;display:block}
+/* Labels are clipped to the canvas area */
+#labels-overlay{position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none}
+.latex-label{position:absolute;pointer-events:none;transform:translate(8px,-22px);font-size:18px;white-space:nowrap}
+#z-label{color:red;font-weight:bold;font-size:22px}
+.w-label{color:#007bff}
+.formula-box{position:absolute;top:20px;left:20px;background:rgba(255,255,255,.25);padding:12px;border:1px solid rgba(0,0,0,.1);border-radius:8px;cursor:move;font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,.05);z-index:20;touch-action:none}
+.formula-box h3{margin:0 0 8px 0;font-size:16px;color:#333;text-align:center;border-bottom:1px solid rgba(0,0,0,.1);padding-bottom:4px}
+.axis-label{position:absolute;font-weight:bold;font-style:italic;font-size:16px;pointer-events:none}
+</style>
+</head>
+<body>
+<h1>Radici \(n-\)esime</h1>
+<div class="controls">
+  <div class="input-row">
+    <label for="zInput">\(z =\)</label>
+    <input type="text" id="zInput" value="3+2i">
+  </div>
+  <div class="button-row">
+    <label><span>Quick input</span></label>
+    <button onclick="quickSet('1')">\(z=1\)</button>
+    <button onclick="quickSet('i')">\(z=i\)</button>
+    <button onclick="quickSet('-1')">\(z=-1\)</button>
+    <button onclick="quickSet('1+i')">\(z=1+i\)</button>
+    <button onclick="quickSet('1+1.732i')">\(z=1+\sqrt{3}i\)</button>
+  </div>
+  <div class="slider-row">
+    <label>\(n =\) <span id="nValue" style="display:inline-block;width:20px">3</span></label>
+    <input type="range" id="nSlider" min="2" max="10" value="3">
+  </div>
+</div>
+<div id="container">
+  <canvas id="complexCanvas" width="600" height="600"></canvas>
+  <div id="labels-overlay"></div>
+  <div class="formula-box" id="dragBox">
+    <h3>Richiamo</h3>
+    \[\color{#007bff}{\rho_w}\color{black}{\,=\sqrt[n]{\color{#d00}{\rho_z}}}\]
+    \[\color{#007bff}{\theta_0}\color{black}{\,=\frac{\color{#d00}{\theta_z}}{n}}\]
+    \[\color{#007bff}{\theta_k}\color{black}{\,=\,}\color{#007bff}{\theta_0}\color{black}{+\frac{2k\pi}{n}}\]
+  </div>
+  <div class="axis-label" style="right:15px;top:305px">\(\Re\)</div>
+  <div class="axis-label" style="left:310px;top:10px">\(\Im\)</div>
+</div>
+<script>
+const canvas = document.getElementById('complexCanvas');
+const ctx = canvas.getContext('2d');
+const zInput = document.getElementById('zInput');
+const nSlider = document.getElementById('nSlider');
+const nValue = document.getElementById('nValue');
+const labelsOverlay = document.getElementById('labels-overlay');
+const dragBox = document.getElementById('dragBox');
+const SIZE = 600, DPR = window.devicePixelRatio || 1;
+canvas.width = SIZE * DPR; canvas.height = SIZE * DPR;
+canvas.style.width = SIZE + 'px'; canvas.style.height = SIZE + 'px';
+ctx.scale(DPR, DPR);
+const CENTER = SIZE / 2;
+
+let z = {re:3, im:2}, gridSize = 60;
+let isDraggingPoint = false, isDraggingBox = false;
+let offset = {x:0, y:0};
+
+// ── Pinch-to-zoom state ───────────────────────────────────────────────────────
+let lastPinchDist = null;
+
+function getPinchDist(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+// ── Formula box: mouse drag ───────────────────────────────────────────────────
+dragBox.addEventListener('mousedown', e => {
+  isDraggingBox = true;
+  offset.x = e.clientX - dragBox.offsetLeft;
+  offset.y = e.clientY - dragBox.offsetTop;
+  e.stopPropagation();
+});
+
+// ── Formula box: touch drag ───────────────────────────────────────────────────
+dragBox.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    isDraggingBox = true;
+    offset.x = e.touches[0].clientX - dragBox.offsetLeft;
+    offset.y = e.touches[0].clientY - dragBox.offsetTop;
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}, {passive: false});
+
+function quickSet(val) { zInput.value = val; zInput.dispatchEvent(new Event('input')); }
+
+function drawArrow(x1,y1,x2,y2) {
+  const h=10, a=Math.atan2(y2-y1,x2-x1);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
+  ctx.stroke();
+}
+
+// Check if a canvas-space point is within bounds (with margin for label)
+function inBounds(cx, cy, margin=30) {
+  return cx >= margin && cx <= SIZE - margin &&
+         cy >= margin && cy <= SIZE - margin;
+}
+
+function updateLabels(n, theta, rootR, zx, zy) {
+  let html = '';
+
+  // Only show z label if the point is within canvas bounds
+  if (inBounds(zx, zy)) {
+    html += `<div id="z-label" class="latex-label" style="left:${zx}px;top:${zy}px">\\(z\\)</div>`;
+  }
+
+  for (let k = 0; k < n; k++) {
+    const angle = (theta + 2*Math.PI*k) / n;
+    const cx = CENTER + rootR * Math.cos(angle) * gridSize;
+    const cy = CENTER - rootR * Math.sin(angle) * gridSize;
+    if (inBounds(cx, cy)) {
+      html += `<div class="latex-label w-label" style="left:${cx}px;top:${cy}px">\\(w_{${k}}\\)</div>`;
+    }
+  }
+
+  labelsOverlay.innerHTML = html;
+  renderMathInElement(labelsOverlay, MATH_OPTS);
+}
+
+function draw() {
+  const n = parseInt(nSlider.value);
+  nValue.innerText = n;
+  const r = Math.sqrt(z.re*z.re + z.im*z.im);
+  const theta = Math.atan2(z.im, z.re);
+  const rootR = Math.pow(r, 1/n);
+
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+  drawArrow(0, CENTER, SIZE, CENTER);
+  drawArrow(CENTER, SIZE, CENTER, 0);
+
+  if (r > 0.1) {
+    ctx.fillStyle = 'rgba(255,0,0,0.15)';
+    ctx.beginPath(); ctx.moveTo(CENTER, CENTER);
+    ctx.arc(CENTER, CENTER, 45, 0, -theta, theta > 0);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,0,0,0.5)'; ctx.stroke();
+  }
+  if (rootR > 0.1) {
+    ctx.fillStyle = 'rgba(0,123,255,0.2)';
+    ctx.beginPath(); ctx.moveTo(CENTER, CENTER);
+    ctx.arc(CENTER, CENTER, 30, 0, -theta/n, theta > 0);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,123,255,0.8)'; ctx.stroke();
+  }
+
+  ctx.setLineDash([4,4]); ctx.strokeStyle = '#ccc';
+  ctx.beginPath(); ctx.arc(CENTER, CENTER, rootR*gridSize, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  for (let k = 0; k < n; k++) {
+    const angle = (theta + 2*Math.PI*k) / n;
+    const cx = CENTER + rootR * Math.cos(angle) * gridSize;
+    const cy = CENTER - rootR * Math.sin(angle) * gridSize;
+    ctx.strokeStyle = 'rgba(0,123,255,0.3)';
+    ctx.beginPath(); ctx.moveTo(CENTER, CENTER); ctx.lineTo(cx, cy); ctx.stroke();
+    ctx.fillStyle = '#007bff';
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+  }
+
+  const zx = CENTER + z.re * gridSize;
+  const zy = CENTER - z.im * gridSize;
+  ctx.strokeStyle = 'rgba(255,0,0,0.5)';
+  ctx.beginPath(); ctx.moveTo(CENTER, CENTER); ctx.lineTo(zx, zy); ctx.stroke();
+  ctx.fillStyle = 'red';
+  ctx.beginPath(); ctx.arc(zx, zy, 7, 0, Math.PI*2); ctx.fill();
+
+  updateLabels(n, theta, rootR, zx, zy);
+}
+
+// ── Fixed parser ──────────────────────────────────────────────────────────────
+function parseComplex(raw) {
+  const val = raw.replace(/\s+/g,'').replace(/j/gi,'i');
+  let m;
+  m = val.match(/^[+]?i\*([-+]?[\d.]+)$/); if (m) return {re:0, im:parseFloat(m[1])};
+  m = val.match(/^([-+]?[\d.]+)\*[+]?i$/); if (m) return {re:0, im:parseFloat(m[1])};
+  if (val==='i'||val==='+i') return {re:0, im:1};
+  if (val==='-i')            return {re:0, im:-1};
+  m = val.match(/^([-+]?[\d.]+)i$/); if (m) return {re:0, im:parseFloat(m[1])};
+  m = val.match(/^([-+]?[\d.]+)$/);  if (m) return {re:parseFloat(m[1]), im:0};
+  m = val.match(/^([-+]?[\d.]+)([-+])([\d.]*)i$/);
+  if (m) { const sign=m[2]==='-'?-1:1, imAbs=m[3]===''?1:parseFloat(m[3]); return {re:parseFloat(m[1]), im:sign*imAbs}; }
+  return null;
+}
+
+// ── Mouse: wheel zoom ─────────────────────────────────────────────────────────
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  gridSize *= e.deltaY > 0 ? 0.9 : 1.1;
+  gridSize = Math.min(Math.max(gridSize, 2), 5000);
+  draw();
+}, {passive: false});
+
+// ── Mouse: drag point ─────────────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left - CENTER) / gridSize;
+  const y = (CENTER - (e.clientY - rect.top)) / gridSize;
+  if (Math.sqrt((x-z.re)**2 + (y-z.im)**2) < 25/gridSize) isDraggingPoint = true;
+});
+
+window.addEventListener('mouseup', () => { isDraggingPoint = false; isDraggingBox = false; });
+
+window.addEventListener('mousemove', e => {
+  if (isDraggingBox) {
+    dragBox.style.left = (e.clientX - offset.x) + 'px';
+    dragBox.style.top  = (e.clientY - offset.y) + 'px';
+    return;
+  }
+  if (isDraggingPoint) {
+    const rect = canvas.getBoundingClientRect();
+    z.re = (e.clientX - rect.left - CENTER) / gridSize;
+    z.im = (CENTER - (e.clientY - rect.top)) / gridSize;
+    zInput.value = `${z.re.toFixed(2)}${z.im>=0?'+':''}${z.im.toFixed(2)}i`;
+    draw();
+  }
+});
+
+// ── Touch: drag point + pinch zoom on canvas ──────────────────────────────────
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches[0].clientX - rect.left - CENTER) / gridSize;
+    const y = (CENTER - (e.touches[0].clientY - rect.top)) / gridSize;
+    if (Math.sqrt((x-z.re)**2 + (y-z.im)**2) < 40/gridSize) isDraggingPoint = true;
+    lastPinchDist = null;
+  } else if (e.touches.length === 2) {
+    isDraggingPoint = false;
+    lastPinchDist = getPinchDist(e.touches);
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    // Pinch to zoom
+    const dist = getPinchDist(e.touches);
+    if (lastPinchDist !== null) {
+      gridSize *= dist / lastPinchDist;
+      gridSize = Math.min(Math.max(gridSize, 2), 5000);
+      draw();
+    }
+    lastPinchDist = dist;
+  } else if (e.touches.length === 1 && isDraggingPoint) {
+    const rect = canvas.getBoundingClientRect();
+    z.re = (e.touches[0].clientX - rect.left - CENTER) / gridSize;
+    z.im = (CENTER - (e.touches[0].clientY - rect.top)) / gridSize;
+    zInput.value = `${z.re.toFixed(2)}${z.im>=0?'+':''}${z.im.toFixed(2)}i`;
+    draw();
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchend', e => {
+  if (e.touches.length < 2) lastPinchDist = null;
+  if (e.touches.length === 0) isDraggingPoint = false;
+}, {passive: false});
+
+// ── Touch: drag formula box ───────────────────────────────────────────────────
+window.addEventListener('touchmove', e => {
+  if (isDraggingBox && e.touches.length === 1) {
+    dragBox.style.left = (e.touches[0].clientX - offset.x) + 'px';
+    dragBox.style.top  = (e.touches[0].clientY - offset.y) + 'px';
+    e.preventDefault();
+  }
+}, {passive: false});
+
+window.addEventListener('touchend', () => { isDraggingBox = false; isDraggingPoint = false; });
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+zInput.addEventListener('input', () => {
+  const parsed = parseComplex(zInput.value);
+  if (parsed) { z = parsed; draw(); }
+});
+
+nSlider.addEventListener('input', draw);
+const MATH_OPTS = {delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]};
+window.onload = () => { renderMathInElement(document.body, MATH_OPTS); draw(); };
+</script>
+</body>
+</html>
