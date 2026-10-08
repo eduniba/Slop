@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inequality Plotter</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraph.css">
+<script src="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraphcore.js"></script>
+<style>
+  :root { --c:#50C878; --fg:#1f2430; --muted:#6b7385; --line:#d9dde6; --bg:#f6f7fa; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--fg); background:var(--bg); }
+  .wrap { max-width:1100px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.15rem; margin:0 0 12px; font-weight:650; }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  #ineq { flex:1 1 320px; font-size:1.25rem; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  #ineq:focus { outline:2px solid var(--c); border-color:transparent; }
+  select { padding:9px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:.95rem; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 0; }
+  .chip { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.8rem; padding:3px 8px; border:1px solid var(--line); background:#fff; border-radius:999px; cursor:pointer; color:var(--muted); }
+  .chip:hover { color:var(--c); border-color:var(--c); }
+  #msg { margin:12px 0 8px; min-height:1.4em; font-size:1rem; }
+  #msg.err { color:#c92a2a; }
+  #msg b { color:var(--c); }
+  #box { width:100%; height:min(62vh,560px); min-height:340px; background:#fff; border:1px solid var(--line); border-radius:10px; }
+  #sliders { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; margin-top:12px; }
+  .row { background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; }
+  .row .top { display:flex; justify-content:space-between; font-size:1rem; }
+  .row input[type=range] { width:100%; accent-color:var(--c); }
+  .row .rng { display:flex; gap:6px; align-items:center; font-size:.8rem; color:var(--muted); }
+  .row .rng input { width:64px; padding:2px 4px; border:1px solid var(--line); border-radius:6px; }
+  .hint { margin-top:10px; font-size:.8rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Inequality plotter <span style="color:var(--muted);font-weight:400">(degree ≤ 2, letters other than x become sliders)</span></h1>
+  <div class="bar">
+    <input id="ineq" type="text" spellcheck="false" autocomplete="off" placeholder="e.g.  a*x^2 + b*x + c >= 0">
+    <label style="font-size:.9rem;color:var(--muted)">Excluded endpoint
+      <select id="face"><option value="x">✕ cross</option><option value="o">○ open dot</option></select>
+    </label>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="msg"></div>
+  <div id="box"></div>
+  <div id="sliders"></div>
+  <div class="hint">Colored = LHS satisfies the inequality against the RHS. Dashed vertical lines project the coloured part of the curve onto the x-axis. Drag to pan, wheel to zoom.</div>
+</div>
+
+<script>
+(function () {
+  const COLOR = '#50C878', BASE = '#5b7cba', MAXM = 6;
+  const $ = id => document.getElementById(id);
+
+  /* ---------------- parser (no eval) ---------------- */
+  function normalize(s) {
+    return s.replace(/[−–]/g, '-').replace(/[×·]/g, '*').replace(/≥/g, '>=').replace(/≤/g, '<=')
+            .replace(/=>/g, '>=').replace(/=</g, '<=').replace(/\*\*/g, '^')
+            .replace(/²/g, '^2').replace(/³/g, '^3').replace(/,/g, '.');
+  }
+  function parseExpr(str) {
+    const toks = []; let i = 0;
+    while (i < str.length) {
+      const c = str[i];
+      if (/\s/.test(c)) { i++; continue; }
+      const m = /^(\d+\.?\d*|\.\d+)/.exec(str.slice(i));
+      if (m) { toks.push({ t: 'n', v: parseFloat(m[1]) }); i += m[1].length; continue; }
+      if (/[A-Za-z]/.test(c)) { toks.push({ t: 'v', v: c === 'X' ? 'x' : c }); i++; continue; }
+      if ('+-*/^()'.includes(c)) { toks.push({ t: c }); i++; continue; }
+      throw new Error('Unexpected character "' + c + '"');
+    }
+    if (!toks.length) throw new Error('Empty side of the inequality');
+    let p = 0; const vars = new Set();
+    const peek = () => toks[p];
+    function expr() {
+      let l = term();
+      while (peek() && (peek().t === '+' || peek().t === '-')) {
+        const op = toks[p++].t, r = term(), a = l;
+        l = op === '+' ? (x, P) => a(x, P) + r(x, P) : (x, P) => a(x, P) - r(x, P);
+      }
+      return l;
+    }
+    function term() {
+      let l = unary();
+      for (;;) {
+        const k = peek(); if (!k) break;
+        let op;
+        if (k.t === '*' || k.t === '/') { p++; op = k.t; }
+        else if (k.t === 'n' || k.t === 'v' || k.t === '(') op = '*';   // implicit multiplication
+        else break;
+        const r = unary(), a = l;
+        l = op === '*' ? (x, P) => a(x, P) * r(x, P) : (x, P) => a(x, P) / r(x, P);
+      }
+      return l;
+    }
+    function unary() {
+      const k = peek();
+      if (k && k.t === '-') { p++; const u = unary(); return (x, P) => -u(x, P); }
+      if (k && k.t === '+') { p++; return unary(); }
+      return power();
+    }
+    function power() {
+      const b = primary();
+      if (peek() && peek().t === '^') { p++; const e = unary(); return (x, P) => Math.pow(b(x, P), e(x, P)); }
+      return b;
+    }
+    function primary() {
+      const k = toks[p++];
+      if (!k) throw new Error('Unexpected end of expression');
+      if (k.t === 'n') { const v = k.v; return () => v; }
+      if (k.t === 'v') {
+        if (k.v === 'x') return x => x;
+        vars.add(k.v); const n = k.v; return (x, P) => P[n];
+      }
+      if (k.t === '(') {
+        const e = expr();
+        if (!peek() || peek().t !== ')') throw new Error('Missing ")"');
+        p++; return e;
+      }
+      throw new Error('Unexpected "' + k.t + '"');
+    }
+    const f = expr();
+    if (p < toks.length) throw new Error('Unexpected "' + (toks[p].v !== undefined ? toks[p].v : toks[p].t) + '"');
+    return { f, vars };
+  }
+
+  /* ---------------- state ---------------- */
+  const state = { L: null, R: null, op: '>', P: {}, res: null, marks: [], lhsTxt: '', rhsTxt: '' };
+  const params = {};            // name -> {val,min,max}
+  let currentKey = null;
+
+  const fmt = v => { const s = String(Number(v.toFixed(3))); return s === '-0' ? '0' : s; };
+
+  /* ---------------- solver ---------------- */
+  function solve() {
+    const { L, R, P, op } = state;
+    const strict = op === '>' || op === '<', up = op === '>' || op === '>=';
+    const d = x => L(x, P) - R(x, P);
+    const f0 = d(0), f1 = d(1), fm = d(-1), f2 = d(2), f3 = d(-3);
+    if (![f0, f1, fm, f2, f3].every(Number.isFinite))
+      throw new Error('Not a polynomial (division by zero or invalid operation)');
+    const c = f0, b = (f1 - fm) / 2;
+    let a = (f1 + fm) / 2 - f0;
+    const scale = Math.max(1, Math.abs(f0), Math.abs(f1), Math.abs(fm), Math.abs(f2), Math.abs(f3));
+    const tol = 1e-9 * scale;
+    if (Math.abs(4 * a + 2 * b + c - f2) > 10 * tol || Math.abs(9 * a - 3 * b + c - f3) > 10 * tol)
+      throw new Error('Degree higher than 2 (or not a polynomial in x)');
+    if (Math.abs(a) <= tol) a = 0;
+
+    let roots = [];
+    if (a === 0) {
+      if (Math.abs(b) <= tol) {                       // constant
+        const v = Math.abs(c) <= tol ? 0 : c;
+        const all = v === 0 ? !strict : (up ? v > 0 : v < 0);
+        return { comps: all ? [{ lo: -Infinity, hi: Infinity }] : [], marks: [], text: all ? 'ℝ' : '∅' };
+      }
+      roots = [-c / b];
+    } else {
+      const disc = b * b - 4 * a * c;
+      if (Math.abs(disc) <= 1e-10 * (b * b + Math.abs(4 * a * c))) roots = [-b / (2 * a)];
+      else if (disc > 0) {
+        const s = Math.sqrt(disc);
+        roots = [(-b - s) / (2 * a), (-b + s) / (2 * a)].sort((u, v) => u - v);
+      }
+    }
+    const q = x => a * x * x + b * x + c;
+    const n = roots.length, sat = [];
+    for (let i = 0; i <= n; i++) {
+      let t;
+      if (n === 0) t = 0;
+      else if (i === 0) t = roots[0] - 1;
+      else if (i === n) t = roots[n - 1] + 1;
+      else t = (roots[i - 1] + roots[i]) / 2;
+      sat.push(up ? q(t) > 0 : q(t) < 0);
+    }
+    // merge intervals (only possible through an included root)
+    const comps = [];
+    for (let i = 0; i <= n;) {
+      if (!sat[i]) { i++; continue; }
+      const lo = i === 0 ? -Infinity : roots[i - 1];
+      let j = i;
+      while (!strict && j < n && sat[j + 1]) j++;
+      const hi = j === n ? Infinity : roots[j];
+      comps.push({ lo, hi });
+      i = j + 1;
+    }
+    const marks = [], isolated = [];
+    roots.forEach((r, k) => {
+      const l = sat[k], rt = sat[k + 1];
+      if (!strict) {
+        if (!(l && rt)) marks.push({ x: r, closed: true });
+        if (!l && !rt) isolated.push(r);
+      } else if (l || rt) marks.push({ x: r, closed: false });
+    });
+    // interval notation
+    const pieces = comps.map(cm => ({
+      key: cm.lo === -Infinity ? -1e300 : cm.lo,
+      s: (cm.lo === -Infinity ? '(−∞' : (strict ? '(' : '[') + fmt(cm.lo)) + ', ' +
+         (cm.hi === Infinity ? '+∞)' : fmt(cm.hi) + (strict ? ')' : ']'))
+    })).concat(isolated.map(r => ({ key: r, s: '{' + fmt(r) + '}' })));
+    pieces.sort((u, v) => u.key - v.key);
+    let text = pieces.map(p => p.s).join(' ∪ ');
+    if (comps.length === 1 && comps[0].lo === -Infinity && comps[0].hi === Infinity) text = 'ℝ';
+    if (!pieces.length) text = '∅';
+    return { comps, marks, text };
+  }
+
+  /* ---------------- board ---------------- */
+  const board = JXG.JSXGraph.initBoard('box', {
+    boundingbox: [-8, 9, 8, -7], axis: true, grid: false, keepAspectRatio: false,
+    showCopyright: false, showNavigation: false,
+    pan: { enabled: true, needShift: false, needTwoFingers: false },
+    zoom: { enabled: true, wheel: true, needShift: false, pinch: true, factorX: 1.15, factorY: 1.15 }
+  });
+  // the full-length light lines are the axis ticks (infinite height): shorten them to normal tick marks
+  ['x', 'y'].forEach(k => {
+    const ax = board.defaultAxes && board.defaultAxes[k];
+    if (ax && ax.defaultTicks) ax.defaultTicks.setAttribute({ majorHeight: 10, minorHeight: 6 });
+  });
+  const clampY = y => Math.max(-1e7, Math.min(1e7, y));
+  const evalL = x => state.L ? state.L(x, state.P) : NaN;
+  const evalR = x => state.R ? state.R(x, state.P) : NaN;
+
+  const baseL = board.create('functiongraph', [evalL], { strokeColor: BASE, strokeWidth: 2, highlight: false, fixed: true, layer: 5, visible: false });
+  const baseR = board.create('functiongraph', [evalR], { strokeColor: '#8d93a3', strokeWidth: 1.5, dash: 3, highlight: false, fixed: true, layer: 5, visible: false });
+
+  function makeSolCurve(i, onAxis) {
+    const c = board.create('curve', [[0], [0]], {
+      strokeColor: COLOR, strokeWidth: onAxis ? 7 : 4, strokeOpacity: onAxis ? 0.9 : 1,
+      layer: onAxis ? 8 : 6, highlight: false, fixed: true, visible: false
+    });
+    c.updateDataArray = function () {
+      const s = state.res && state.res.comps[i], xs = [], ys = [];
+      if (s) {
+        const bb = board.getBoundingBox();
+        const lo = Math.max(s.lo, bb[0]), hi = Math.min(s.hi, bb[2]);
+        if (hi >= lo) {
+          const N = onAxis ? 2 : 400;
+          for (let k = 0; k <= N; k++) {
+            const x = lo + (hi - lo) * k / N;
+            xs.push(x); ys.push(onAxis ? 0 : clampY(evalL(x)));
+          }
+        }
+      }
+      if (!xs.length) { xs.push(0); ys.push(NaN); }
+      this.dataX = xs; this.dataY = ys;
+    };
+    return c;
+  }
+  const solC = [0, 1, 2].map(i => makeSolCurve(i, false));
+  const solA = [0, 1, 2].map(i => makeSolCurve(i, true));
+
+  // dashed vertical projections: from the coloured part of the curve down/up to the x-axis
+  function makeProjection(i) {
+    const c = board.create('curve', [[0], [0]], {
+      strokeColor: COLOR, strokeWidth: 1.2, strokeOpacity: 0.7, dash: 2,
+      layer: 4, highlight: false, fixed: true, visible: false
+    });
+    c.updateDataArray = function () {
+      const s = state.res && state.res.comps[i], xs = [], ys = [];
+      if (s) {
+        const bb = board.getBoundingBox();
+        const lo = Math.max(s.lo, bb[0]), hi = Math.min(s.hi, bb[2]);
+        if (hi >= lo) {
+          const n = Math.max(1, Math.round(board.canvasWidth / 14));   // about one line every 14 px
+          const N = Math.max(1, Math.min(n, Math.ceil((hi - lo) / (bb[2] - bb[0]) * n)));
+          for (let k = 0; k <= N; k++) {
+            const x = lo + (hi - lo) * k / N, y = clampY(evalL(x));
+            xs.push(x, x, NaN); ys.push(y, 0, NaN);
+          }
+        }
+      }
+      if (!xs.length) { xs.push(0); ys.push(NaN); }
+      this.dataX = xs; this.dataY = ys;
+    };
+    return c;
+  }
+  const solP = [0, 1, 2].map(makeProjection);
+
+  const mx = i => state.marks[i] ? state.marks[i].x : 0;
+  const my = i => state.marks[i] ? state.marks[i].y : 0;
+  const ptAttr = { name: '', fixed: true, highlight: false, showInfobox: false, strokeColor: COLOR, fillColor: COLOR, size: 4, face: 'o', layer: 11, visible: false };
+  const marksEls = [];
+  for (let i = 0; i < MAXM; i++) {
+    const pc = board.create('point', [() => mx(i), () => my(i)], ptAttr);
+    const pa = board.create('point', [() => mx(i), 0], ptAttr);
+    marksEls.push({ pc, pa });
+  }
+
+  function render() {
+    const res = state.res, openFace = $('face').value;
+    for (let i = 0; i < 3; i++) {
+      const on = !!(res && res.comps[i]);
+      solC[i].setAttribute({ visible: on }); solA[i].setAttribute({ visible: on }); solP[i].setAttribute({ visible: on });
+    }
+    baseL.setAttribute({ visible: !!res });
+    let showR = false;
+    if (res) showR = Math.abs(evalR(-2)) + Math.abs(evalR(1)) + Math.abs(evalR(3)) > 1e-12;
+    baseR.setAttribute({ visible: showR });
+    for (let i = 0; i < MAXM; i++) {
+      const m = res && state.marks[i], e = marksEls[i];
+      if (!m) { e.pc.setAttribute({ visible: false }); e.pa.setAttribute({ visible: false }); continue; }
+      const a = m.closed
+        ? { visible: true, face: 'o', size: 4, fillColor: COLOR, strokeColor: COLOR }
+        : { visible: true, face: openFace, size: openFace === 'x' ? 6 : 4, fillColor: '#ffffff', strokeColor: COLOR };
+      e.pc.setAttribute(a); e.pa.setAttribute(a);
+    }
+    board.update();
+  }
+
+  /* ---------------- sliders ---------------- */
+  function syncParams(vars) {
+    const names = [...vars].sort(), key = names.join(',');
+    names.forEach(n => { if (!params[n]) params[n] = { val: 1, min: -5, max: 5 }; });
+    state.P = {}; names.forEach(n => state.P[n] = params[n].val);
+    if (key === currentKey) return;
+    currentKey = key;
+    const box = $('sliders'); box.innerHTML = '';
+    names.forEach(n => {
+      const pr = params[n], row = document.createElement('div'); row.className = 'row';
+      row.innerHTML =
+        '<div class="top"><span><i>' + n + '</i> = <b class="val"></b></span></div>' +
+        '<input type="range" step="0.01">' +
+        '<div class="rng">min <input type="number" class="mn"> max <input type="number" class="mx"></div>';
+      const rg = row.querySelector('input[type=range]'), val = row.querySelector('.val'),
+            mn = row.querySelector('.mn'), mxI = row.querySelector('.mx');
+      const setRange = () => { rg.min = pr.min; rg.max = pr.max; rg.value = pr.val; val.textContent = pr.val.toFixed(2); };
+      mn.value = pr.min; mxI.value = pr.max; setRange();
+      rg.addEventListener('input', () => { pr.val = parseFloat(rg.value); val.textContent = pr.val.toFixed(2); state.P[n] = pr.val; recompute(); });
+      const rangeChange = () => {
+        let lo = parseFloat(mn.value), hi = parseFloat(mxI.value);
+        if (!isFinite(lo) || !isFinite(hi) || lo >= hi) return;
+        pr.min = lo; pr.max = hi; pr.val = Math.min(hi, Math.max(lo, pr.val));
+        setRange(); state.P[n] = pr.val; recompute();
+      };
+      mn.addEventListener('change', rangeChange); mxI.addEventListener('change', rangeChange);
+      box.appendChild(row);
+    });
+  }
+
+  /* ---------------- main flow ---------------- */
+  function setMsg(html, err) { const m = $('msg'); m.innerHTML = html; m.className = err ? 'err' : ''; }
+  const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+  function recompute() {
+    if (!state.L) { state.res = null; render(); return; }
+    try {
+      const r = solve();
+      state.res = r;
+      state.marks = r.marks.map(m => ({ x: m.x, closed: m.closed, y: evalL(m.x) }));
+      setMsg('Solution: <b>' + esc(r.text) + '</b>', false);
+    } catch (e) {
+      state.res = null; state.marks = [];
+      setMsg(esc(e.message), true);
+    }
+    render();
+  }
+
+  function onInput() {
+    const raw = normalize($('ineq').value);
+    try {
+      const m = raw.match(/>=|<=|>|</g);
+      if (!m) throw new Error('Add a comparison sign: <, >, <= or >=');
+      if (m.length > 1) throw new Error('Only one comparison sign is allowed');
+      const idx = raw.indexOf(m[0]);
+      const l = parseExpr(raw.slice(0, idx)), r = parseExpr(raw.slice(idx + m[0].length));
+      state.L = l.f; state.R = r.f; state.op = m[0];
+      const vars = new Set([...l.vars, ...r.vars]);
+      syncParams(vars);
+    } catch (e) {
+      state.L = state.R = null; state.res = null; state.marks = [];
+      syncParams(new Set());
+      setMsg(esc(e.message), true); render(); return;
+    }
+    recompute();
+  }
+
+  $('ineq').addEventListener('input', onInput);
+  $('face').addEventListener('change', render);
+  ['x^2 - 2*x - 3 > a', 'a*x^2 + b*x + c >= 0', '-(x-1)^2 >= 0', '2x + 1 < b', 'x^2 < 4x - 3', '(x-a)(x+2) <= 0']
+    .forEach(t => {
+      const b = document.createElement('span'); b.className = 'chip'; b.textContent = t;
+      b.onclick = () => { $('ineq').value = t; onInput(); };
+      $('chips').appendChild(b);
+    });
+  $('ineq').value = 'x^2 - 2*x - 3 > a';
+  onInput();
+})();
+</script>
+</body>
+</html>
