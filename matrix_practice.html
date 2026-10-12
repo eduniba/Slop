@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matrix Practice</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<style>
+  :root{--bg:#f4f5f9;--card:#fff;--ink:#1f2430;--muted:#6b7280;--accent:#3b5bdb;--line:#e1e4ec;--bad:#c92a2a;--good:#2b8a3e}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:820px;margin:0 auto;padding:24px 16px}
+  h1{font-size:1.4rem;margin:0 0 16px}
+  h2{margin:0 0 12px;font-size:1.25rem}
+  .tabs{display:flex;gap:4px;border-bottom:2px solid var(--line)}
+  .tab{border:none;background:none;padding:10px 18px;font-size:1rem;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px}
+  .tab.active{color:var(--accent);border-color:var(--accent);font-weight:600}
+  .panel{display:none;background:var(--card);padding:24px;border-radius:0 0 12px 12px;box-shadow:0 2px 10px rgba(20,30,60,.08)}
+  .panel.active{display:block}
+  .problem{text-align:center;padding:14px 0;font-size:1.3rem;overflow-x:auto}
+  .btns{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .btn{border:1px solid var(--line);background:#fff;padding:10px 20px;border-radius:8px;font-size:1rem;cursor:pointer}
+  .btn:hover{background:#f1f3f9}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.primary:hover{background:#2f4ac0}
+  .overlay{position:fixed;inset:0;background:rgba(15,20,35,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:100}
+  .overlay.open{display:flex}
+  .modal{background:#fff;border-radius:12px;width:100%;max-width:900px;max-height:90vh;overflow:auto;padding:22px 24px;position:relative}
+  .close{position:absolute;top:8px;right:12px;border:none;background:none;font-size:1.8rem;line-height:1;cursor:pointer;color:var(--muted)}
+  .mats{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px;margin:18px 0;font-size:1.2rem}
+  .mw{display:flex;align-items:stretch}
+  .par{width:12px;border:0 solid var(--ink)}
+  .par.l{border-left-width:2px;border-radius:14px 0 0 14px/50% 0 0 50%}
+  .par.r{border-right-width:2px;border-radius:0 14px 14px 0/0 50% 50% 0}
+  .mat{display:grid;gap:4px 6px;padding:4px 4px}
+  .mat .c{min-width:2.2em;text-align:center;padding:4px 6px;border-radius:6px;font-variant-numeric:tabular-nums}
+  .mat.res .c{cursor:help;background:#eef2ff}
+  .mat.res .c:hover{background:#dbe4ff}
+  .mat .c.hl{background:#fff3bf}
+  .op{font-size:1.4rem}
+  .hint{color:var(--muted);font-size:.9rem;text-align:center}
+  .step{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+  .step .ops{font-weight:600;color:var(--accent)}
+  .scroll{overflow-x:auto}
+  .verdict{padding:10px 14px;border-radius:8px;margin-top:14px}
+  .verdict.bad{background:#fff0f0;border:1px solid #ffc9c9}
+  .verdict.good{background:#ebfbee;border:1px solid #b2f2bb}
+  #tip{position:fixed;z-index:200;background:#1f2430;color:#fff;padding:8px 12px;border-radius:8px;display:none;pointer-events:none;max-width:92vw;overflow:hidden;font-size:1rem}
+  #tip .tiphead{font-size:.8rem;opacity:.75;margin-bottom:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Matrix practice</h1>
+  <div class="tabs">
+    <button class="tab active" data-tab="p1">Matrix product</button>
+    <button class="tab" data-tab="p2">Inverse</button>
+  </div>
+
+  <section class="panel active" id="p1">
+    <p>Compute the product <span id="prodGoal"></span> of the following matrices.</p>
+    <div class="problem" id="prodProblem"></div>
+    <div class="btns">
+      <button class="btn primary" id="prodShow">Show solution</button>
+      <button class="btn" id="prodNew">New exercise</button>
+    </div>
+  </section>
+
+  <section class="panel" id="p2">
+    <p>Calculate the inverse <span id="invGoal"></span> of the following matrix.</p>
+    <div class="problem" id="invProblem"></div>
+    <div class="btns">
+      <button class="btn primary" id="invShow">Show solution</button>
+      <button class="btn" id="invNew">New exercise</button>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="close" id="close" aria-label="Close">&times;</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const esc = s => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function tex(el, s, display = false) {
+  if (window.katex) katex.render(s, el, {displayMode: display, throwOnError: false});
+  else el.textContent = s;
+}
+const T = s => `<span class="tx" data-tex="${esc(s)}"></span>`;
+const D = s => `<div class="tx scroll" data-display="1" data-tex="${esc(s)}"></div>`;
+function renderAll(root) {
+  root.querySelectorAll('.tx').forEach(el => tex(el, el.dataset.tex, el.dataset.display === '1'));
+}
+// wrap negative numbers in parentheses (avoids "+-" and "*-")
+const par = n => n < 0 ? `(${n})` : `${n}`;
+const bmat = M => `\\begin{pmatrix}${M.map(r => r.join(' & ')).join(' \\\\ ')}\\end{pmatrix}`;
+const mk = (r, c, lo, hi) => Array.from({length: r}, () => Array.from({length: c}, () => rnd(lo, hi)));
+const minus = v => String(v).replace('-', '\u2212');
+
+/* ---------- popup ---------- */
+function openModal(html) {
+  const b = $('#modalBody');
+  b.innerHTML = html;
+  renderAll(b);
+  $('#overlay').classList.add('open');
+  $('.modal').scrollTop = 0;
+}
+function closeModal() { $('#overlay').classList.remove('open'); hideTip(); }
+$('#close').onclick = closeModal;
+$('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === b.dataset.tab));
+});
+
+/* ---------- tooltip ---------- */
+const tip = $('#tip');
+function hideTip() {
+  tip.style.display = 'none';
+  document.querySelectorAll('.c.hl').forEach(c => c.classList.remove('hl'));
+}
+document.addEventListener('click', e => { if (!e.target.closest('.mat.res')) hideTip(); });
+
+/* =====================  TAB 1: PRODUCT  ===================== */
+let prod;
+function newProduct() {
+  const ok = Math.random() >= 0.2;            // 20% chance: product undefined
+  const m = rnd(2, 3), n = rnd(2, 3), q = rnd(2, 3);
+  let p = n;
+  if (!ok) { do { p = rnd(2, 4); } while (p === n); }
+  prod = {A: mk(m, n, -4, 5), B: mk(p, q, -4, 5), ok};
+  tex($('#prodGoal'), 'A\\cdot B');
+  tex($('#prodProblem'), `A=${bmat(prod.A)}\\qquad B=${bmat(prod.B)}`, true);
+}
+
+function grid(M, name) {
+  const cells = M.map((row, i) => row.map((v, j) =>
+    `<span class="c" data-m="${name}" data-i="${i}" data-j="${j}">${minus(v)}</span>`).join('')).join('');
+  return `<div class="mw"><span class="par l"></span><div class="mat ${name === 'C' ? 'res' : ''}" style="grid-template-columns:repeat(${M[0].length},auto)">${cells}</div><span class="par r"></span></div>`;
+}
+
+function showProduct() {
+  const {A, B, ok} = prod;
+  const m = A.length, n = A[0].length, p = B.length, q = B[0].length;
+  if (!ok) {
+    openModal(`<h2>Solution</h2>
+      <p>The product ${T('A\\cdot B')} <b>does not exist</b>: the dimensions are incompatible.</p>
+      <p>${T(`A\\in M(${m},${n},\\mathbb{R})`)} and ${T(`B\\in M(${p},${q},\\mathbb{R})`)}.</p>
+      <p>The product is defined only if the number of columns of ${T('A')} equals the number of rows of ${T('B')}.
+      Here ${T(`${n}\\neq ${p}`)}, so the rows of ${T('A')} (length ${n}) cannot be paired with the columns of ${T('B')} (length ${p}).</p>`);
+    return;
+  }
+  const C = A.map((row, i) => Array.from({length: q}, (_, j) => row.reduce((s, a, k) => s + a * B[k][j], 0)));
+  openModal(`<h2>Solution</h2>
+    <p>${T(`A\\cdot B\\in M(${m},${q},\\mathbb{R})`)}, where ${T('c_{ij}=\\sum_{k}a_{ik}\\,b_{kj}')}
+    (row ${T('i')} of ${T('A')} times column ${T('j')} of ${T('B')}).</p>
+    <div class="mats">${grid(A, 'A')}<span class="op">&middot;</span>${grid(B, 'B')}<span class="op">=</span>${grid(C, 'C')}</div>
+    <p class="hint">Hover (or tap) an element of the product to see the full operation.</p>`);
+
+  const body = $('#modalBody');
+  const show = cell => {
+    hideTip();
+    const i = +cell.dataset.i, j = +cell.dataset.j;
+    const row = A[i], col = B.map(r => r[j]);
+    const terms = row.map((a, k) => `${par(a)}\\cdot ${par(col[k])}`).join(' + ');
+    const prods = row.map((a, k) => par(a * col[k])).join(' + ');
+    tip.innerHTML = `<div class="tiphead">Row ${i + 1} of A &middot; Column ${j + 1} of B</div><div class="tx" data-tex="${esc(`c_{${i + 1}${j + 1}} = ${terms} = ${prods} = ${C[i][j]}`)}"></div>`;
+    renderAll(tip);
+    body.querySelectorAll('.c').forEach(c => {
+      if ((c.dataset.m === 'A' && +c.dataset.i === i) || (c.dataset.m === 'B' && +c.dataset.j === j)) c.classList.add('hl');
+    });
+    cell.classList.add('hl');
+    tip.style.display = 'block';
+    const r = cell.getBoundingClientRect();
+    let x = r.left + r.width / 2 - tip.offsetWidth / 2;
+    x = Math.max(8, Math.min(x, innerWidth - tip.offsetWidth - 8));
+    let y = r.bottom + 8;
+    if (y + tip.offsetHeight > innerHeight - 8) y = r.top - tip.offsetHeight - 8;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  };
+  body.querySelectorAll('.mat.res .c').forEach(c => {
+    c.addEventListener('mouseenter', () => show(c));
+    c.addEventListener('mouseleave', hideTip);
+    c.addEventListener('click', () => show(c));
+  });
+}
+
+/* =====================  TAB 2: INVERSE  ===================== */
+const gcd = (a, b) => b ? gcd(b, a % b) : Math.abs(a);
+const F = (n, d = 1) => { if (d < 0) { n = -n; d = -d; } const g = gcd(n, d) || 1; return {n: n / g, d: d / g}; };
+const fmul = (a, b) => F(a.n * b.n, a.d * b.d);
+const fsub = (a, b) => F(a.n * b.d - b.n * a.d, a.d * b.d);
+const finv = a => F(a.d, a.n);
+const fneg = a => F(-a.n, a.d);
+const isOne = a => a.n === 1 && a.d === 1;
+const isZero = a => a.n === 0;
+const ftex = a => a.d === 1 ? `${a.n}` : (a.n < 0 ? `-\\frac{${-a.n}}{${a.d}}` : `\\frac{${a.n}}{${a.d}}`);
+// scalar in front of a row: negatives in parentheses, 1 omitted
+const coef = a => isOne(a) ? '' : (a.n < 0 ? `\\left(${ftex(a)}\\right)\\,` : `${ftex(a)}\\,`);
+
+function det(M) {
+  if (M.length === 2) return M[0][0] * M[1][1] - M[0][1] * M[1][0];
+  const [a, b, c] = M[0], [d, e, f] = M[1], [g, h, i] = M[2];
+  return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+}
+const nonzeroVec = (n, lo, hi) => { let v; do { v = Array.from({length: n}, () => rnd(lo, hi)); } while (v.every(x => x === 0)); return v; };
+const shuffle = a => a.map(x => [Math.random(), x]).sort((u, v) => u[0] - v[0]).map(x => x[1]);
+
+function genMatrix(n, singular) {
+  if (!singular) {
+    let A;
+    do { A = mk(n, n, -3, 3); } while (det(A) === 0 || Math.abs(det(A)) > 6);
+    return A;
+  }
+  if (n === 2) {
+    const r1 = nonzeroVec(2, -3, 3), k = [-2, -1, 1, 2][rnd(0, 3)];
+    return shuffle([r1, r1.map(x => k * x)]);
+  }
+  const r1 = nonzeroVec(3, -3, 3), r2 = nonzeroVec(3, -3, 3);
+  let r3;
+  do {
+    const a = rnd(-2, 2), b = rnd(-2, 2);
+    r3 = r1.map((x, j) => a * x + b * r2[j]);
+  } while (r3.every(x => x === 0) || (r3.every((x, j) => x === r1[j])) );
+  return shuffle([r1, r2, r3]);
+}
+
+function gauss(A) {
+  const n = A.length;
+  let M = A.map((row, i) => [...row.map(x => F(x)), ...Array.from({length: n}, (_, j) => F(i === j ? 1 : 0))]);
+  const clone = X => X.map(r => r.map(x => ({...x})));
+  const zeroRow = X => X.findIndex(row => row.slice(0, n).every(isZero));
+  const start = clone(M);
+  const steps = [];
+  let z = zeroRow(M);
+  if (z >= 0) return {singular: true, start, steps, zero: z, n};
+  let r = 0;
+  for (let c = 0; c < n && r < n; c++) {
+    const cand = [];
+    for (let i = r; i < n; i++) if (!isZero(M[i][c])) cand.push(i);
+    if (!cand.length) continue;
+    const pi = cand.find(i => Math.abs(M[i][c].n) === 1 && M[i][c].d === 1) ?? cand[0];
+    const ops = [];
+    if (pi !== r) {
+      [M[r], M[pi]] = [M[pi], M[r]];
+      ops.push(`R_{${r + 1}}\\leftrightarrow R_{${pi + 1}}`);
+    }
+    const p = M[r][c];
+    if (!isOne(p)) {
+      const k = finv(p);
+      M[r] = M[r].map(x => fmul(x, k));
+      ops.push(`R_{${r + 1}}\\leftarrow ${coef(k)}R_{${r + 1}}`);
+    }
+    for (let i = 0; i < n; i++) {
+      if (i === r || isZero(M[i][c])) continue;
+      const f = M[i][c];
+      M[i] = M[i].map((x, j) => fsub(x, fmul(f, M[r][j])));
+      ops.push(f.n > 0
+        ? `R_{${i + 1}}\\leftarrow R_{${i + 1}} - ${coef(f)}R_{${r + 1}}`
+        : `R_{${i + 1}}\\leftarrow R_{${i + 1}} + ${coef(fneg(f))}R_{${r + 1}}`);
+    }
+    r++;
+    if (ops.length) steps.push({ops, M: clone(M)});
+    z = zeroRow(M);
+    if (z >= 0) return {singular: true, start, steps, zero: z, n};
+  }
+  z = zeroRow(M);
+  if (z >= 0) return {singular: true, start, steps, zero: z, n};
+  return {singular: false, start, steps, inv: M.map(row => row.slice(n)), n};
+}
+
+function augTex(M, n, opt = {}) {
+  const cols = 'c'.repeat(n) + '|' + 'c'.repeat(n);
+  const rows = M.map((row, i) => row.map((x, j) => {
+    let s = ftex(x);
+    if (opt.zero === i && j < n) s = `\\color{#c92a2a}{${s}}`;
+    if (opt.good && j >= n) s = `\\color{#2b8a3e}{${s}}`;
+    return s;
+  }).join(' & ')).join(' \\\\ ');
+  return `\\left(\\begin{array}{${cols}}${rows}\\end{array}\\right)`;
+}
+
+let inv;
+function newInverse() {
+  const n = rnd(2, 3);
+  const singular = Math.random() < 0.2;       // 20% chance: not invertible
+  inv = {A: genMatrix(n, singular)};
+  tex($('#invGoal'), 'A^{-1}');
+  tex($('#invProblem'), `A=${bmat(inv.A)}`, true);
+}
+
+function showInverse() {
+  const res = gauss(inv.A), n = res.n;
+  let html = `<h2>Solution &ndash; Gauss&ndash;Jordan elimination</h2>
+    <p>Start from the augmented matrix ${T('(A\\mid I)')} and apply row operations until the left block becomes ${T('I')}.</p>
+    ${D(augTex(res.start, n, res.steps.length === 0 && res.singular ? {zero: res.zero} : {}))}`;
+  res.steps.forEach((s, k) => {
+    const last = k === res.steps.length - 1;
+    const opt = last ? (res.singular ? {zero: res.zero} : {good: true}) : {};
+    html += `<div class="step"><div class="ops">Step ${k + 1}: ${T(s.ops.join('\\;;\\;\\,'))}</div>${D(augTex(s.M, n, opt))}</div>`;
+  });
+  if (res.singular) {
+    html += `<div class="verdict bad"><b>${T('A')} is not invertible.</b>
+      Row ${res.zero + 1} of the left block is entirely zero, so the left block can never be turned into ${T('I')}
+      (the process cannot reach ${T('(I\\mid A^{-1})')}). Equivalently ${T('\\det A=0')}.</div>`;
+  } else {
+    html += `<div class="verdict good">We reached ${T('(I\\mid A^{-1})')}, therefore
+      ${D(`A^{-1}=${bmat(res.inv.map(r => r.map(ftex)))}`)}</div>`;
+  }
+  openModal(html);
+}
+
+/* ---------- init ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  $('#prodShow').onclick = showProduct;
+  $('#prodNew').onclick = newProduct;
+  $('#invShow').onclick = showInverse;
+  $('#invNew').onclick = newInverse;
+  newProduct();
+  newInverse();
+});
+</script>
+</body>
+</html>

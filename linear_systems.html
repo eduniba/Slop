@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linear Systems</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<style>
+  :root{--bg:#f4f5f9;--card:#fff;--ink:#1f2430;--muted:#6b7280;--accent:#3b5bdb;--line:#e1e4ec}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:820px;margin:0 auto;padding:24px 16px}
+  h1{font-size:1.4rem;margin:0 0 16px}
+  h2{margin:0 0 12px;font-size:1.25rem}
+  .tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:2px solid var(--line)}
+  .tab{border:none;background:none;padding:10px 18px;font-size:1rem;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px}
+  .tab.active{color:var(--accent);border-color:var(--accent);font-weight:600}
+  .panel{display:none;background:var(--card);padding:24px;border-radius:0 0 12px 12px;box-shadow:0 2px 10px rgba(20,30,60,.08)}
+  .panel.active{display:block}
+  .problem{text-align:center;padding:14px 0;font-size:1.3rem;overflow-x:auto}
+  .btns{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .btn{border:1px solid var(--line);background:#fff;padding:10px 20px;border-radius:8px;font-size:1rem;cursor:pointer}
+  .btn:hover{background:#f1f3f9}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.primary:hover{background:#2f4ac0}
+  .overlay{position:fixed;inset:0;background:rgba(15,20,35,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:100}
+  .overlay.open{display:flex}
+  .modal{background:#fff;border-radius:12px;width:100%;max-width:900px;max-height:90vh;overflow:auto;padding:22px 24px;position:relative}
+  .close{position:absolute;top:8px;right:12px;border:none;background:none;font-size:1.8rem;line-height:1;cursor:pointer;color:var(--muted)}
+  .step{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+  .step .ops{font-weight:600;color:var(--accent)}
+  .scroll{overflow-x:auto}
+  .verdict{padding:10px 14px;border-radius:8px;margin-top:14px}
+  .verdict.bad{background:#fff0f0;border:1px solid #ffc9c9}
+  .verdict.good{background:#ebfbee;border:1px solid #b2f2bb}
+  .verdict.mid{background:#fff9db;border:1px solid #ffe066}
+  .note{background:#eef2ff;border:1px solid #c5d0fa;border-radius:8px;padding:8px 12px;margin:10px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Linear systems</h1>
+  <div class="tabs">
+    <button class="tab active" data-tab="t1">Linear system</button>
+    <button class="tab" data-tab="t2">Parametric system</button>
+  </div>
+
+  <section class="panel active" id="t1">
+    <p>Discuss the following linear system (Rouch&eacute;&ndash;Capelli) and solve it, if possible.</p>
+    <div class="problem" id="problem1"></div>
+    <div class="btns">
+      <button class="btn primary" id="show1">Show solution</button>
+      <button class="btn" id="new1">New exercise</button>
+    </div>
+  </section>
+
+  <section class="panel" id="t2">
+    <p>Discuss the following system as the parameter <span class="tx" data-tex="k"></span> varies (Rouch&eacute;&ndash;Capelli) and solve it wherever possible.</p>
+    <div class="problem" id="problem2"></div>
+    <div class="btns">
+      <button class="btn primary" id="show2">Show solution</button>
+      <button class="btn" id="new2">New exercise</button>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="close" id="close" aria-label="Close">&times;</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const shuffle = a => a.map(x => [Math.random(), x]).sort((u, v) => u[0] - v[0]).map(x => x[1]);
+const pick = a => a[rnd(0, a.length - 1)];
+const esc = s => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function tex(el, s, display = false) {
+  if (window.katex) katex.render(s, el, {displayMode: display, throwOnError: false});
+  else el.textContent = s;
+}
+const T = s => `<span class="tx" data-tex="${esc(s)}"></span>`;
+const D = s => `<div class="tx scroll" data-display="1" data-tex="${esc(s)}"></div>`;
+function renderAll(root) { root.querySelectorAll('.tx').forEach(el => tex(el, el.dataset.tex, el.dataset.display === '1')); }
+
+function openModal(html) {
+  const b = $('#modalBody');
+  b.innerHTML = html;
+  renderAll(b);
+  $('#overlay').classList.add('open');
+  $('.modal').scrollTop = 0;
+}
+const closeModal = () => $('#overlay').classList.remove('open');
+$('#close').onclick = closeModal;
+$('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/*SYS-START*/
+/* ---------- polynomials in k (coefficients low -> high) ---------- */
+const ptrim = a => { a = a.slice(); while (a.length > 1 && a[a.length - 1] === 0) a.pop(); return a.length ? a : [0]; };
+const padd = (a, b) => ptrim(Array.from({length: Math.max(a.length, b.length)}, (_, i) => (a[i] || 0) + (b[i] || 0)));
+const pneg = a => a.map(x => x === 0 ? 0 : -x);
+const psub = (a, b) => padd(a, pneg(b));
+const pmul = (a, b) => { const r = Array(a.length + b.length - 1).fill(0); a.forEach((x, i) => b.forEach((y, j) => r[i + j] += x * y)); return ptrim(r); };
+const pev = (a, k) => a.reduceRight((s, c) => s * k + c, 0);
+const pIsZero = a => a.length === 1 && a[0] === 0;
+const pdeg = a => a.length - 1;
+const peq = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+function pdiv(a, r) {                       // exact division by (k - r)
+  const n = a.length - 1, q = Array(n).fill(0);
+  let carry = 0;
+  for (let i = n; i >= 1; i--) { carry = a[i] + carry * r; q[i - 1] = carry; }
+  return ptrim(q);
+}
+const gcd = (a, b) => b ? gcd(b, a % b) : Math.abs(a);
+const pcont = a => a.reduce((g, x) => gcd(g, x), 0);
+const pprim = a => { const c = pcont(a) || 1; a = a.map(x => x / c); return a[a.length - 1] < 0 ? pneg(a) : a; };
+function prem(a, b) {                       // integer pseudo-remainder
+  a = ptrim(a);
+  while (!pIsZero(a) && a.length >= b.length) {
+    const da = a.length - 1, db = b.length - 1, la = a[da], lb = b[db];
+    const r = a.map(x => x * lb);
+    for (let i = 0; i <= db; i++) r[da - db + i] -= la * b[i];
+    a = ptrim(r);
+    const c = pcont(a);
+    if (c > 1) a = a.map(x => x / c);
+  }
+  return a;
+}
+function pgcd(a, b) {
+  a = ptrim(a); b = ptrim(b);
+  if (pIsZero(a)) return pIsZero(b) ? [0] : pprim(b);
+  while (!pIsZero(b)) { const r = prem(a, b); a = b; b = r; }
+  return pprim(a);
+}
+function polyTex(a) {
+  let s = '';
+  for (let d = a.length - 1; d >= 0; d--) {
+    const c = a[d];
+    if (!c) continue;
+    const abs = Math.abs(c);
+    const body = d === 0 ? `${abs}` : `${abs === 1 ? '' : abs}k${d > 1 ? '^{' + d + '}' : ''}`;
+    s += s === '' ? (c < 0 ? '-' : '') + body : (c < 0 ? ' - ' : ' + ') + body;
+  }
+  return s || '0';
+}
+const pp = a => `\\left(${polyTex(a)}\\right)`;
+const pmatTex = M => `\\begin{pmatrix}${M.map(r => r.map(polyTex).join(' & ')).join(' \\\\ ')}\\end{pmatrix}`;
+const minorOf = (M, i, j) => M.filter((_, r) => r !== i).map(row => row.filter((_, c) => c !== j));
+function pdet(M) {
+  if (M.length === 1) return ptrim(M[0][0]);
+  let s = [0];
+  for (let j = 0; j < M.length; j++) {
+    const t = pmul(M[0][j], pdet(minorOf(M, 0, j)));
+    s = j % 2 ? psub(s, t) : padd(s, t);
+  }
+  return s;
+}
+const cofactor = (M, i, j) => { const d = pdet(minorOf(M, i, j)); return (i + j) % 2 ? pneg(d) : d; };
+const factorTex = (r, m) => {
+  const base = r === 0 ? 'k' : (r > 0 ? `(k - ${r})` : `(k + ${-r})`);
+  return m > 1 ? (r === 0 ? `k^{${m}}` : `${base}^{${m}}`) : base;
+};
+function denTex(roots, bare) {
+  const cnt = new Map();
+  [...roots].sort((a, b) => a - b).forEach(r => cnt.set(r, (cnt.get(r) || 0) + 1));
+  if (bare && cnt.size === 1) {
+    const [[r, m]] = [...cnt];
+    if (m === 1) return r === 0 ? 'k' : (r > 0 ? `k - ${r}` : `k + ${-r}`);
+  }
+  return [...cnt].map(([r, m]) => factorTex(r, m)).join('');
+}
+const combos = (n, r, start = 0) => r === 0 ? [[]] : Array.from({length: n - start}, (_, i) => i + start)
+  .flatMap(i => combos(n, r - 1, i + 1).map(c => [i, ...c]));
+
+/* ---------- exact fractions ---------- */
+const F = (n, d = 1) => { if (d < 0) { n = -n; d = -d; } const g = gcd(n, d) || 1; return {n: n / g, d: d / g}; };
+const fmul = (a, b) => F(a.n * b.n, a.d * b.d);
+const fsub = (a, b) => F(a.n * b.d - b.n * a.d, a.d * b.d);
+const finv = a => F(a.d, a.n);
+const fneg = a => F(-a.n, a.d);
+const fabs = a => F(Math.abs(a.n), a.d);
+const isOne = a => a.n === 1 && a.d === 1;
+const isZero = a => a.n === 0;
+const ftex = a => a.d === 1 ? `${a.n}` : (a.n < 0 ? `-\\frac{${-a.n}}{${a.d}}` : `\\frac{${a.n}}{${a.d}}`);
+const coef = a => isOne(a) ? '' : (a.n < 0 ? `\\left(${ftex(a)}\\right)\\,` : `${ftex(a)}\\,`);
+const clone = X => X.map(r => r.map(x => ({...x})));
+
+function rankOf(rows) {                               // rows: integer matrix
+  const M = rows.map(r => r.map(x => F(x)));
+  let r = 0;
+  const cols = M[0].length;
+  for (let c = 0; c < cols && r < M.length; c++) {
+    const p = M.findIndex((row, i) => i >= r && !isZero(row[c]));
+    if (p < 0) continue;
+    [M[r], M[p]] = [M[p], M[r]];
+    for (let i = r + 1; i < M.length; i++) {
+      const f = fmul(M[i][c], finv(M[r][c]));
+      M[i] = M[i].map((x, j) => fsub(x, fmul(f, M[r][j])));
+    }
+    r++;
+  }
+  return r;
+}
+
+/* ---------- generation ---------- */
+// base system: m0 x n (m0 <= n) with full row rank for generic k.
+// g = gcd of all m0 x m0 minors = (k-k1)(k-k2) or (k-k1): the critical values (1 or 2, integers in [-3,3]).
+// One minor equals +-g exactly, so Cramer on that minor is valid for every non-critical k.
+// Optionally one redundant row (R_a +- R_b) is added to get m > n or m > m0.
+// At each critical value: rank drops by one and the system is either indeterminate or impossible.
+function genSystem() {
+  // each (shape, outcome) draw gets a bounded number of tries; if it is too hard, draw again
+  for (let round = 0; round < 60; round++) {
+    const P = genSystemTry(5000);
+    if (P) return P;
+  }
+  return fallbackSystem();
+}
+function genSystemTry(maxTries) {
+  const [m0, n, extra] = Math.random() < 0.5 ? [3, 3, 0] : pick([[2, 2, 0], [2, 3, 0], [3, 4, 0], [2, 2, 1], [3, 3, 1]]);
+  const wantK = Math.random() < 0.5;
+  const nCrit = Math.random() < 0.5 ? 1 : 2;
+  let want;
+  if (nCrit === 1) want = [pick(['inf', 'none'])];
+  else { const u = Math.random(); want = u < 0.5 ? ['inf', 'none'] : (u < 0.75 ? ['inf', 'inf'] : ['none', 'none']); }
+  const wantKey = [...want].sort().join();
+  const isZ = e => e[0] === 0 && e[1] === 0;
+  for (let t = 0; t < maxTries; t++) {
+    const A0 = Array.from({length: m0}, () => Array.from({length: n}, () => [rnd(-3, 3), 0]));
+    shuffle(Array.from({length: m0 * n}, (_, x) => [Math.floor(x / n), x % n])).slice(0, rnd(1, m0 * n > 6 ? 4 : 3))
+      .forEach(([i, j]) => A0[i][j][1] = rnd(0, 1) ? 1 : -1);
+    const rowsZ = A0.map(r => r.filter(isZ).length), colsZ = A0[0].map((_, j) => A0.filter(r => isZ(r[j])).length);
+    if (m0 === 2 && n === 2) { if (rowsZ.some(x => x) ) continue; }
+    else if (Math.max(...rowsZ, ...colsZ) > 1 || rowsZ.reduce((x, y) => x + y) > 2) continue;
+    // minors of maximal order and their gcd
+    const cols = combos(n, m0);
+    const minors = cols.map(J => pdet(A0.map(row => J.map(j => row[j]))));
+    let g = [0];
+    minors.forEach(m => { if (!pIsZero(m)) g = pgcd(g, m); });
+    if (pIsZero(g) || pdeg(g) < 1 || pdeg(g) > 2 || g[pdeg(g)] !== 1) continue;
+    let roots;
+    if (pdeg(g) === 1) roots = [-g[0]];
+    else {
+      const disc = g[1] * g[1] - 4 * g[0], q = Math.round(Math.sqrt(disc));
+      if (disc < 0 || q * q !== disc) continue;
+      roots = [(-g[1] - q) / 2, (-g[1] + q) / 2];
+    }
+    if (roots.some(r => !Number.isInteger(r) || Math.abs(r) > 3)) continue;
+    const distinct = [...new Set(roots)].sort((a, b) => a - b);
+    if (distinct.length !== nCrit) continue;
+    const okJ = cols.filter((J, i) => peq(minors[i], g) || peq(minors[i], pneg(g)));
+    if (!okJ.length) continue;
+    const J = pick(okJ), Delta = pdet(A0.map(row => J.map(j => row[j])));
+    // redundant row (A and b): R_a +- R_b, inserted at a random position
+    let red = null;
+    const m = m0 + extra;
+    if (extra) {
+      const [a, b] = shuffle(Array.from({length: m0}, (_, i) => i)).slice(0, 2);
+      red = {a, b, sign: rnd(0, 1) ? 1 : -1, pos: rnd(0, m0)};
+    }
+    const baseIdx = Array.from({length: m0}, (_, i) => (red && i >= red.pos) ? i + 1 : i);
+    const A = A0.map(r => r.slice());
+    if (red) {
+      const row = A0[red.a].map((p, j) => red.sign > 0 ? padd(p, A0[red.b][j]) : psub(p, A0[red.b][j]));
+      A.splice(red.pos, 0, row);
+    }
+    // rank must drop by exactly one at each critical value
+    const evalA = r => A.map(row => row.map(p => pev(p, r)));
+    if (distinct.some(r => rankOf(evalA(r)) !== m0 - 1)) continue;
+    for (let u = 0; u < 60; u++) {
+      const b0 = Array.from({length: m0}, () => [rnd(-4, 4), 0]);
+      if (wantK) shuffle(Array.from({length: m0}, (_, i) => i)).slice(0, rnd(1, 2)).forEach(i => b0[i][1] = rnd(0, 1) ? 1 : -1);
+      if (b0.filter(isZ).length > 1) continue;
+      const b = b0.map(p => p.slice());
+      if (red) b.splice(red.pos, 0, red.sign > 0 ? padd(b0[red.a], b0[red.b]) : psub(b0[red.a], b0[red.b]));
+      const kinds = distinct.map(r => {
+        const Ab = evalA(r).map((row, i) => [...row, pev(b[i], r)]);
+        return rankOf(Ab) === m0 - 1 ? 'inf' : 'none';
+      });
+      if ([...kinds].sort().join() !== wantKey) continue;
+      if (!distinct.every(r => niceGauss(A.map((row, i) => [...row.map(p => pev(p, r)), pev(b[i], r)]), n))) continue;
+      const fi = i => baseIdx[i];
+      return {A, b, m, n, m0, J, I: baseIdx, Delta, s: Delta[Delta.length - 1], roots, distinct, kinds,
+              red: red ? {a: fi(red.a), b: fi(red.b), sign: red.sign, pos: red.pos} : null};
+    }
+  }
+  return null;
+}
+function fallbackSystem() {
+  const A = [[[0, 1], [-1, -1], [-1, 0]], [[1, 0], [1, 0], [1, 0]], [[-2, 1], [-1, 0], [-3, 0]]], Delta = pdet(A);
+  return {A, b: [[4], [4], [-4]], m: 3, n: 3, m0: 3, J: [0, 1, 2], I: [0, 1, 2], Delta, s: Delta[2],
+          roots: [-2, -1], distinct: [-2, -1], kinds: ['inf', 'none'], red: null};
+}
+
+/* ---------- display helpers ---------- */
+const VARS = 'xyzw';
+function eqTex(row, bi) {
+  let s = '';
+  row.forEach((p, j) => {
+    p = ptrim(p);
+    if (pIsZero(p)) return;
+    const v = VARS[j];
+    let neg, body;
+    if (p.length === 1) { neg = p[0] < 0; body = (Math.abs(p[0]) === 1 ? '' : Math.abs(p[0])) + v; }
+    else if (p.length === 2 && p[0] === 0) { neg = p[1] < 0; body = (Math.abs(p[1]) === 1 ? '' : Math.abs(p[1])) + 'k' + v; }
+    else { neg = false; body = `(${polyTex(p)})${v}`; }
+    s += s === '' ? (neg ? '-' : '') + body : (neg ? ' - ' : ' + ') + body;
+  });
+  return `${s} = ${polyTex(ptrim(bi))}`;
+}
+const systemTex = P => `\\begin{cases}${P.A.map((row, i) => eqTex(row, P.b[i])).join(' \\\\ ')}\\end{cases}`;
+function augTex(M, n, opt = {}) {
+  const rows = M.map((row, i) => row.map(x => {
+    const s = ftex(x);
+    return opt.bad === i ? `\\color{#c92a2a}{${s}}` : s;
+  }).join(' & ')).join(' \\\\ ');
+  return `\\left(\\begin{array}{${'c'.repeat(n)}|c}${rows}\\end{array}\\right)`;
+}
+// affine expression c0 + c1 t1 + c2 t2 ... with exact fractions
+function affTex(c0, cs, names) {
+  let s = '';
+  const add = (c, v) => {
+    if (isZero(c)) return;
+    const neg = c.n < 0, a = fabs(c), body = (isOne(a) && v ? '' : ftex(a)) + v;
+    s += s === '' ? (neg ? '-' : '') + body : (neg ? ' - ' : ' + ') + body;
+  };
+  add(c0, '');
+  cs.forEach((c, i) => add(c, names[i]));
+  return s || '0';
+}
+// rational function N(k) / (s * prod(k - r)), cancelled and split into sign / body
+function simpParts(N, s, roots) {
+  if (s < 0) N = pneg(N);
+  if (pIsZero(N)) return {zero: true};
+  const den = roots.slice();
+  for (let i = den.length - 1; i >= 0; i--) if (pev(N, den[i]) === 0) { N = pdiv(N, den[i]); den.splice(i, 1); }
+  if (!den.length) {
+    if (N.length === 1 || (N.length === 2 && N[0] === 0)) {
+      const neg = N[N.length - 1] < 0, P = neg ? pneg(N) : N;
+      return {neg, body: polyTex(P), multi: false, one: P.length === 1 && P[0] === 1, N: P, den};
+    }
+    return {neg: false, body: polyTex(N), multi: true, one: false, N, den};
+  }
+  const neg = N[N.length - 1] < 0;
+  if (neg) N = pneg(N);
+  return {neg, body: `\\dfrac{${polyTex(N)}}{${denTex(den, true)}}`, multi: false, one: false, N, den};
+}
+// parts[0]: constant term, parts[i]: coefficient of names[i-1]
+function partsTex(parts, names) {
+  let s = '';
+  parts.forEach((p, i) => {
+    if (p.zero) return;
+    const v = i === 0 ? '' : names[i - 1];
+    let body;
+    if (i === 0) body = p.body;
+    else body = (p.one ? '' : (p.multi ? `(${p.body})` : p.body)) + v;
+    s += s === '' ? (p.neg ? '-' : '') + body : (p.neg ? ' - ' : ' + ') + body;
+  });
+  return s || '0';
+}
+
+/* ---------- Gauss-Jordan on the m x (n+1) augmented matrix ---------- */
+function gaussSys(M0, n) {
+  const M = M0.map(r => r.map(x => F(x))), m = M.length;
+  const start = clone(M), steps = [], pivots = [];
+  let r = 0;
+  for (let c = 0; c < n && r < m; c++) {
+    const cand = [];
+    for (let i = r; i < m; i++) if (!isZero(M[i][c])) cand.push(i);
+    if (!cand.length) continue;
+    const unit = i => M[i][c].d === 1 && Math.abs(M[i][c].n) === 1;
+    const pi = unit(cand[0]) ? cand[0] : (cand.find(unit) ?? cand[0]);
+    const ops = [];
+    if (pi !== r) { [M[r], M[pi]] = [M[pi], M[r]]; ops.push(`R_{${r + 1}}\\leftrightarrow R_{${pi + 1}}`); }
+    if (!isOne(M[r][c])) {
+      const k = finv(M[r][c]);
+      M[r] = M[r].map(x => fmul(x, k));
+      ops.push(`R_{${r + 1}}\\leftarrow ${coef(k)}R_{${r + 1}}`);
+    }
+    for (let i = 0; i < m; i++) {
+      if (i === r || isZero(M[i][c])) continue;
+      const f = M[i][c];
+      M[i] = M[i].map((x, j) => fsub(x, fmul(f, M[r][j])));
+      ops.push(f.n > 0
+        ? `R_{${i + 1}}\\leftarrow R_{${i + 1}} - ${coef(f)}R_{${r + 1}}`
+        : `R_{${i + 1}}\\leftarrow R_{${i + 1}} + ${coef(fneg(f))}R_{${r + 1}}`);
+    }
+    pivots.push(c); r++;
+    if (ops.length) steps.push({ops, M: clone(M)});
+  }
+  const bad = () => M.map((_, i) => i).filter(i => M[i].slice(0, n).every(isZero) && !isZero(M[i][n]));
+  let b = bad();
+  if (b.length > 1) {                                  // keep a single contradictory row
+    const p = b[0], ops = [];
+    b.slice(1).forEach(i => {
+      const f = fmul(M[i][n], finv(M[p][n]));
+      M[i] = M[i].map((x, j) => fsub(x, fmul(f, M[p][j])));
+      ops.push(f.n > 0
+        ? `R_{${i + 1}}\\leftarrow R_{${i + 1}} - ${coef(f)}R_{${p + 1}}`
+        : `R_{${i + 1}}\\leftarrow R_{${i + 1}} + ${coef(fneg(f))}R_{${p + 1}}`);
+    });
+    steps.push({ops, M: clone(M)});
+    b = bad();
+  }
+  return {start, steps, final: M, pivots, rank: pivots.length, consistent: b.length === 0, bad: b[0]};
+}
+const PARAMS = ['t', 's', 'u'];
+function gaussSolution(g, n) {
+  const free = [...Array(n).keys()].filter(c => !g.pivots.includes(c));
+  const names = free.map((_, i) => PARAMS[i]);
+  const comp = Array(n);
+  g.pivots.forEach((pc, i) => comp[pc] = affTex(g.final[i][n], free.map(f => fneg(g.final[i][f])), names));
+  free.forEach((f, i) => comp[f] = names[i]);
+  return {free, names, comp};
+}
+
+// keep elimination "pleasant": no fraction with denominator > 4 in any step
+function niceGauss(M0, n) {
+  const g = gaussSys(M0, n);
+  return [g.start, ...g.steps.map(st => st.M)].every(M => M.every(r => r.every(x => x.d <= 4 && Math.abs(x.n) <= 40)));
+}
+
+/* ---------- full solution ---------- */
+function systemSolution(P) {
+  const {A, b, m, n, m0, J, I, Delta, s, roots, distinct, red} = P;
+  const r = m0, free = [...Array(n).keys()].filter(c => !J.includes(c));
+  const B = I.map(i => J.map(j => A[i][j]));
+  const cof = B[0].map((_, j) => cofactor(B, 0, j));
+  const terms = B[0].map((a, j) => `${pp(a)}\\cdot ${pp(cof[j])}`).join(' + ');
+  const factored = `${s < 0 ? '-' : ''}${denTex(roots)}`;
+  const crit = `\\{${distinct.join(',\\,')}\\}`;
+  const square = m === n && !red;
+  let html = `<h2>Solution</h2>`;
+  if (red) {
+    html += `<div class="note">Equation ${red.pos + 1} is redundant: ${T(`R_{${red.pos + 1}}=R_{${red.a + 1}}${red.sign > 0 ? '+' : '-'}R_{${red.b + 1}}`)}
+      (both in ${T('A')} and in ${T('b')}). It can be discarded when studying ranks and solutions: only equations ${I.map(i => i + 1).join(', ')} matter.</div>`;
+  }
+  // step 1: the minor
+  const rowsTxt = I.map(i => i + 1).join(',\\,'), colsTxt = J.map(j => j + 1).join(',\\,');
+  html += `<div class="step"><div class="ops">1. ${square ? 'Determinant of the coefficient matrix' : `A ${r}×${r} minor of maximal order`}</div>`;
+  if (!square) {
+    html += `<p>${T(`\\operatorname{rk}A(k)\\le ${r}`)}. Take the minor ${T('\\Delta(k)')} with rows ${T(rowsTxt)} and columns ${T(colsTxt)}; every other ${T(`${r}\\times ${r}`)} minor of ${T('A')} is a multiple of it.</p>
+      ${D(`B(k)=${pmatTex(B)}`)}`;
+  }
+  html += `<p>${square ? 'Expanding' : 'Expanding ' + T('\\det B') } along the first row, with cofactors ${cof.map((c, j) => T(`C_{1${j + 1}}=${polyTex(c)}`)).join(', ')}:</p>
+    ${D(`\\begin{aligned}\\Delta(k)&=${terms}\\\\ &=${polyTex(Delta)}=${factored}\\end{aligned}`)}</div>`;
+  // step 2: generic k
+  const cnt = distinct.length;
+  html += `<div class="step"><div class="ops">2. ${T(`k\\notin ${crit}`)}</div>
+    <p>${T('\\Delta(k)\\neq 0')}, hence ${T(`\\operatorname{rk}A=\\operatorname{rk}(A\\mid b)=${r}`)}`;
+  if (r === n) {
+    html += ` (${T(`${r}=n`)}): the system has exactly one solution (Cramer):</p>`;
+    const sol = [...Array(n).keys()].map(j => {
+      const pj = J.indexOf(j);
+      const Bj = I.map(i => J.map((c, cc) => cc === pj ? b[i] : A[i][c]));
+      const N = pdet(Bj);
+      return `${VARS[j]}&=\\dfrac{${polyTex(N)}}{${factored}}=${partsTex([simpParts(N, s, roots)], [])}`;
+    }).join(' \\\\ ');
+    html += D(`\\begin{aligned}${sol}\\end{aligned}`);
+  } else {
+    const names = free.map((_, i) => PARAMS[i]);
+    html += ` and ${T(`r=${r}<n=${n}`)}, so there are ${T(`\\infty^{${n - r}}`)} solutions. Take ${free.map((f, i) => T(`${VARS[f]}=${names[i]}`)).join(', ')} as free parameter${free.length > 1 ? 's' : ''} and solve for ${J.map(j => T(VARS[j])).join(', ')} with Cramer:</p>`;
+    const comp = Array(n);
+    J.forEach((j, pj) => {
+      const parts = [];
+      const Bj = I.map(i => J.map((c, cc) => cc === pj ? b[i] : A[i][c]));
+      parts.push(simpParts(pdet(Bj), s, roots));
+      free.forEach(f => {
+        const Bf = I.map(i => J.map((c, cc) => cc === pj ? A[i][f] : A[i][c]));
+        parts.push(simpParts(pneg(pdet(Bf)), s, roots));
+      });
+      comp[j] = partsTex(parts, names);
+    });
+    free.forEach((f, i) => comp[f] = names[i]);
+    html += D(`\\begin{pmatrix}${VARS.slice(0, n).split('').join('\\\\')}\\end{pmatrix}=\\begin{pmatrix}${comp.join(' \\\\ ')}\\end{pmatrix},\\qquad ${names.join(',')}\\in\\mathbb{R}`);
+  }
+  html += '</div>';
+  // critical values
+  [...distinct].forEach((r0, idx) => {
+    const Ak = A.map((row, i) => [...row.map(p => pev(p, r0)), pev(b[i], r0)]);
+    const g = gaussSys(Ak, n);
+    html += `<div class="step"><div class="ops">${idx + 3}. ${T(`k=${r0}`)}</div>
+      <p>Substituting ${T(`k=${r0}`)} (here ${T('\\Delta=0')}) and applying Gauss&ndash;Jordan to ${T('(A\\mid b)')}:</p>
+      ${D(augTex(g.start, n))}`;
+    g.steps.forEach((st, i) => {
+      const last = i === g.steps.length - 1;
+      html += `<div>${T(st.ops.join('\\;;\\;\\,'))}</div>${D(augTex(st.M, n, last && !g.consistent ? {bad: g.bad} : {}))}`;
+    });
+    if (!g.steps.length) html += `<p>The matrix is already reduced.</p>`;
+    if (!g.consistent) {
+      html += `<div class="verdict bad"><b>No solutions.</b> Row ${g.bad + 1} reads ${T('0=c\\neq 0')}: ${T(`\\operatorname{rk}A=${g.rank}`)} but ${T(`\\operatorname{rk}(A\\mid b)=${g.rank + 1}`)}, so by Rouch&eacute;&ndash;Capelli the system is inconsistent.</div>`;
+    } else {
+      const sol = gaussSolution(g, n);
+      html += `<div class="verdict mid"><b>Infinitely many solutions.</b> ${T(`\\operatorname{rk}A=\\operatorname{rk}(A\\mid b)=${g.rank}<${n}`)}, so there ${sol.free.length > 1 ? 'are' : 'is'} ${T(`${n}-${g.rank}=${sol.free.length}`)} free parameter${sol.free.length > 1 ? 's' : ''} (${T(`\\infty^{${sol.free.length}}`)} solutions). Setting ${sol.free.map((f, i) => T(`${VARS[f]}=${sol.names[i]}`)).join(', ')}:
+        ${D(`\\begin{pmatrix}${VARS.slice(0, n).split('').join('\\\\')}\\end{pmatrix}=\\begin{pmatrix}${sol.comp.join(' \\\\ ')}\\end{pmatrix},\\qquad ${sol.names.join(',')}\\in\\mathbb{R}`)}</div>`;
+    }
+    html += '</div>';
+  });
+  return html;
+}
+
+let sys;
+function newSystem() {
+  sys = genSystem();
+  tex($('#problem2'), systemTex(sys), true);
+}
+
+/* =====================  NO-PARAMETER SYSTEMS  ===================== */
+// Integer systems m x n. Outcome (unique / indeterminate / impossible) is chosen first, then sampled.
+// m < n  -> never unique;  m > n  -> built from a base system plus one redundant equation (R_a +- R_b).
+function genPlain() {
+  for (let round = 0; round < 80; round++) {
+    const P = genPlainTry(6000);
+    if (P) return P;
+  }
+  return {A: [[1, 1, 1], [1, -1, 2], [2, 1, -1]], b: [6, 5, 1], m: 3, n: 3, m0: 3, I: [0, 1, 2], red: null, want: 'unique'};
+}
+function genPlainTry(maxTries) {
+  const [m0, n, extra] = Math.random() < 0.5 ? [3, 3, 0] : pick([[2, 2, 0], [2, 3, 0], [3, 4, 0], [2, 2, 1], [3, 3, 1]]);
+  let want;
+  if (m0 < n) want = Math.random() < 0.65 ? 'inf' : 'none';
+  else { const u = Math.random(); want = u < 0.45 ? 'unique' : (u < 0.75 ? 'inf' : 'none'); }
+  for (let t = 0; t < maxTries; t++) {
+    const A0 = Array.from({length: m0}, () => Array.from({length: n}, () => rnd(-3, 3)));
+    const rowsZ = A0.map(r => r.filter(x => x === 0).length), colsZ = A0[0].map((_, j) => A0.filter(r => r[j] === 0).length);
+    if (m0 === 2 && n === 2) { if (rowsZ.some(x => x)) continue; }
+    else if (Math.max(...rowsZ, ...colsZ) > 1 || rowsZ.reduce((x, y) => x + y) > 2) continue;
+    if (A0.some((r, i) => A0.some((q, j) => i < j && (r.every((x, c) => x === q[c]) || r.every((x, c) => x === -q[c]))))) continue;
+    const rho = rankOf(A0);
+    let b0 = null;
+    if (want === 'unique') { if (rho !== n) continue; }
+    else if (want === 'inf') { if (rho !== (m0 < n ? m0 : n - 1)) continue; }
+    else { if (rho !== m0 - 1) continue; }
+    if (want === 'none') {
+      for (let u = 0; u < 40 && !b0; u++) {
+        const b = Array.from({length: m0}, () => rnd(-4, 4));
+        if (rankOf(A0.map((r, i) => [...r, b[i]])) === rho + 1 && b.filter(x => x === 0).length <= 1) b0 = b;
+      }
+      if (!b0) continue;
+    } else {
+      const x0 = Array.from({length: n}, () => rnd(-3, 3));
+      if (x0.filter(x => x === 0).length > 1) continue;
+      b0 = A0.map(r => r.reduce((sum, a, j) => sum + a * x0[j], 0));
+      if (b0.every(x => x === 0)) continue;
+    }
+    let red = null;
+    const A = A0.map(r => r.slice()), b = b0.slice();
+    const baseIdx = Array.from({length: m0}, (_, i) => i);
+    if (extra) {
+      const [a, c] = shuffle(Array.from({length: m0}, (_, i) => i)).slice(0, 2);
+      red = {a, b: c, sign: rnd(0, 1) ? 1 : -1, pos: rnd(0, m0)};
+      A.splice(red.pos, 0, A0[a].map((x, j) => x + red.sign * A0[c][j]));
+      b.splice(red.pos, 0, b0[a] + red.sign * b0[c]);
+      baseIdx.forEach((_, i) => { baseIdx[i] = i >= red.pos ? i + 1 : i; });
+      red = {a: baseIdx[a], b: baseIdx[c], sign: red.sign, pos: red.pos};
+    }
+    if (!niceGauss(A.map((r, i) => [...r, b[i]]), n)) continue;
+    return {A, b, m: m0 + extra, n, m0, I: baseIdx, red, want};
+  }
+  return null;
+}
+const plainSystemTex = P => systemTex({A: P.A.map(r => r.map(x => [x])), b: P.b.map(x => [x])});
+function plainSolution(P) {
+  const {A, b, n, red} = P;
+  const g = gaussSys(A.map((r, i) => [...r, b[i]]), n);
+  let html = `<h2>Solution</h2>`;
+  if (red) {
+    html += `<div class="note">Equation ${red.pos + 1} is redundant: ${T(`R_{${red.pos + 1}}=R_{${red.a + 1}}${red.sign > 0 ? '+' : '-'}R_{${red.b + 1}}`)}
+      (both in ${T('A')} and in ${T('b')}), so it will turn into a row of zeros.</div>`;
+  }
+  html += `<div class="step"><div class="ops">Gauss&ndash;Jordan elimination on ${T('(A\\mid b)')}</div>${D(augTex(g.start, n))}`;
+  g.steps.forEach((st, i) => {
+    const last = i === g.steps.length - 1;
+    html += `<div>${T(st.ops.join('\\;;\\;\\,'))}</div>${D(augTex(st.M, n, last && !g.consistent ? {bad: g.bad} : {}))}`;
+  });
+  if (!g.steps.length) html += `<p>The matrix is already reduced.</p>`;
+  if (!g.consistent) {
+    html += `<div class="verdict bad"><b>No solutions.</b> Row ${g.bad + 1} reads ${T('0=c\\neq 0')}: ${T(`\\operatorname{rk}A=${g.rank}`)} but ${T(`\\operatorname{rk}(A\\mid b)=${g.rank + 1}`)}, so by Rouch&eacute;&ndash;Capelli the system is inconsistent.</div>`;
+  } else {
+    const sol = gaussSolution(g, n), vec = VARS.slice(0, n).split('').join('\\\\');
+    if (!sol.free.length) {
+      html += `<div class="verdict good"><b>Unique solution.</b> ${T(`\\operatorname{rk}A=\\operatorname{rk}(A\\mid b)=${g.rank}=n`)}:
+        ${D(`\\begin{pmatrix}${vec}\\end{pmatrix}=\\begin{pmatrix}${sol.comp.join(' \\\\ ')}\\end{pmatrix}`)}</div>`;
+    } else {
+      html += `<div class="verdict mid"><b>Infinitely many solutions.</b> ${T(`\\operatorname{rk}A=\\operatorname{rk}(A\\mid b)=${g.rank}<n=${n}`)}, so there ${sol.free.length > 1 ? 'are' : 'is'} ${T(`${n}-${g.rank}=${sol.free.length}`)} free parameter${sol.free.length > 1 ? 's' : ''} (${T(`\\infty^{${sol.free.length}}`)} solutions). Setting ${sol.free.map((f, i) => T(`${VARS[f]}=${sol.names[i]}`)).join(', ')}:
+        ${D(`\\begin{pmatrix}${vec}\\end{pmatrix}=\\begin{pmatrix}${sol.comp.join(' \\\\ ')}\\end{pmatrix},\\qquad ${sol.names.join(',')}\\in\\mathbb{R}`)}</div>`;
+    }
+  }
+  return html + '</div>';
+}
+let plain;
+function newPlain() {
+  plain = genPlain();
+  tex($('#problem1'), plainSystemTex(plain), true);
+}
+
+/*SYS-END*/
+
+document.querySelectorAll('.tab').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === btn));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === btn.dataset.tab));
+});
+document.addEventListener('DOMContentLoaded', () => {
+  $('#show1').onclick = () => openModal(plainSolution(plain));
+  $('#new1').onclick = newPlain;
+  $('#show2').onclick = () => openModal(systemSolution(sys));
+  $('#new2').onclick = newSystem;
+  newPlain();
+  newSystem();
+  renderAll(document.body);
+});
+</script>
+</body>
+</html>
