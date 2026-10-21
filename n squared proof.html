@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geometric Proof: Sum of First n Odd Numbers</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- KaTeX CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .katex-display {
+      margin: 0.5em 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 0;
+    }
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-8">
+
+  <div class="max-w-4xl w-full flex flex-col gap-6">
+    
+    <!-- Header -->
+    <header class="text-center space-y-3 bg-slate-800/80 backdrop-blur border border-slate-700/60 p-6 rounded-2xl shadow-xl">
+      <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-teal-300 to-indigo-400">
+        Geometric Proof: Sum of Odd Numbers
+      </h1>
+      <p class="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+        Visualizing why adding the first $n$ odd integers always completes a perfect square of side length $n$.
+      </p>
+      
+      <!-- Main Theorem Formula -->
+      <div id="main-formula" class="text-lg sm:text-2xl py-2 bg-slate-900/70 rounded-xl border border-slate-700/50 shadow-inner">
+        $$\sum_{k=1}^n (2k - 1) = \underbrace{1 + 3 + 5 + \cdots + (2n - 1)}_{\text{First } n \text{ odd numbers}} = n^2$$
+      </div>
+    </header>
+
+    <!-- Main Visualizer Card -->
+    <main class="bg-slate-800/80 backdrop-blur border border-slate-700/60 rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col items-center gap-6">
+      
+      <!-- Controls Header & Generic Toggle -->
+      <div class="w-full flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-700/40">
+        
+        <!-- Controls (- / +) -->
+        <div class="flex items-center gap-3">
+          <button id="btn-minus" class="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-2xl font-bold text-amber-400 transition shadow-lg border border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100" title="Decrease n">
+            &minus;
+          </button>
+          
+          <div class="flex flex-col items-center px-4">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Dimension</span>
+            <span class="text-xl font-bold text-teal-300 font-mono" id="n-val-display">n = 1</span>
+          </div>
+
+          <button id="btn-plus" class="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-2xl font-bold text-teal-400 transition shadow-lg border border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100" title="Increase n">
+            &#43;
+          </button>
+
+          <button id="btn-reset" class="ml-2 px-3 py-2 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-600 transition">
+            Reset
+          </button>
+        </div>
+
+        <!-- Generic Toggle Checkbox -->
+      <label class="flex items-center gap-3 cursor-pointer bg-slate-800 px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-600 transition">
+        <input type="checkbox" id="generic-toggle" class="w-5 h-5 rounded text-amber-500 focus:ring-amber-400 focus:ring-offset-slate-900 bg-slate-900 border-slate-600 cursor-pointer">
+        <span class="text-sm font-medium text-slate-200 select-none">
+          Show Generic Case (<span class="text-lime-400 font-mono">n&times;n</span> + L-Shape)
+        </span>
+      </label>
+    </div>
+
+    <!-- Canvas Box -->
+    <div class="relative w-full aspect-square max-w-[500px] bg-slate-950 rounded-xl border border-slate-700/80 shadow-2xl overflow-hidden flex items-center justify-center">
+      <canvas id="proofCanvas" class="w-full h-full block"></canvas>
+    </div>
+
+    <!-- Dynamic Sum Formula Banner -->
+    <div class="w-full text-center p-4 bg-slate-900/90 rounded-xl border border-teal-500/30 shadow-inner flex flex-col gap-1">
+      <span class="text-xs uppercase tracking-widest text-teal-400 font-semibold" id="dynamic-sum-label">Active Series Calculation</span>
+      <div id="dynamic-sum" class="text-lg sm:text-xl font-math text-slate-100 overflow-x-auto py-1">
+        <!-- Rendered via JS KaTeX -->
+      </div>
+    </div>
+
+  </main>
+
+    <!-- Mathematical Explanation & Context -->
+    <section class="bg-slate-800/80 backdrop-blur border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-4">
+      <h2 class="text-xl font-bold text-amber-400 flex items-center gap-2">
+        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        Geometric Insight & Algebraic Induction
+      </h2>
+
+      <div class="grid md:grid-cols-2 gap-6 text-sm text-slate-300 leading-relaxed">
+        <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700/40">
+          <h3 class="font-semibold text-teal-300 border-b border-slate-700 pb-2">1. The L-Shaped Gnomon</h3>
+          <p>
+            In ancient Greek geometry, a <em>gnomon</em> is a piece added to a structure that preserves its overall shape.
+          </p>
+          <p>
+            Starting with an $n \times n$ square of area $n^2$, to grow it into an $(n+1) \times (n+1)$ square we add a border layer along two adjacent sides.
+          </p>
+          <p>
+            This layer consists of $n$ units on top, $n$ units on the right, and $1$ corner unit connecting them:
+          </p>
+          <div class="text-center py-1 font-mono text-amber-300">
+            $$n + n + 1 = 2n + 1$$
+          </div>
+          <p>
+            Because $2n + 1$ is always the $(n+1)$-th odd integer, building a square layer-by-layer naturally sums the sequential odd numbers.
+          </p>
+        </div>
+
+        <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700/40">
+          <h3 class="font-semibold text-lime-400 border-b border-slate-700 pb-2">2. Generic Case Identity</h3>
+          <p>
+            When viewing the <strong>Generic Case mode</strong>, we analyze expanding from size $n \times n$ to $(n+1) \times (n+1)$:
+          </p>
+          <ul class="list-disc list-inside space-y-1 text-slate-300">
+            <li><strong class="text-lime-400">Lime Green Core:</strong> Area $= n^2$</li>
+            <li><strong class="text-yellow-400">Yellow Strips:</strong> Two strips of $n$ unit squares each $= 2n$</li>
+            <li><strong class="text-fuchsia-400">Magenta Corner:</strong> Single $1 \times 1$ square $= 1$</li>
+          </ul>
+          <p>
+            Summing these distinct regions yields the fundamental binomial expansion:
+          </p>
+          <div class="text-center py-1 font-mono text-teal-300">
+            $$n^2 + 2n + 1 = (n+1)^2$$
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-slate-500 py-2">
+      Interactive Mathematical Visualization &bull; Built with HTML5 Canvas & KaTeX
+    </footer>
+
+  </div>
+
+  <script>
+    // State Variables
+    let n = 1;
+    const MAX_N = 20;
+    const MIN_N = 1;
+    let showGeneric = false;
+    
+    // Fixed dimension for Generic Case visualization
+    const GENERIC_N = 6;
+
+    // Palette definition for standard sequential gnomon layers
+    const layerColors = [
+      { fill: '#38bdf8', border: '#0284c7' }, // Sky
+      { fill: '#fbbf24', border: '#d97706' }, // Amber
+      { fill: '#34d399', border: '#059669' }, // Emerald
+      { fill: '#f472b6', border: '#db2777' }, // Pink
+      { fill: '#a78bfa', border: '#7c3aed' }, // Violet
+      { fill: '#fb923c', border: '#ea580c' }, // Orange
+      { fill: '#2dd4bf', border: '#0d9488' }, // Teal
+      { fill: '#e879f9', border: '#c026d3' }, // Fuchsia
+    ];
+
+    // Generic Case specific colors as requested
+    const GENERIC_COLORS = {
+      coreFill: '#32CD32',   // Lime Green
+      coreBorder: '#228B22',
+      stripFill: '#FFFF00',  // Yellow
+      stripBorder: '#D4AF37',
+      cornerFill: '#FF00FF', // Magenta
+      cornerBorder: '#C71585',
+      bracket: '#F8FAFC',
+      text: '#F8FAFC'
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('proofCanvas');
+    const ctx = canvas.getContext('2d');
+    const btnMinus = document.getElementById('btn-minus');
+    const btnPlus = document.getElementById('btn-plus');
+    const btnReset = document.getElementById('btn-reset');
+    const nDisplay = document.getElementById('n-val-display');
+    const genericToggle = document.getElementById('generic-toggle');
+    const dynamicSumEl = document.getElementById('dynamic-sum');
+    const dynamicSumLabel = document.getElementById('dynamic-sum-label');
+
+    // Initialize KaTeX render on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+          ]
+        });
+      }
+      resizeCanvas();
+      updateUI();
+    });
+
+    // Handle Window Resize for crisp HiDPI canvas rendering
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      draw();
+    });
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      draw();
+    }
+
+    // Event Listeners
+    btnMinus.addEventListener('click', () => {
+      if (n > MIN_N) {
+        n--;
+        updateUI();
+      }
+    });
+
+    btnPlus.addEventListener('click', () => {
+      if (n < MAX_N) {
+        n++;
+        updateUI();
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      n = 1;
+      showGeneric = false;
+      genericToggle.checked = false;
+      updateUI();
+    });
+
+    genericToggle.addEventListener('change', (e) => {
+      showGeneric = e.target.checked;
+      draw();
+    });
+
+    function updateUI() {
+      nDisplay.textContent = `n = ${n}`;
+      btnMinus.disabled = (n <= MIN_N) || showGeneric;
+      btnPlus.disabled = (n >= MAX_N) || showGeneric;
+
+      if (showGeneric) {
+        dynamicSumLabel.textContent = "Generic Expansion Identity";
+      } else {
+        dynamicSumLabel.textContent = "Active Series Calculation";
+      }
+
+      updateFormulaText();
+      draw();
+    }
+
+    // Update dynamic formula math below canvas
+    function updateFormulaText() {
+      let latexStr = "";
+
+      if (!showGeneric) {
+        if (n === 1) {
+          latexStr = "1 = 1^2 = 1";
+        } else if (n === 2) {
+          latexStr = "1 + 3 = 4 = 2^2";
+        } else if (n === 3) {
+          latexStr = "1 + 3 + 5 = 9 = 3^2";
+        } else if (n <= 5) {
+          let terms = [];
+          for (let i = 1; i <= n; i++) {
+            terms.push(2 * i - 1);
+          }
+          latexStr = `${terms.join(" + ")} = ${n * n} = ${n}^2`;
+        } else {
+          const lastOdd = 2 * n - 1;
+          latexStr = `1 + 3 + 5 + \\cdots + ${lastOdd} = ${n * n} = ${n}^2`;
+        }
+      } else {
+        // Generic case algebraic formula independent of interactive n
+        // latexStr = `(n+1)^2 = \\textcolor{lime}{\\underbrace{n^2}_{\\text{Lime Core: } n \\times n}} + \\underbrace{2n}_{\\text{Yellow Strips: } 2n} + \\underbrace{1}_{\\text{Magenta Corner}}`;
+        latexStr = `\\textcolor{lime}{n \\cdot n} + \\textcolor{yellow}{2\\cdot n} + \\textcolor{magenta}{1} = (n+1)^2 `;
+      }
+
+      if (window.katex) {
+        katex.render(latexStr, dynamicSumEl, {
+          throwOnError: false,
+          displayMode: true
+        });
+      } else {
+        dynamicSumEl.textContent = latexStr;
+      }
+    }
+
+    // Main Draw Function
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (showGeneric) {
+        drawGenericCase(w, h);
+      } else {
+        drawStandardStepCase(w, h);
+      }
+
+      // Re-render math in formula box if mode changed
+      updateFormulaText();
+    }
+
+    // Standard Mode: Draw n x n composed of L-shaped gnomons
+    function drawStandardStepCase(w, h) {
+      // Padding around drawing
+      const padding = 40;
+      const availSize = Math.min(w, h) - padding * 2;
+      
+      // Auto-scale grid unit size based on current n
+      const unitSize = availSize / n;
+
+      // Center the grid in canvas
+      const startX = (w - n * unitSize) / 2;
+      const startY = (h - n * unitSize) / 2;
+
+      // Render each layer k from 1 up to n
+      for (let k = 1; k <= n; k++) {
+        const color = layerColors[(k - 1) % layerColors.length];
+        ctx.fillStyle = color.fill;
+        ctx.strokeStyle = color.border;
+        ctx.lineWidth = Math.max(1.5, unitSize * 0.05);
+
+        for (let col = 0; col < k; col++) {
+          for (let row = 0; row < k; row++) {
+            // Only draw squares belonging to the k-th gnomon layer
+            if (col === k - 1 || row === k - 1) {
+              const x = startX + col * unitSize;
+              const y = startY + (n - 1 - row) * unitSize;
+
+              ctx.fillRect(x, y, unitSize, unitSize);
+              ctx.strokeRect(x, y, unitSize, unitSize);
+            }
+          }
+        }
+
+        if (k < n) {
+          const coreW = k * unitSize;
+          const coreX = startX;
+          const coreY = startY + (n - k) * unitSize;
+          ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(coreX, coreY, coreW, coreW);
+        }
+      }
+
+      // Overlay numeric count labels inside squares if n <= 7
+      if (n <= 7) {
+        ctx.font = `bold ${Math.max(12, unitSize * 0.35)}px Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let k = 1; k <= n; k++) {
+          const count = 2 * k - 1;
+          const col = k - 1;
+          const row = k - 1;
+          const x = startX + col * unitSize + unitSize / 2;
+          const y = startY + (n - 1 - row) * unitSize + unitSize / 2;
+
+          ctx.fillStyle = '#0f172a';
+          ctx.fillText(`+${count}`, x, y);
+        }
+      }
+    }
+
+    // Generic Case Mode: Fixed generic n (6) visualization
+    function drawGenericCase(w, h) {
+      // Fixed N = 6 for abstract representation
+      const gN = GENERIC_N;
+      const gridN = gN + 1; // Total dimension including L-strip layer
+
+      // Reserve extra margins for straight brackets and text
+      const marginLeft = 70;
+      const marginBottom = 60;
+      const marginTop = 50;
+      const marginRight = 70;
+
+      const availW = w - marginLeft - marginRight;
+      const availH = h - marginTop - marginBottom;
+      const unitSize = Math.min(availW, availH) / gridN;
+
+      const startX = marginLeft + (availW - gridN * unitSize) / 2;
+      const startY = marginTop + (availH - gridN * unitSize) / 2;
+
+      // 1. Core Square (Lime Green) - size gN x gN
+      const coreX = startX;
+      const coreY = startY + unitSize; // Shift down by 1 row to accommodate top strip
+      const coreSize = gN * unitSize;
+
+      ctx.fillStyle = GENERIC_COLORS.coreFill;
+      ctx.strokeStyle = GENERIC_COLORS.coreBorder;
+      ctx.lineWidth = 2;
+
+      ctx.fillRect(coreX, coreY, coreSize, coreSize);
+      ctx.strokeRect(coreX, coreY, coreSize, coreSize);
+
+      // Core grid lines
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      for (let i = 1; i < gN; i++) {
+        ctx.beginPath();
+        ctx.moveTo(coreX + i * unitSize, coreY);
+        ctx.lineTo(coreX + i * unitSize, coreY + coreSize);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(coreX, coreY + i * unitSize);
+        ctx.lineTo(coreX + coreSize, coreY + i * unitSize);
+        ctx.stroke();
+      }
+
+      // Core text label
+      ctx.fillStyle = '#052e16';
+      ctx.font = `bold ${Math.max(16, unitSize * 0.45)}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`n × n = n²`, coreX + coreSize / 2, coreY + coreSize / 2);
+
+      // 2. Yellow Strips (Top and Right)
+      ctx.fillStyle = GENERIC_COLORS.stripFill;
+      ctx.strokeStyle = GENERIC_COLORS.stripBorder;
+      ctx.lineWidth = 1.5;
+
+      // Top strip (gN unit squares above core)
+      for (let i = 0; i < gN; i++) {
+        const sx = coreX + i * unitSize;
+        const sy = startY;
+        ctx.fillRect(sx, sy, unitSize, unitSize);
+        ctx.strokeRect(sx, sy, unitSize, unitSize);
+      }
+
+      // Right strip (gN unit squares right of core)
+      for (let j = 0; j < gN; j++) {
+        const sx = coreX + coreSize;
+        const sy = coreY + j * unitSize;
+        ctx.fillRect(sx, sy, unitSize, unitSize);
+        ctx.strokeRect(sx, sy, unitSize, unitSize);
+      }
+
+      // 3. Magenta Corner Mini Square (1 x 1)
+      const cornerX = coreX + coreSize;
+      const cornerY = startY;
+
+      ctx.fillStyle = GENERIC_COLORS.cornerFill;
+      ctx.strokeStyle = GENERIC_COLORS.cornerBorder;
+      ctx.lineWidth = 2;
+      ctx.fillRect(cornerX, cornerY, unitSize, unitSize);
+      ctx.strokeRect(cornerX, cornerY, unitSize, unitSize);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.max(13, unitSize * 0.45)}px Inter, sans-serif`;
+      ctx.fillText('1', cornerX + unitSize / 2, cornerY + unitSize / 2);
+
+      // 4. Straight Square Brackets (skipping the magenta corner square)
+      const tickSize = 6;
+      const offset = 10;
+
+      // --- TOP BRACKET (Spans yellow top strip ONLY) ---
+      // Positioned above top strip, facing DOWN towards the yellow squares
+      const topX1 = coreX;
+      const topX2 = coreX + coreSize; // Excludes corner at coreX + coreSize -> + unitSize
+      const topY = startY - offset;
+
+      drawSquareBracket(ctx, topX1, topY, topX2, topY, tickSize, 'down', GENERIC_COLORS.bracket);
+
+      ctx.fillStyle = '#fef08a';
+      ctx.font = '600 13px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('n squares', (topX1 + topX2) / 2, topY - tickSize - 4);
+
+      // --- RIGHT BRACKET (Spans yellow right strip ONLY) ---
+      // Positioned to the right of right strip, facing LEFT towards the yellow squares
+      const rightY1 = coreY;
+      const rightY2 = coreY + coreSize; // Excludes corner at startY -> startY + unitSize
+      const rightX = coreX + coreSize + unitSize + offset;
+
+      drawSquareBracket(ctx, rightX, rightY1, rightX, rightY2, tickSize, 'left', GENERIC_COLORS.bracket);
+
+      ctx.save();
+      ctx.translate(rightX + tickSize + 16, (rightY1 + rightY2) / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillStyle = '#fef08a';
+      ctx.font = '600 13px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('n squares', 0, 0);
+      ctx.restore();
+
+      // --- LEFT BRACKET (Spans Lime Core side) ---
+      // Facing RIGHT towards core
+      const leftY1 = coreY;
+      const leftY2 = coreY + coreSize;
+      const leftX = coreX - offset;
+
+      drawSquareBracket(ctx, leftX, leftY1, leftX, leftY2, tickSize, 'right', GENERIC_COLORS.bracket);
+
+      ctx.save();
+      ctx.translate(leftX - tickSize - 16, (leftY1 + leftY2) / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = '#4ade80';
+      ctx.font = '600 13px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('n units', 0, 0);
+      ctx.restore();
+    }
+
+    /**
+     * Helper to draw crisp straight rectangular square brackets [ or ]
+     * facingDirection: 'up', 'down', 'left', 'right'
+     */
+    function drawSquareBracket(ctx, x1, y1, x2, y2, tickSize, facingDirection, color) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'square';
+
+      let dx = 0;
+      let dy = 0;
+
+      switch (facingDirection) {
+        case 'down':  dy = tickSize; break;
+        case 'up':    dy = -tickSize; break;
+        case 'right': dx = tickSize; break;
+        case 'left':  dx = -tickSize; break;
+      }
+
+      ctx.beginPath();
+      // Start tick
+      ctx.moveTo(x1 + dx, y1 + dy);
+      ctx.lineTo(x1, y1);
+      // Main straight line
+      ctx.lineTo(x2, y2);
+      // End tick
+      ctx.lineTo(x2 + dx, y2 + dy);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+  </script>
+</body>
+</html>
