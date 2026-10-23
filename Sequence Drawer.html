@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sequence Drawer</title>
+<style>
+:root{--bg:#ffffff;--fg:#1a1a1a;--mut:#666;--bd:#cfcfd4;--acc:#2563eb;--surf:#f3f4f6;--err:#b91c1c;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15161a;--fg:#ececec;--mut:#9a9aa3;--bd:#3a3b42;--acc:#6ea0ff;--surf:#22232a;--err:#f87171}}
+:root[data-theme="dark"]{--bg:#15161a;--fg:#ececec;--mut:#9a9aa3;--bd:#3a3b42;--acc:#6ea0ff;--surf:#22232a;--err:#f87171}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+#bar{padding:10px 12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--bd)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+input[type=text],input[type=number]{background:var(--surf);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;font:inherit}
+#expr{flex:1;min-width:160px;font-family:ui-monospace,Menlo,Consolas,monospace}
+#n{width:64px;text-align:center}
+button{background:var(--surf);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+button.sq{width:38px;padding:7px 0;font-size:18px;line-height:1}
+.seg{display:inline-flex}
+.seg button:first-child{border-radius:8px 0 0 8px}
+.seg button:last-child{border-radius:0 8px 8px 0;border-left:0}
+.seg button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+label.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+#status{min-height:1.3em;font-size:13px;color:var(--mut)}
+#status.err{color:var(--err)}
+#box{flex:1;min-height:260px;position:relative;overflow:hidden;touch-action:none}
+.jxgbox{position:relative;overflow:hidden;background:var(--bg);border:0}
+.JXGtext{font-family:system-ui,sans-serif}
+mjx-container{color:inherit}
+</style>
+<script>
+window.MathJax={tex:{inlineMath:[['\\(','\\)']]},startup:{typeset:false}};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsxgraph/1.9.2/jsxgraphcore.js"></script>
+</head>
+<body>
+<div id="bar">
+  <div class="row">
+    <span>\(a_n=\)</span>
+    <input type="text" id="expr" value="(-1)^n*(n-1)/n" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </div>
+  <div class="row">
+    <button class="sq" id="minus" aria-label="Remove last term">−</button>
+    <span>\(n=\)</span>
+    <input type="number" id="n" value="8" min="0" step="1" inputmode="numeric">
+    <button class="sq" id="plus" aria-label="Add next term">+</button>
+    <span class="seg">
+      <button id="mLine" aria-pressed="true">\((a_n,\,0)\)</button>
+      <button id="mGraph" aria-pressed="false">\((n,\,a_n)\)</button>
+    </span>
+    <label class="chk"><input type="checkbox" id="lab" checked> labels</label>
+    <button id="fit">Fit</button>
+  </div>
+  <div id="status"></div>
+</div>
+<div id="box"></div>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var MAXN=300;
+var C={pi:Math.PI,e:Math.E};
+var F={sin:Math.sin,cos:Math.cos,tan:Math.tan,asin:Math.asin,acos:Math.acos,atan:Math.atan,
+  sinh:Math.sinh,cosh:Math.cosh,tanh:Math.tanh,exp:Math.exp,ln:Math.log,log:Math.log10,
+  sqrt:Math.sqrt,cbrt:Math.cbrt,abs:Math.abs,floor:Math.floor,ceil:Math.ceil,sign:Math.sign,
+  fact:function(x){if(x<0||x!==Math.floor(x)||x>170)return NaN;var r=1;for(var i=2;i<=x;i++)r*=i;return r}};
+
+function compile(src){
+  src=src.trim().replace(/[·×]/g,'*').replace(/[−–]/g,'-').replace(/\*\*/g,'^');
+  if(!src)throw new Error('Empty expression');
+  var T=[],re=/\s*(?:(\d+\.?\d*|\.\d+)|([A-Za-z_]\w*)|(.))/gy,m;
+  while(re.lastIndex<src.length&&(m=re.exec(src))){
+    if(m[1]!==undefined)T.push({k:'n',v:+m[1]});
+    else if(m[2])T.push({k:'i',v:m[2]});
+    else if('+-*/^(),'.indexOf(m[3])>=0)T.push({k:'o',v:m[3]});
+    else throw new Error('Unexpected “'+m[3]+'”');
+  }
+  var p=0;
+  function isO(v){return T[p]&&T[p].k==='o'&&T[p].v===v}
+  function expr(){var a=term();while(isO('+')||isO('-')){var op=T[p++].v,b=term(),l=a;a=op==='+'?(function(l,b){return function(n){return l(n)+b(n)}})(l,b):(function(l,b){return function(n){return l(n)-b(n)}})(l,b)}return a}
+  function term(){
+    var a=unary();
+    for(;;){
+      var op=null;
+      if(isO('*')||isO('/'))op=T[p++].v;
+      else if(T[p]&&(T[p].k==='n'||T[p].k==='i'||isO('(')))op='*';
+      else break;
+      var b=unary(),l=a;
+      a=op==='*'?(function(l,b){return function(n){return l(n)*b(n)}})(l,b):(function(l,b){return function(n){return l(n)/b(n)}})(l,b);
+    }
+    return a;
+  }
+  function unary(){
+    if(isO('-')){p++;var a=unary();return function(n){return -a(n)}}
+    if(isO('+')){p++;return unary()}
+    return power();
+  }
+  function power(){
+    var a=primary();
+    if(isO('^')){p++;var b=unary();return function(n){return Math.pow(a(n),b(n))}}
+    return a;
+  }
+  function primary(){
+    var t=T[p++];
+    if(!t)throw new Error('Unexpected end of expression');
+    if(t.k==='n'){var v=t.v;return function(){return v}}
+    if(t.k==='i'){
+      if(t.v==='n')return function(n){return n};
+      if(C[t.v]!==undefined){var c=C[t.v];return function(){return c}}
+      if(F[t.v]){
+        if(!isO('('))throw new Error('Missing ( after '+t.v);
+        p++;var a=expr();
+        if(!isO(')'))throw new Error('Missing )');
+        p++;var g=F[t.v];
+        return function(n){return g(a(n))};
+      }
+      throw new Error('Unknown name “'+t.v+'”');
+    }
+    if(t.v==='('){var e=expr();if(!isO(')'))throw new Error('Missing )');p++;return e}
+    throw new Error('Unexpected “'+t.v+'”');
+  }
+  var r=expr();
+  if(p<T.length)throw new Error('Unexpected “'+T[p].v+'”');
+  return r;
+}
+
+var dark=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;
+var ink=dark?'#ececec':'#1a1a1a',dot=dark?'#6ea0ff':'#2563eb';
+var N=8,mode='line',f=null,board,xAxis,yAxis,pts=[],vals=[];
+
+function setStatus(msg,err){var s=$('status');s.textContent=msg||'';s.className=err?'err':''}
+
+function inView(){
+  var bb=board.getBoundingBox();
+  for(var i=0;i<vals.length;i++){
+    var x=mode==='line'?vals[i][1]:vals[i][0],y=mode==='line'?0:vals[i][1];
+    if(x<bb[0]||x>bb[2]||y>bb[1]||y<bb[3])return false;
+  }
+  return true;
+}
+
+function fit(){
+  if(!vals.length){board.setBoundingBox([-2,2,10,-2],false);return}
+  var a=board.canvasWidth/board.canvasHeight||1;
+  if(mode==='line'){
+    var lo=0,hi=0;
+    vals.forEach(function(v){lo=Math.min(lo,v[1]);hi=Math.max(hi,v[1])});
+    var pad=(hi-lo)*0.12||1,W=hi-lo+2*pad,hh=W/a/2;
+    board.setBoundingBox([lo-pad,hh,hi+pad,-hh],false);
+  }else{
+    var ymin=0,ymax=0;
+    vals.forEach(function(v){ymin=Math.min(ymin,v[1]);ymax=Math.max(ymax,v[1])});
+    var py=(ymax-ymin)*0.15||1,last=vals[vals.length-1][0];
+    var px=Math.max(1,last*0.08);
+    board.setBoundingBox([-px-0.3,ymax+py,last+px,ymin-py],false);
+  }
+}
+
+function redraw(refit){
+  pts.forEach(function(q){board.removeObject(q)});
+  pts=[];vals=[];
+  var skipped=[],show=$('lab').checked;
+  for(var k=0;k<=N;k++){
+    var v;
+    try{v=f(k)}catch(e){v=NaN}
+    if(typeof v!=='number'||!isFinite(v)){skipped.push(k);continue}
+    vals.push([k,v]);
+    var x=mode==='line'?v:k,y=mode==='line'?0:v;
+    var off=mode==='line'?[0,(k%2?-18:18)]:[8,10];
+    pts.push(board.create('point',[x,y],{
+      name:'\\(a_{'+k+'}\\)',withLabel:show,fixed:true,size:3,face:'o',
+      fillColor:dot,strokeColor:dot,showInfobox:false,highlight:false,
+      label:{useMathJax:true,offset:off,anchorX:'middle',strokeColor:ink,fontSize:15,highlight:false}
+    }));
+  }
+  setStatus(skipped.length?'Undefined (skipped) at n = '+skipped.slice(0,12).join(', ')+(skipped.length>12?', …':''):'');
+  yAxis.setAttribute({visible:mode==='graph'});
+  if(refit||!inView())fit();
+  board.update();
+}
+
+function setN(v){
+  v=Math.round(v);
+  if(!isFinite(v)){$('n').value=N;return}
+  N=Math.max(0,Math.min(MAXN,v));
+  $('n').value=N;
+  redraw(false);
+}
+
+function setMode(m){
+  mode=m;
+  $('mLine').setAttribute('aria-pressed',m==='line');
+  $('mGraph').setAttribute('aria-pressed',m==='graph');
+  redraw(true);
+}
+
+function init(){
+  board=JXG.JSXGraph.initBoard('box',{
+    boundingbox:[-2,2,10,-2],axis:false,grid:false,keepaspectratio:false,
+    showNavigation:false,showCopyright:false,
+    pan:{enabled:true,needTwoFingers:false},
+    zoom:{enabled:true,wheel:true,pinch:true,factorX:1.15,factorY:1.15}
+  });
+  var axOpts={strokeColor:'#888',highlight:false,fixed:true,ticks:{visible:false},name:'',withLabel:false};
+  xAxis=board.create('axis',[[0,0],[1,0]],axOpts);
+  yAxis=board.create('axis',[[0,0],[0,1]],axOpts);
+  try{f=compile($('expr').value)}catch(e){f=function(){return NaN}}
+  redraw(true);
+}
+
+$('expr').addEventListener('input',function(){
+  try{f=compile(this.value)}catch(e){setStatus(e.message,true);return}
+  redraw(true);
+});
+$('plus').addEventListener('click',function(){setN(N+1)});
+$('minus').addEventListener('click',function(){setN(N-1)});
+$('n').addEventListener('change',function(){setN(parseFloat(this.value))});
+$('mLine').addEventListener('click',function(){setMode('line')});
+$('mGraph').addEventListener('click',function(){setMode('graph')});
+$('lab').addEventListener('change',function(){redraw(false)});
+$('fit').addEventListener('click',function(){fit();board.update()});
+
+window.addEventListener('load',function(){
+  var go=function(){
+    try{MathJax.typesetPromise([$('bar')])}catch(e){}
+    init();
+  };
+  if(window.MathJax&&MathJax.startup&&MathJax.startup.promise)MathJax.startup.promise.then(go);else go();
+});
+})();
+</script>
+</body>
+</html>

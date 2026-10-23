@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Recursive Sequence Drawer</title>
+<style>
+:root{--bg:#ffffff;--fg:#1a1a1a;--mut:#666;--bd:#cfcfd4;--acc:#2563eb;--surf:#f3f4f6;--err:#b91c1c;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15161a;--fg:#ececec;--mut:#9a9aa3;--bd:#3a3b42;--acc:#6ea0ff;--surf:#22232a;--err:#f87171}}
+:root[data-theme="dark"]{--bg:#15161a;--fg:#ececec;--mut:#9a9aa3;--bd:#3a3b42;--acc:#6ea0ff;--surf:#22232a;--err:#f87171}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+#bar{padding:10px 12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--bd)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+input[type=text],input[type=number]{background:var(--surf);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;font:inherit}
+#expr{flex:1;min-width:160px;font-family:ui-monospace,Menlo,Consolas,monospace}
+#n{width:64px;text-align:center}
+#a0{width:84px;text-align:center}
+#a0r{flex:1;min-width:140px;accent-color:var(--acc)}
+button{background:var(--surf);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+button.sq{width:38px;padding:7px 0;font-size:18px;line-height:1}
+label.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+#tex{min-height:2.4em;overflow-x:auto;overflow-y:hidden}
+#status{min-height:1.3em;font-size:13px;color:var(--mut)}
+#status.err{color:var(--err)}
+#legend{font-size:12px;color:var(--mut)}
+details{font-size:13px;color:var(--mut);max-height:40vh;overflow:auto}
+details summary{cursor:pointer;color:var(--fg)}
+details p{margin:6px 0 0;line-height:1.6}
+#box{flex:1;min-height:260px;position:relative;overflow:hidden;touch-action:none}
+.jxgbox{position:relative;overflow:hidden;background:var(--bg);border:0}
+.JXGtext{font-family:system-ui,sans-serif}
+mjx-container{color:inherit}
+</style>
+<script>
+window.MathJax={tex:{inlineMath:[['\\(','\\)']]},startup:{typeset:false}};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsxgraph/1.9.2/jsxgraphcore.js"></script>
+</head>
+<body>
+<div id="bar">
+  <div class="row">
+    <span>\(f(x)=\)</span>
+    <input type="text" id="expr" value="2.5*x*(1-x)" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </div>
+  <div id="tex"></div>
+  <div class="row">
+    <span>\(a_0=\)</span>
+    <input type="range" id="a0r" min="-5" max="5" step="0.01" value="0.1">
+    <input type="number" id="a0" value="0.1" step="0.01" inputmode="decimal">
+  </div>
+  <div class="row">
+    <button class="sq" id="minus" aria-label="Remove last point">−</button>
+    <span>\(n=\)</span>
+    <input type="number" id="n" value="8" min="0" step="1" inputmode="numeric">
+    <button class="sq" id="plus" aria-label="Add next point">+</button>
+    <label class="chk"><input type="checkbox" id="lab" checked> labels</label>
+    <button id="fit">Fit</button>
+  </div>
+  <div id="legend"><span style="color:var(--acc)">━ f(x)</span> &nbsp; <span>┄ y = x</span> &nbsp; <span style="color:#d97706">━ orbit</span> &nbsp; fixed points: <span style="color:#16a34a">green = stable</span>, <span style="color:#dc2626">red = unstable</span>, <span style="color:#9333ea">purple = tangent (|f′| = 1)</span></div>
+  <div id="status"></div>
+  <details>
+    <summary>How the construction works</summary>
+    <p>The sequence is defined by \(a_{n+1}=f(a_n)\) starting from \(a_0\). Mark \(a_0\) on the \(x\)-axis, i.e. the point \((a_0,0)\), and go vertically to the graph of \(f\): you reach \((a_0,f(a_0))=(a_0,a_1)\). Then go horizontally to the diagonal \(y=x\). Since the height is \(a_1\), you land on \((a_1,a_1)\), where the value \(a_1\) is now on the \(x\)-axis: the output has become the next input. Repeating the step from \((a_1,a_1)\) gives \((a_1,a_2)\) and then \((a_2,a_2)\), and so on. The orange path is the broken line \((a_k,a_k)\to(a_k,a_{k+1})\to(a_{k+1},a_{k+1})\), and the labeled points \(a_k\) lie on the diagonal.</p>
+    <p>A fixed point \(x^{*}\) satisfies \(f(x^{*})=x^{*}\), so it is an intersection of the graph with the diagonal, and an orbit starting there never moves. If \(|f'(x^{*})|&lt;1\) nearby orbits converge to it (green); if \(|f'(x^{*})|&gt;1\) they move away (red); if \(|f'(x^{*})|=1\), as at a tangency, the derivative alone does not decide (purple).</p>
+  </details>
+</div>
+<div id="box"></div>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var MAXN=100;
+var C={pi:Math.PI,e:Math.E};
+var F={sin:Math.sin,cos:Math.cos,tan:Math.tan,asin:Math.asin,acos:Math.acos,atan:Math.atan,
+  sinh:Math.sinh,cosh:Math.cosh,tanh:Math.tanh,exp:Math.exp,ln:Math.log,log:Math.log10,
+  sqrt:Math.sqrt,cbrt:Math.cbrt,abs:Math.abs,floor:Math.floor,ceil:Math.ceil,sign:Math.sign,
+  fact:function(x){if(x<0||x!==Math.floor(x)||x>170)return NaN;var r=1;for(var i=2;i<=x;i++)r*=i;return r}};
+
+function compile(src){
+  src=src.trim().replace(/[·×]/g,'*').replace(/[−–]/g,'-').replace(/\*\*/g,'^');
+  if(!src)throw new Error('Empty expression');
+  var T=[],re=/\s*(?:(\d+\.?\d*|\.\d+)|([A-Za-z_]\w*)|(.))/gy,m;
+  while(re.lastIndex<src.length&&(m=re.exec(src))){
+    if(m[1]!==undefined)T.push({k:'n',v:+m[1]});
+    else if(m[2])T.push({k:'i',v:m[2]});
+    else if('+-*/^(),'.indexOf(m[3])>=0)T.push({k:'o',v:m[3]});
+    else throw new Error('Unexpected “'+m[3]+'”');
+  }
+  var p=0;
+  function isO(v){return T[p]&&T[p].k==='o'&&T[p].v===v}
+  function mk(fn,t,pr){fn.t=t;fn.pr=pr;return fn}
+  function tx(a){return a.in!==undefined?a.in:a.t}
+  function wr(a,lim){return a.pr<lim?'\\left('+a.t+'\\right)':a.t}
+  function sg(b){return b.t.charAt(0)==='-'?'\\left('+b.t+'\\right)':b.t}
+  function ft(nm,a){
+    var x=tx(a),q='\\left('+x+'\\right)';
+    var m={sqrt:'\\sqrt{'+x+'}',cbrt:'\\sqrt[3]{'+x+'}',abs:'\\left|'+x+'\\right|',floor:'\\left\\lfloor '+x+'\\right\\rfloor',ceil:'\\left\\lceil '+x+'\\right\\rceil',exp:'e^{'+x+'}',fact:q+'!',sign:'\\operatorname{sgn}'+q,ln:'\\ln'+q,log:'\\log'+q,asin:'\\arcsin'+q,acos:'\\arccos'+q,atan:'\\arctan'+q};
+    return m[nm]||'\\'+nm+q;
+  }
+  function op2(o,l,b){
+    return o==='+'?function(x){return l(x)+b(x)}:o==='-'?function(x){return l(x)-b(x)}:o==='*'?function(x){return l(x)*b(x)}:function(x){return l(x)/b(x)};
+  }
+  function expr(){
+    var a=term();
+    while(isO('+')||isO('-')){var o=T[p++].v,b=term(),l=a;a=mk(op2(o,l,b),l.t+o+sg(b),1)}
+    return a;
+  }
+  function term(){
+    var a=unary();
+    for(;;){
+      var o=null,imp=false;
+      if(isO('*')||isO('/'))o=T[p++].v;
+      else if(T[p]&&(T[p].k==='n'||T[p].k==='i'||isO('('))){o='*';imp=true}
+      else break;
+      var b=unary(),l=a,bt=wr(b,4);
+      a=mk(op2(o,l,b),o==='*'?l.t+(imp?(/\d$/.test(l.t)&&/^\d/.test(bt)?'\\cdot ':''):'\\cdot ')+bt:'\\frac{'+tx(l)+'}{'+tx(b)+'}',2);
+    }
+    return a;
+  }
+  function unary(){
+    if(isO('-')){p++;var a=unary();return mk(function(x){return -a(x)},'-'+wr(a,4),3)}
+    if(isO('+')){p++;return unary()}
+    return power();
+  }
+  function power(){
+    var a=primary();
+    if(isO('^')){p++;var b=unary();return mk(function(x){return Math.pow(a(x),b(x))},wr(a,5)+'^{'+tx(b)+'}',4)}
+    return a;
+  }
+  function primary(){
+    var t=T[p++];
+    if(!t)throw new Error('Unexpected end of expression');
+    if(t.k==='n'){var v=t.v;return mk(function(){return v},String(v),5)}
+    if(t.k==='i'){
+      if(t.v==='x')return mk(function(x){return x},'@',5);
+      if(C[t.v]!==undefined){var c=C[t.v];return mk(function(){return c},t.v==='pi'?'\\pi':'e',5)}
+      if(F[t.v]){
+        if(!isO('('))throw new Error('Missing ( after '+t.v);
+        p++;var a=expr();
+        if(!isO(')'))throw new Error('Missing )');
+        p++;var g=F[t.v];
+        return mk(function(x){return g(a(x))},ft(t.v,a),t.v==='exp'?4:5);
+      }
+      throw new Error('Unknown name “'+t.v+'” (use x)');
+    }
+    if(t.v==='('){var e=expr();if(!isO(')'))throw new Error('Missing )');p++;var w=function(x){return e(x)};w.t='\\left('+e.t+'\\right)';w.in=e.t;w.pr=5;return w}
+    throw new Error('Unexpected “'+t.v+'”');
+  }
+  var r=expr();
+  if(p<T.length)throw new Error('Unexpected “'+T[p].v+'”');
+  return r;
+}
+
+var dark=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;
+var ink=dark?'#ececec':'#1a1a1a',dot=dark?'#6ea0ff':'#2563eb',bgc=dark?'#15161a':'#ffffff',orb='#d97706';
+var N=8,a0=0.1,f=function(){return NaN},ver=0,board,objs=[],fpObjs=[],vals=[],fpTimer=null,fpKey='';
+
+function setStatus(msg,err){var s=$('status');s.textContent=msg||'';s.className=err?'err':''}
+function fmt(v){return String(+v.toPrecision(5))}
+
+function renderTex(){
+  var el=$('tex');
+  try{MathJax.typesetClear([el])}catch(e){}
+  el.textContent='\\(\\displaystyle a_{n+1}='+(f.t?f.t.replace(/@/g,'a_n'):'')+'\\)';
+  try{MathJax.typesetPromise([el])}catch(e){}
+}
+
+function orbit(){
+  var v=[a0];
+  for(var k=0;k<N;k++){
+    var y=f(v[k]);
+    if(typeof y!=='number'||!isFinite(y)||Math.abs(y)>1e12)break;
+    v.push(y);
+  }
+  return v;
+}
+
+function redraw(){
+  objs.forEach(function(o){board.removeObject(o)});
+  objs=[];
+  vals=orbit();
+  var xs=[vals[0]],ys=[0],k;
+  for(k=0;k<vals.length-1;k++){xs.push(vals[k],vals[k+1]);ys.push(vals[k+1],vals[k+1])}
+  objs.push(board.create('curve',[xs,ys],{strokeColor:orb,strokeWidth:1.5,highlight:false,fixed:true}));
+  var show=$('lab').checked;
+  for(k=0;k<vals.length;k++){
+    objs.push(board.create('point',[vals[k],vals[k]],{
+      name:'\\(a_{'+k+'}\\)',withLabel:show,fixed:true,size:3,face:'o',
+      fillColor:orb,strokeColor:orb,showInfobox:false,highlight:false,
+      label:{useMathJax:true,offset:[10,-14],anchorX:'left',strokeColor:ink,fontSize:15,highlight:false}
+    }));
+  }
+  if(vals.length<N+1)setStatus('Orbit undefined or diverging after n = '+(vals.length-1)+'.');
+  else setStatus('a_'+N+' ≈ '+fmt(vals[N]));
+  board.update();
+}
+
+function fit(){
+  var lo=0,hi=0;
+  vals.forEach(function(v){lo=Math.min(lo,v);hi=Math.max(hi,v)});
+  var c=(lo+hi)/2,h=Math.min(1e6,Math.max((hi-lo)/2*1.3,0.75));
+  board.setBoundingBox([c-h,c+h,c+h,c-h],true);
+}
+
+function updateFP(force){
+  var bb=board.getBoundingBox(),key=bb.join()+'|'+ver;
+  if(!force&&key===fpKey)return;
+  fpKey=key;
+  fpObjs.forEach(function(o){board.removeObject(o)});
+  fpObjs=[];
+  var g=function(x){return f(x)-x};
+  var roots=[],prev=null,M=600,i,x,y,sx=[],sy=[];
+  function bis(a,b){
+    var ga=g(a);
+    for(var j=0;j<60;j++){
+      var mid=(a+b)/2,gm=g(mid);
+      if(!isFinite(gm))return NaN;
+      if(gm*ga<=0)b=mid;else{a=mid;ga=gm}
+    }
+    return (a+b)/2;
+  }
+  for(i=0;i<=M;i++){
+    x=bb[0]+(bb[2]-bb[0])*i/M;y=g(x);sx.push(x);sy.push(y);
+    if(isFinite(y)){
+      if(y===0)roots.push(x);
+      else if(prev&&prev.y*y<0)roots.push(bis(prev.x,x));
+      prev={x:x,y:y};
+    }else prev=null;
+  }
+  for(i=1;i<M;i++){
+    var ya=sy[i-1],yb=sy[i],yc=sy[i+1];
+    if(isFinite(ya)&&isFinite(yb)&&isFinite(yc)&&ya*yb>0&&yb*yc>0&&Math.abs(yb)<=Math.abs(ya)&&Math.abs(yb)<=Math.abs(yc)){
+      var lo=sx[i-1],hi=sx[i+1];
+      for(var j=0;j<100;j++){
+        var m1=lo+(hi-lo)/3,m2=hi-(hi-lo)/3;
+        if(Math.abs(g(m1))<Math.abs(g(m2)))hi=m2;else lo=m1;
+      }
+      roots.push((lo+hi)/2);
+    }
+  }
+  var done=[];
+  roots.forEach(function(r){
+    if(!isFinite(r)||Math.abs(g(r))>1e-6*(1+Math.abs(r)))return;
+    if(Math.abs(r)<1e-9)r=0;
+    if(done.some(function(d){return Math.abs(d-r)<1e-6*(1+Math.abs(r))}))return;
+    if(done.length>=20)return;
+    done.push(r);
+    var h=1e-6*(1+Math.abs(r)),d=(f(r+h)-f(r-h))/(2*h),ad=Math.abs(d),neu=Math.abs(ad-1)<1e-4,st=ad<1&&!neu,col=neu?'#9333ea':st?'#16a34a':'#dc2626';
+    fpObjs.push(board.create('point',[r,r],{
+      name:'\\(x^{*}='+fmt(r)+'\\)',withLabel:true,fixed:true,size:5,face:'o',
+      fillColor:st?col:bgc,strokeColor:col,strokeWidth:2,showInfobox:false,highlight:false,
+      label:{useMathJax:true,offset:[-8,18],anchorX:'right',strokeColor:ink,fontSize:15,highlight:false}
+    }));
+  });
+}
+
+function setN(v){
+  v=Math.round(v);
+  if(!isFinite(v)){$('n').value=N;return}
+  N=Math.max(0,Math.min(MAXN,v));
+  $('n').value=N;
+  redraw();
+}
+
+function setA0(v){
+  if(!isFinite(v)){$('a0').value=a0;return}
+  a0=v;
+  $('a0').value=String(+v.toFixed(6));
+  $('a0r').value=v;
+  redraw();
+}
+
+function init(){
+  board=JXG.JSXGraph.initBoard('box',{
+    boundingbox:[-0.5,1.2,1.5,-0.4],axis:false,grid:false,keepaspectratio:true,
+    showNavigation:false,showCopyright:false,
+    pan:{enabled:true,needTwoFingers:false},
+    zoom:{enabled:true,wheel:true,pinch:true,factorX:1.15,factorY:1.15}
+  });
+  var axOpts={strokeColor:'#888',highlight:false,fixed:true,name:'',withLabel:false,ticks:{strokeColor:'#888',label:{strokeColor:ink,fontSize:12,highlight:false}}};
+  board.create('axis',[[0,0],[1,0]],axOpts);
+  board.create('axis',[[0,0],[0,1]],axOpts);
+  board.create('functiongraph',[function(x){return x}],{strokeColor:'#888',strokeWidth:1.5,dash:2,highlight:false,fixed:true});
+  board.create('functiongraph',[function(x){var v=f(x);return isFinite(v)?v:NaN}],{strokeColor:dot,strokeWidth:2,highlight:false,fixed:true});
+  try{f=compile($('expr').value)}catch(e){f=function(){return NaN}}
+  renderTex();
+  redraw();
+  fit();
+  updateFP(true);
+  board.on('update',function(){clearTimeout(fpTimer);fpTimer=setTimeout(function(){updateFP(false)},60)});
+}
+
+$('expr').addEventListener('input',function(){
+  var g;
+  try{g=compile(this.value)}catch(e){setStatus(e.message,true);return}
+  f=g;ver++;
+  renderTex();
+  redraw();
+  fit();
+});
+$('a0r').addEventListener('input',function(){setA0(parseFloat(this.value))});
+$('a0').addEventListener('change',function(){setA0(parseFloat(this.value))});
+$('plus').addEventListener('click',function(){setN(N+1)});
+$('minus').addEventListener('click',function(){setN(N-1)});
+$('n').addEventListener('change',function(){setN(parseFloat(this.value))});
+$('lab').addEventListener('change',redraw);
+$('fit').addEventListener('click',fit);
+
+window.addEventListener('load',function(){
+  var go=function(){
+    try{MathJax.typesetPromise([$('bar')])}catch(e){}
+    init();
+  };
+  if(window.MathJax&&MathJax.startup&&MathJax.startup.promise)MathJax.startup.promise.then(go);else go();
+});
+})();
+</script>
+</body>
+</html>
