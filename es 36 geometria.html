@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esercizi Geometria 3D</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        .font-mono-code {
+            font-family: 'Fira Code', monospace;
+        }
+        /* Glassmorphic UI styling */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        /* HTML 2D Label Overlays */
+        .geometry-label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -100%);
+            pointer-events: none;
+            white-space: nowrap;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            transition: opacity 0.15s ease-out;
+            z-index: 20;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen relative">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container" class="w-full h-full absolute inset-0 cursor-grab active:cursor-grabbing"></div>
+
+    <!-- Container for HTML-rendered 2D Labels over 3D world space -->
+    <div id="labels-container" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+    <!-- Header Overlay & Exercise Selector Switcher -->
+    <header class="absolute top-4 left-4 pointer-events-none z-10 flex flex-col gap-2">
+        <div class="glass-panel px-4 py-3 rounded-2xl flex flex-wrap items-center gap-3.5 pointer-events-auto shadow-2xl">
+            <div class="p-2.5 bg-indigo-600/30 text-indigo-400 rounded-xl border border-indigo-500/30">
+                <i class="fa-solid fa-shapes text-xl"></i>
+            </div>
+            <div class="mr-2">
+                <h1 id="exercise-title" class="text-sm font-bold tracking-wide text-white">Esercizio 3: Geometria nello Spazio</h1>
+                <p id="exercise-subtitle" class="text-xs text-slate-400">Rette Sghembe, Piani e Retta Ortogonale</p>
+            </div>
+            <!-- Exercise Switcher Dropdown -->
+            <div class="flex items-center gap-2 bg-slate-900/90 p-1.5 rounded-xl border border-indigo-500/30">
+                <label for="exercise-select" class="text-xs font-semibold text-indigo-300 pl-1"><i class="fa-solid fa-layer-group mr-1"></i>Esercizio:</label>
+                <select id="exercise-select" class="bg-indigo-950 hover:bg-indigo-900 text-slate-100 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-indigo-500/40 outline-none cursor-pointer transition">
+                    <option value="ex3" selected>Esercizio 3</option>
+                    <option value="ex6">Esercizio 6</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Controls & Mouse Instructions (Bottom Left) -->
+    <div class="absolute bottom-4 left-4 pointer-events-none z-10 hidden md:block">
+        <div class="glass-panel px-3.5 py-2 rounded-xl text-xs text-slate-300 flex items-center gap-4 pointer-events-auto shadow-lg">
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-computer-mouse text-indigo-400"></i> Ruota</span>
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-up-down-left-right text-indigo-400"></i> Pan</span>
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-scroll text-indigo-400"></i> Zoom</span>
+        </div>
+    </div>
+
+    <!-- Right Sidebar Controls & Collapsible Legend -->
+    <aside class="absolute top-4 right-4 z-10 w-80 max-w-[calc(100vw-2rem)] pointer-events-auto">
+        <div class="glass-panel rounded-2xl p-3.5 flex flex-col shadow-2xl transition-all duration-300">
+            
+            <!-- Controls Header & Collapse Toggle -->
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-indigo-400"></i> Visuale & Legenda
+                </h2>
+                <div class="flex items-center gap-1.5">
+                    <button id="btn-reset" title="Reset Vista" class="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition shadow flex items-center gap-1">
+                        <i class="fa-solid fa-arrows-to-eye"></i> Reset
+                    </button>
+                    <button id="btn-toggle-legend" title="Minimizza Legenda" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center justify-center transition border border-slate-700">
+                        <i id="collapse-icon" class="fa-solid fa-minus text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Collapsible Body Content -->
+            <div id="legend-content" class="space-y-3 pt-3 text-xs overflow-hidden transition-all duration-300 max-h-[80vh] opacity-100">
+                
+                <!-- View Angle Switchers -->
+                <div class="grid grid-cols-3 gap-1.5 text-[11px]">
+                    <button id="view-iso" class="px-2 py-1 bg-slate-800/80 hover:bg-slate-700 rounded text-slate-200 text-center transition font-medium">Iso</button>
+                    <button id="view-top" class="px-2 py-1 bg-slate-800/80 hover:bg-slate-700 rounded text-slate-200 text-center transition font-medium">Alto</button>
+                    <button id="view-front" class="px-2 py-1 bg-slate-800/80 hover:bg-slate-700 rounded text-slate-200 text-center transition font-medium">Fronte</button>
+                </div>
+
+                <!-- Dynamic Visibility Checklist Legend -->
+                <div id="legend-checklist" class="space-y-1.5 bg-slate-900/70 p-2.5 rounded-xl border border-slate-800/80 max-h-60 overflow-y-auto">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+            </div>
+        </div>
+    </aside>
+
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        (function () {
+            // Main App State & Globals
+            let currentExercise = 'ex3';
+            const container = document.getElementById('canvas-container');
+            const labelsContainer = document.getElementById('labels-container');
+            let scene, camera, renderer, controls;
+
+            // Group Container Map
+            const groups = {
+                grid: new THREE.Group(),
+                axes: new THREE.Group(),
+                exGroup: new THREE.Group()
+            };
+
+            // HTML Labels Registry
+            let htmlLabels = [];
+
+            // Color Palette
+            const COLORS = {
+                P: '#fbbf24',
+                P0: '#f59e0b',
+                R: '#c084fc',
+                A: '#fbbf24',
+                B: '#f59e0b',
+                C: '#d97706',
+                r1: 0x34d399,
+                r2: 0x5eead4,
+                s: 0xf43f5e,
+                pi1: 0x06b6d4,
+                pi2: 0x8b5cf6,
+                planeEx6: 0x06b6d4,
+                pq: 0xc084fc,
+                axisX: 0xef4444,
+                axisY: 0x10b981,
+                axisZ: 0x3b82f6
+            };
+
+            function init() {
+                // 1. Scene Setup
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x070a12);
+                scene.fog = new THREE.FogExp2(0x070a12, 0.015);
+
+                scene.add(groups.grid);
+                scene.add(groups.axes);
+                scene.add(groups.exGroup);
+
+                // 2. Camera
+                camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+                // 3. Renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                container.appendChild(renderer.domElement);
+
+                // 4. Controls
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+
+                // 5. Lighting
+                setupLighting();
+
+                // 6. Grid & Axes
+                buildGridAndAxes();
+
+                // 7. Load Default Exercise 3
+                loadExercise('ex3');
+
+                // 8. Event Handlers & Resize
+                window.addEventListener('resize', onWindowResize);
+                setupUIHandlers();
+
+                // 9. Loop
+                animate();
+            }
+
+            function setupLighting() {
+                const ambient = new THREE.AmbientLight(0xffffff, 0.75);
+                scene.add(ambient);
+
+                const dir1 = new THREE.DirectionalLight(0xffffff, 0.8);
+                dir1.position.set(15, 25, 20);
+                scene.add(dir1);
+
+                const dir2 = new THREE.DirectionalLight(0x38bdf8, 0.4);
+                dir2.position.set(-10, -15, -10);
+                scene.add(dir2);
+            }
+
+            function clearExerciseScene() {
+                // Remove existing children from group
+                while(groups.exGroup.children.length > 0) {
+                    const obj = groups.exGroup.children[0];
+                    groups.exGroup.remove(obj);
+                }
+                // Clear HTML Labels
+                labelsContainer.innerHTML = '';
+                htmlLabels = [];
+            }
+
+            function loadExercise(exId) {
+                currentExercise = exId;
+                clearExerciseScene();
+
+                if (exId === 'ex3') {
+                    document.getElementById('exercise-title').textContent = "Esercizio 3: Geometria nello Spazio";
+                    document.getElementById('exercise-subtitle').textContent = "Rette Sghembe, Piani π1, π2 e Retta Ortogonale s";
+                    buildExercise3();
+                    setIsoViewEx3();
+                } else {
+                    document.getElementById('exercise-title').textContent = "Esercizio 6: Geometria nello Spazio";
+                    document.getElementById('exercise-subtitle').textContent = "Punti A,B,C, Piano π, Rette r1, r2, s e Distanza P-Q";
+                    buildExercise6();
+                    setIsoViewEx6();
+                }
+                buildLegendChecklist();
+            }
+
+            // HTML 2D Label Helper
+            function addHtmlLabel(position, text, bgColor, textColor = '#ffffff', groupRef = null) {
+                const div = document.createElement('div');
+                div.className = 'geometry-label';
+                div.textContent = text;
+                div.style.backgroundColor = bgColor;
+                div.style.color = textColor;
+                labelsContainer.appendChild(div);
+
+                htmlLabels.push({
+                    element: div,
+                    pos: position.clone(),
+                    group: groupRef
+                });
+            }
+
+            function updateHtmlLabels() {
+                const tempV = new THREE.Vector3();
+                htmlLabels.forEach(item => {
+                    if (item.group && !item.group.visible) {
+                        item.element.style.opacity = '0';
+                        return;
+                    }
+
+                    tempV.copy(item.pos);
+                    tempV.project(camera);
+
+                    if (tempV.z > 1) {
+                        item.element.style.opacity = '0';
+                        return;
+                    }
+
+                    const x = (tempV.x * .5 + .5) * window.innerWidth;
+                    const y = (tempV.y * -.5 + .5) * window.innerHeight;
+
+                    item.element.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+                    item.element.style.opacity = '1';
+                });
+            }
+
+            function buildGridAndAxes() {
+                const grid = new THREE.GridHelper(30, 30, 0x334155, 0x1e293b);
+                grid.position.y = -3;
+                groups.grid.add(grid);
+
+                createAxis(new THREE.Vector3(-2, 0, 0), new THREE.Vector3(12, 0, 0), COLORS.axisX);
+                createAxis(new THREE.Vector3(0, -3, 0), new THREE.Vector3(0, 8, 0), COLORS.axisY);
+                createAxis(new THREE.Vector3(0, 0, -4), new THREE.Vector3(0, 0, 8), COLORS.axisZ);
+            }
+
+            function createAxis(from, to, color) {
+                const dir = new THREE.Vector3().subVectors(to, from);
+                const len = dir.length();
+                dir.normalize();
+
+                const cylGeo = new THREE.CylinderGeometry(0.025, 0.025, len, 8);
+                const mat = new THREE.MeshBasicMaterial({ color: color });
+                const mesh = new THREE.Mesh(cylGeo, mat);
+                
+                mesh.position.copy(from.clone().add(to).multiplyScalar(0.5));
+                mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+                groups.axes.add(mesh);
+
+                const coneGeo = new THREE.ConeGeometry(0.1, 0.3, 12);
+                const cone = new THREE.Mesh(coneGeo, mat);
+                cone.position.copy(to);
+                cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+                groups.axes.add(cone);
+            }
+
+            // -------------------------------------------------------------
+            // BUILD EXERCIZE 3 (DEFAULT)
+            // -------------------------------------------------------------
+            function buildExercise3() {
+                const subGroups = {
+                    points: new THREE.Group(),
+                    r1: new THREE.Group(),
+                    r2: new THREE.Group(),
+                    pi1: new THREE.Group(),
+                    pi2: new THREE.Group(),
+                    s: new THREE.Group()
+                };
+                Object.values(subGroups).forEach(g => groups.exGroup.add(g));
+
+                // 1. Points P(0,1,-3) and P0(1.5, 1.25, 3)
+                const P = new THREE.Vector3(0, 1, -3);
+                const P0 = new THREE.Vector3(1.5, 1.25, 3);
+                const R = new THREE.Vector3(2.5, 1.25, 2); // Intersection of r2 with pi2
+
+                createSpherePoint(P, COLORS.P, 'P', subGroups.points);
+                createSpherePoint(P0, COLORS.P0, 'P0', subGroups.points);
+                createSpherePoint(R, COLORS.R, 'R', subGroups.s, 0.14);
+
+                // 2. Line r1: through P with direction (1,1,1)
+                const r1Dir = new THREE.Vector3(1, 1, 1).normalize();
+                const r1Start = P.clone().addScaledVector(r1Dir, -4);
+                const r1End = P.clone().addScaledVector(r1Dir, 8);
+                createThick3DLine(r1Start, r1End, 0.05, COLORS.r1, subGroups.r1);
+                addHtmlLabel(P.clone().addScaledVector(r1Dir, 6), 'r1', 'rgba(16, 185, 129, 0.9)', '#ffffff', subGroups.r1);
+
+                // 3. Line r2: parametric (0.5+t, 0.25+0.5t, t) => dir (1, 0.5, 1)
+                const r2P0 = new THREE.Vector3(0.5, 0.25, 0);
+                const r2Dir = new THREE.Vector3(1, 0.5, 1).normalize();
+                const r2Start = r2P0.clone().addScaledVector(r2Dir, -4);
+                const r2End = r2P0.clone().addScaledVector(r2Dir, 7);
+                createThick3DLine(r2Start, r2End, 0.05, COLORS.r2, subGroups.r2);
+                addHtmlLabel(r2P0.clone().addScaledVector(r2Dir, 5), 'r2', 'rgba(20, 184, 166, 0.9)', '#ffffff', subGroups.r2);
+
+                // 4. Plane pi1: contains r2 and passes through P0 (x - 4y + z = -0.5)
+                // Correct normal vector n_pi1 = v_r2 x (P0 - Q_r2) = (2, 1, 2) x (1, 1, 3) = (1, -4, 1)
+                const pi1Center = new THREE.Vector3(1.0, 0.75, 1.5);
+                const pi1Normal = new THREE.Vector3(1, -4, 1).normalize();
+                createPlaneMesh(pi1Center, pi1Normal, 14, 12, COLORS.pi1, 'pi1', subGroups.pi1);
+
+                // 5. Plane pi2: passes through P0 and orthogonal to r1 (x + y + z = 5.75)
+                const pi2Normal = new THREE.Vector3(1, 1, 1).normalize();
+                createPlaneMesh(P0, pi2Normal, 11, 11, COLORS.pi2, 'pi2', subGroups.pi2);
+
+                // 6. Line s: through P0, orthogonal to r1, intersects r2 at R(2.5, 1.25, 2)
+                const sDir = new THREE.Vector3(1, 0, -1).normalize();
+                const sStart = P0.clone().addScaledVector(sDir, -3);
+                const sEnd = P0.clone().addScaledVector(sDir, 5);
+                createThick3DLine(sStart, sEnd, 0.05, COLORS.s, subGroups.s);
+                addHtmlLabel(P0.clone().addScaledVector(sDir, 3.5), 's', 'rgba(244, 63, 94, 0.9)', '#ffffff', subGroups.s);
+            }
+
+            // -------------------------------------------------------------
+            // BUILD EXERCIZE 6
+            // -------------------------------------------------------------
+            function buildExercise6() {
+                const subGroups = {
+                    points: new THREE.Group(),
+                    triangle: new THREE.Group(),
+                    plane: new THREE.Group(),
+                    r1: new THREE.Group(),
+                    r2: new THREE.Group(),
+                    s: new THREE.Group(),
+                    pq: new THREE.Group()
+                };
+                Object.values(subGroups).forEach(g => groups.exGroup.add(g));
+
+                const A = new THREE.Vector3(0, 1, 1);
+                const B = new THREE.Vector3(1, 2, 1);
+                const C = new THREE.Vector3(3, 0, -1);
+                const P = new THREE.Vector3(6, 3, -1);
+                const Q = new THREE.Vector3(26/3, 1/3, 5/3);
+
+                // 1. Points A, B, C
+                createSpherePoint(A, COLORS.A, 'A', subGroups.points);
+                createSpherePoint(B, COLORS.B, 'B', subGroups.points);
+                createSpherePoint(C, COLORS.C, 'C', subGroups.points);
+
+                // 2. Triangle ABC
+                const triGeo = new THREE.BufferGeometry();
+                const vertices = new Float32Array([
+                    A.x, A.y, A.z,
+                    B.x, B.y, B.z,
+                    C.x, C.y, C.z
+                ]);
+                triGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                triGeo.computeVertexNormals();
+
+                const triMat = new THREE.MeshPhongMaterial({
+                    color: 0xf59e0b,
+                    transparent: true,
+                    opacity: 0.55,
+                    side: THREE.DoubleSide
+                });
+                subGroups.triangle.add(new THREE.Mesh(triGeo, triMat));
+
+                const triEdges = new THREE.BufferGeometry();
+                const edgeVertices = new Float32Array([
+                    A.x, A.y, A.z, B.x, B.y, B.z,
+                    B.x, B.y, B.z, C.x, C.y, C.z,
+                    C.x, C.y, C.z, A.x, A.y, A.z
+                ]);
+                triEdges.setAttribute('position', new THREE.BufferAttribute(edgeVertices, 3));
+                subGroups.triangle.add(new THREE.LineSegments(triEdges, new THREE.LineBasicMaterial({ color: 0xfde047, linewidth: 2 })));
+
+                // 3. Plane pi
+                const planeCenter = new THREE.Vector3(2.5, 0.5, -0.5);
+                const planeNormal = new THREE.Vector3(1, -1, 2).normalize();
+                createPlaneMesh(planeCenter, planeNormal, 14, 12, COLORS.planeEx6, 'pi', subGroups.plane);
+
+                // 4. Line r1 (through A & B)
+                const r1Dir = new THREE.Vector3(1, 1, 0).normalize();
+                const r1Start = A.clone().addScaledVector(r1Dir, -5);
+                const r1End = A.clone().addScaledVector(r1Dir, 8);
+                createThick3DLine(r1Start, r1End, 0.05, COLORS.r1, subGroups.r1);
+                addHtmlLabel(A.clone().addScaledVector(r1Dir, 6), 'r1', 'rgba(16, 185, 129, 0.9)', '#ffffff', subGroups.r1);
+
+                // 5. Line r2 (through C parallel to r1)
+                const r2Start = C.clone().addScaledVector(r1Dir, -4);
+                const r2End = C.clone().addScaledVector(r1Dir, 7);
+                createThick3DLine(r2Start, r2End, 0.05, COLORS.r2, subGroups.r2);
+                addHtmlLabel(C.clone().addScaledVector(r1Dir, 5), 'r2', 'rgba(20, 184, 166, 0.9)', '#ffffff', subGroups.r2);
+
+                // 6. Line s
+                const sPoint0 = new THREE.Vector3(2, -3, 5);
+                const sDir = new THREE.Vector3(2, 1, -1).normalize();
+                const sStart = sPoint0.clone().addScaledVector(sDir, -4);
+                const sEnd = sPoint0.clone().addScaledVector(sDir, 8);
+                createThick3DLine(sStart, sEnd, 0.05, COLORS.s, subGroups.s);
+                addHtmlLabel(sPoint0.clone().addScaledVector(sDir, 6), 's', 'rgba(244, 63, 94, 0.9)', '#ffffff', subGroups.s);
+
+                // 7. Points P, Q segment
+                createSpherePoint(P, COLORS.pq, 'P', subGroups.pq, 0.2);
+                createSpherePoint(Q, COLORS.pq, 'Q', subGroups.pq, 0.2);
+                createThick3DLine(P, Q, 0.06, COLORS.pq, subGroups.pq);
+            }
+
+            // Helper to build Plane with Wireframe and HTML Label
+            function createPlaneMesh(center, normal, width, height, colorHex, labelText, targetGroup) {
+                const planeGeo = new THREE.PlaneGeometry(width, height);
+                const planeMat = new THREE.MeshPhongMaterial({
+                    color: colorHex,
+                    transparent: true,
+                    opacity: 0.35,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                    shininess: 60
+                });
+                const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+
+                const planeQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+                planeMesh.quaternion.copy(planeQuat);
+                planeMesh.position.copy(center);
+                targetGroup.add(planeMesh);
+
+                const planeEdgesGeo = new THREE.EdgesGeometry(planeGeo);
+                const planeWire = new THREE.LineSegments(planeEdgesGeo, new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2 }));
+                planeWire.quaternion.copy(planeQuat);
+                planeWire.position.copy(center);
+                targetGroup.add(planeWire);
+
+                const planeLabelPos = center.clone().add(new THREE.Vector3(width * 0.3, height * 0.3, 0).applyQuaternion(planeQuat));
+                addHtmlLabel(planeLabelPos, labelText, 'rgba(15, 23, 42, 0.85)', '#ffffff', targetGroup);
+            }
+
+            function createSpherePoint(pos, colorHex, labelText, targetGroup, radius = 0.16) {
+                const geo = new THREE.SphereGeometry(radius, 24, 24);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: colorHex,
+                    roughness: 0.1,
+                    metalness: 0.5,
+                    emissive: colorHex,
+                    emissiveIntensity: 0.3
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(pos);
+                targetGroup.add(mesh);
+
+                if (labelText) {
+                    addHtmlLabel(pos, labelText, 'rgba(15, 23, 42, 0.85)', colorHex, targetGroup);
+                }
+            }
+
+            function createThick3DLine(start, end, radius, colorHex, targetGroup) {
+                const dir = new THREE.Vector3().subVectors(end, start);
+                const len = dir.length();
+                dir.normalize();
+
+                const geom = new THREE.CylinderGeometry(radius, radius, len, 16);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: colorHex,
+                    roughness: 0.3,
+                    emissive: colorHex,
+                    emissiveIntensity: 0.25
+                });
+
+                const cylinder = new THREE.Mesh(geom, mat);
+                cylinder.position.copy(start.clone().add(end).multiplyScalar(0.5));
+                cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+                targetGroup.add(cylinder);
+            }
+
+            // Dynamic Legend Renderer
+            function buildLegendChecklist() {
+                const container = document.getElementById('legend-checklist');
+                container.innerHTML = '';
+
+                let items = [];
+                if (currentExercise === 'ex3') {
+                    items = [
+                        { id: 'toggle-points', label: 'Punti P, P0', color: 'bg-amber-400', groupIdx: 0 },
+                        { id: 'toggle-r1', label: 'Retta r1', color: 'bg-emerald-400', groupIdx: 1 },
+                        { id: 'toggle-r2', label: 'Retta r2', color: 'bg-teal-300', groupIdx: 2 },
+                        { id: 'toggle-pi1', label: 'Piano π1', color: 'bg-cyan-500', groupIdx: 3 },
+                        { id: 'toggle-pi2', label: 'Piano π2', color: 'bg-purple-500', groupIdx: 4 },
+                        { id: 'toggle-s', label: 'Retta s', color: 'bg-rose-400', groupIdx: 5 }
+                    ];
+                } else {
+                    items = [
+                        { id: 'toggle-points', label: 'Punti A, B, C', color: 'bg-amber-400', groupIdx: 0 },
+                        { id: 'toggle-triangle', label: 'Triangolo ABC', color: 'bg-amber-500', groupIdx: 1 },
+                        { id: 'toggle-plane', label: 'Piano π', color: 'bg-cyan-400', groupIdx: 2 },
+                        { id: 'toggle-r1', label: 'Retta r1', color: 'bg-emerald-400', groupIdx: 3 },
+                        { id: 'toggle-r2', label: 'Retta r2', color: 'bg-teal-300', groupIdx: 4 },
+                        { id: 'toggle-s', label: 'Retta s', color: 'bg-rose-400', groupIdx: 5 },
+                        { id: 'toggle-pq', label: 'Punti P, Q', color: 'bg-purple-400', groupIdx: 6 }
+                    ];
+                }
+
+                items.forEach((item) => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center justify-between cursor-pointer group py-1 text-slate-200 border-b border-slate-800/60 last:border-0';
+                    label.innerHTML = `
+                        <span class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full ${item.color}"></span>
+                            ${item.label}
+                        </span>
+                        <input type="checkbox" id="${item.id}" checked class="accent-indigo-500 rounded cursor-pointer">
+                    `;
+                    container.appendChild(label);
+
+                    label.querySelector('input').addEventListener('change', (e) => {
+                        if (groups.exGroup.children[item.groupIdx]) {
+                            groups.exGroup.children[item.groupIdx].visible = e.target.checked;
+                        }
+                    });
+                });
+
+                // Common Grid & Axes Toggle
+                const gridLabel = document.createElement('label');
+                gridLabel.className = 'flex items-center justify-between cursor-pointer group py-1 text-slate-400 pt-1.5 border-t border-slate-800';
+                gridLabel.innerHTML = `
+                    <span class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-slate-600"></span>
+                        Griglia & Assi
+                    </span>
+                    <input type="checkbox" id="toggle-grid" checked class="accent-indigo-500 rounded cursor-pointer">
+                `;
+                container.appendChild(gridLabel);
+
+                gridLabel.querySelector('input').addEventListener('change', (e) => {
+                    groups.grid.visible = e.target.checked;
+                    groups.axes.visible = e.target.checked;
+                });
+            }
+
+            // Camera presets
+            function setIsoViewEx3() {
+                camera.position.set(10, 9, 12);
+                controls.target.set(1, 1, 0);
+                controls.update();
+            }
+
+            function setIsoViewEx6() {
+                camera.position.set(14, 11, 16);
+                controls.target.set(3, 1, 0);
+                controls.update();
+            }
+
+            function setIsoView() {
+                if (currentExercise === 'ex3') setIsoViewEx3();
+                else setIsoViewEx6();
+            }
+
+            function setTopView() {
+                const targetX = currentExercise === 'ex3' ? 1 : 3;
+                camera.position.set(targetX, 20, 0.01);
+                controls.target.set(targetX, 1, 0);
+                controls.update();
+            }
+
+            function setFrontView() {
+                const targetX = currentExercise === 'ex3' ? 1 : 3;
+                camera.position.set(targetX, 1, 20);
+                controls.target.set(targetX, 1, 0);
+                controls.update();
+            }
+
+            function setupUIHandlers() {
+                // Exercise Switcher
+                document.getElementById('exercise-select').addEventListener('change', (e) => {
+                    loadExercise(e.target.value);
+                });
+
+                // Collapsible Legend Toggle
+                const toggleBtn = document.getElementById('btn-toggle-legend');
+                const legendContent = document.getElementById('legend-content');
+                const collapseIcon = document.getElementById('collapse-icon');
+                let isCollapsed = false;
+
+                toggleBtn.addEventListener('click', () => {
+                    isCollapsed = !isCollapsed;
+                    if (isCollapsed) {
+                        legendContent.style.maxHeight = '0px';
+                        legendContent.style.opacity = '0';
+                        legendContent.style.paddingTop = '0px';
+                        collapseIcon.className = 'fa-solid fa-plus text-xs';
+                        toggleBtn.title = 'Espandi Legenda';
+                    } else {
+                        legendContent.style.maxHeight = '80vh';
+                        legendContent.style.opacity = '1';
+                        legendContent.style.paddingTop = '0.75rem';
+                        collapseIcon.className = 'fa-solid fa-minus text-xs';
+                        toggleBtn.title = 'Minimizza Legenda';
+                    }
+                });
+
+                // Camera Views
+                document.getElementById('btn-reset').addEventListener('click', setIsoView);
+                document.getElementById('view-iso').addEventListener('click', setIsoView);
+                document.getElementById('view-top').addEventListener('click', setTopView);
+                document.getElementById('view-front').addEventListener('click', setFrontView);
+            }
+
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                updateHtmlLabels();
+                renderer.render(scene, camera);
+            }
+
+            window.onload = init;
+        })();
+    </script>
+</body>
+</html>
