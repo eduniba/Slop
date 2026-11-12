@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Polynomial Division</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--fg:#1c1c1e;--muted:#6b6b70;--line:#dcdcd8;--accent:#2563eb;--accent-bg:#dbe7ff;--red:#d33;--blue:#27c}
+@media (prefers-color-scheme:dark){:root{--bg:#18181a;--card:#242428;--fg:#ececee;--muted:#9a9aa2;--line:#3a3a40;--accent:#7aa5ff;--accent-bg:#2c3f6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.4rem;margin:0 0 14px}
+form{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:8px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--muted);flex:1 1 240px}
+input{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);width:100%}
+button{font:inherit;padding:8px 16px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+#err{color:var(--red);min-height:1.4em;font-size:.9rem}
+.nav{display:flex;gap:12px;align-items:center;margin:8px 0}
+#count{color:var(--muted);min-width:110px;text-align:center}
+#hint{color:var(--muted);font-size:.85rem;margin-bottom:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px;overflow-x:auto}
+.long{display:flex;align-items:stretch}
+.long .katex-display{margin:0;text-align:left}
+.long .katex-display>.katex{text-align:left}
+.lleft{flex:none;display:grid;align-content:start;align-items:center;justify-items:center;padding:4px 24px 4px 0;border-right:2px solid var(--fg);min-height:120px}
+.cell{height:2.1em;width:100%;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+.rule{justify-self:start;width:calc(100% + 24px);height:2px;background:var(--fg);margin:3px 0}
+.hl{align-self:stretch;justify-self:stretch;margin:3px 5px;border:1px solid;border-radius:8px;pointer-events:none}
+.brace-wrap{width:100%;text-align:center}
+.brace{height:9px;border:2px solid var(--fg);border-top:none;border-radius:0 0 10px 10px;margin:4px 6px 0}
+.blab{font-size:.8rem;color:var(--muted)}
+.qwrap{position:relative;display:block;width:fit-content;margin:0 0 1.8em 24px}
+.qwrap.nobrace .brace,.qwrap.nobrace .blab{visibility:hidden}
+.qwrap .brace{margin:4px 0 0}
+.banchor{position:relative;height:0}
+.qwrap .blab{position:absolute;left:50%;transform:translateX(-50%);top:3px;white-space:nowrap}
+.stop{display:block;width:fit-content;margin:0 0 0 24px;border:2px solid var(--fg);color:var(--fg);border-radius:8px;padding:2px 10px;font-size:.85rem;white-space:nowrap}
+.stop[hidden]{display:none}
+#quotx{height:2.3em;display:flex;align-items:center}
+.lright{padding:0;min-width:150px}
+.divisor{display:flex;align-items:center;height:calc(2.1em + 10px);border-bottom:2px solid var(--fg);padding:4px 0 0 24px;margin-bottom:6px}
+.lab{font-size:.85rem;color:var(--muted);font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>Polynomial long division</h1>
+<form id="f">
+  <label><span class="tex" data-tex="p(x)"></span><input id="p" value="2x^3-3x^2+4x-5" autocomplete="off"></label>
+  <label><span class="tex" data-tex="q(x)"></span><input id="q" value="x^2-x+1" autocomplete="off"></label>
+  <button class="primary" type="submit">Start</button>
+</form>
+<div id="err"></div>
+<div class="nav">
+  <button id="prev">← Previous</button>
+  <span id="count"></span>
+  <button id="next">Next →</button>
+</div>
+<div id="hint">Syntax: <code>3x^2 - x/2 + 1</code>, <code>(1/3)x^4</code>.</div>
+<div id="stage">
+  <div class="card long">
+    <div class="lleft" id="work"></div>
+    <div class="lright"><div class="divisor" id="divisor"></div><div class="qwrap nobrace" id="quot"><div id="quotx"></div><div class="brace"></div><div class="banchor"><div class="blab">quotient</div></div></div>
+      <div class="stop" id="stop" hidden><b>STOP</b> <span id="stopx"></span></div></div>
+  </div>
+  <div class="card" id="cap"><div class="lab" id="lab"></div><div id="capx"></div></div>
+  <div class="card" id="result"><div class="lab">Result</div><div id="resx"></div></div>
+</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+/* ---------- exact rational arithmetic ---------- */
+const gcd=(a,b)=>{a=a<0n?-a:a;b=b<0n?-b:b;while(b){[a,b]=[b,a%b]}return a};
+class Fr{
+  constructor(n,d=1n){
+    if(d===0n) throw new Error('Division by zero');
+    if(d<0n){n=-n;d=-d}
+    const g=gcd(n,d)||1n; this.n=n/g; this.d=d/g;
+  }
+  add(o){return new Fr(this.n*o.d+o.n*this.d,this.d*o.d)}
+  sub(o){return new Fr(this.n*o.d-o.n*this.d,this.d*o.d)}
+  mul(o){return new Fr(this.n*o.n,this.d*o.d)}
+  div(o){return new Fr(this.n*o.d,this.d*o.n)}
+  isZero(){return this.n===0n}
+  isOne(){return this.n===1n&&this.d===1n}
+}
+const ZERO=()=>new Fr(0n);
+const dec=s=>{const [i,f='']=s.split('.');return new Fr(BigInt(i+f),10n**BigInt(f.length))};
+const num=s=>{const [a,b]=s.split('/');let v=dec(a);if(b!==undefined)v=v.div(dec(b));return v};
+
+/* ---------- polynomials: dense arrays, index = degree ---------- */
+const trim=p=>{while(p.length&&p[p.length-1].isZero())p.pop();return p};
+function parsePoly(str){
+  const s=str.replace(/\s+/g,'').replace(/[−–]/g,'-').replace(/\*/g,'').replace(/X/g,'x');
+  if(!s) throw new Error('Empty polynomial');
+  const re=/([+-]?)(?:\((-?\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?)\)|(\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?))?(x(?:\^(\d+))?)?/y;
+  const terms=[];let pos=0,maxd=0;
+  while(pos<s.length){
+    re.lastIndex=pos;const m=re.exec(s);
+    if(!m||(!m[2]&&!m[3]&&!m[4])||(pos>0&&!m[1])) throw new Error('Cannot parse near "'+s.slice(pos)+'"');
+    let c=m[2]?num(m[2]):m[3]?num(m[3]):new Fr(1n);
+    if(m[1]==='-') c=new Fr(-c.n,c.d);
+    const d=m[4]?(m[5]!==undefined?parseInt(m[5],10):1):0;
+    if(d>40) throw new Error('Degree too large (max 40)');
+    terms.push([c,d]);maxd=Math.max(maxd,d);pos=re.lastIndex;
+  }
+  const p=Array.from({length:maxd+1},ZERO);
+  terms.forEach(([c,d])=>{p[d]=p[d].add(c)});
+  return trim(p);
+}
+
+function divide(p,q){
+  const m=q.length-1;let r=p.slice();const steps=[];
+  while(r.length-1>=m){
+    const n=r.length-1,c=r[n].div(q[m]),e=n-m;
+    const prod=Array.from({length:n+1},ZERO);
+    q.forEach((qc,i)=>{prod[i+e]=qc.mul(c)});
+    const after=trim(r.map((x,i)=>x.sub(prod[i])));
+    steps.push({before:r,n,e,c,lead:r[n],prod,after});
+    r=after;
+  }
+  return {steps,rem:r};
+}
+
+/* ---------- TeX helpers ---------- */
+const RED='#d33',BLUE='#27c';
+const fr=f=>f.d===1n?f.n.toString():`\\frac{${f.n<0n?-f.n:f.n}}{${f.d}}`;
+const colorWrap=col=>s=>`\\textcolor{${col}}{${s}}`;
+function termTex(c,d,first,wrap){
+  const neg=c.n<0n,a=new Fr(neg?-c.n:c.n,c.d);
+  const cs=(a.isOne()&&d>0)?'':fr(a);
+  const v=d===0?'':d===1?'x':`x^{${d}}`;
+  const s=(first?(neg?'-':''):(neg?'{}-':'{}+'))+cs+v;
+  return wrap?wrap(s):s;
+}
+function polyTex(p,wrapAt){
+  let out='',first=true;
+  for(let d=p.length-1;d>=0;d--){
+    if(p[d].isZero())continue;
+    out+=termTex(p[d],d,first,wrapAt&&wrapAt(d));first=false;
+  }
+  return out||'0';
+}
+function tex(el,s,display=false){
+  katex.render(s,el,{displayMode:display,throwOnError:false,trust:true,strict:false});
+}
+
+/* ---------- state & rendering ---------- */
+const $=id=>document.getElementById(id);
+let S=null;
+
+const GREEN='#1f9d55';
+const boxWrap=col=>t=>`\\htmlStyle{display:inline-block;color:${col};outline:1px solid ${col};outline-offset:2px;border-radius:5px}{${t}}`;
+function quotTex(k,curWrap){
+  if(!k) return '\\cdots';
+  let out='';
+  for(let i=0;i<k;i++){
+    const x=S.steps[i];
+    out+=termTex(x.c,x.e,i===0,(curWrap&&i===k-1)?curWrap:null);
+  }
+  return out;
+}
+
+const PH=['a) compute the term of the quotient','b) write the partial product','c) subtract'];
+function stateOf(sub){
+  if(sub===0) return {k:0,ph:-1,full:0,partial:0};
+  const k=Math.ceil(sub/3),ph=(sub-1)%3;
+  return {k,ph,full:ph===2?k:k-1,partial:ph===1?1:0};
+}
+
+function buildScheme(st,final){
+  const el=$('work');el.innerHTML='';
+  const D=Math.max(S.p.length-1,0);
+  const cur=st.k?S.steps[st.k-1]:null;
+  el.style.gridTemplateColumns=`repeat(${D+1},${S.colW}px)`;
+  const polyCells=(p,idx,cut)=>{
+    let mode=null;
+    if(cur){
+      const bf=2*(st.k-1),pr=2*st.k-1,af=2*st.k;
+      if(st.ph===0&&idx===bf) mode={col:RED,lead:true};
+      if(st.ph===1&&idx===pr) mode={col:GREEN};
+      if(st.ph===2){
+        if(idx===bf) mode={col:RED};
+        if(idx===pr) mode={col:BLUE};
+        if(idx===af) mode={col:GREEN};
+      }
+    }
+    const degs=[];
+    for(let d=D;d>=0;d--) if(!(cut&&d===cut.d)&&p[d]&&!p[d].isZero()) degs.push(d);
+    const whole=mode&&!mode.lead;
+    const single=whole&&degs.length<=1;
+    const cells=[];let first=true;
+    for(let d=D;d>=0;d--){
+      if(cut&&d===cut.d){cells.push(`\\cancel{\\phantom{${cut.tex}}}`);continue}
+      if(p[d]&&!p[d].isZero()){
+        let w=null;
+        if(mode){
+          if(mode.lead){if(d===cur.n)w=boxWrap(mode.col)}
+          else w=single?boxWrap(mode.col):colorWrap(mode.col);
+        }
+        cells.push(termTex(p[d],d,first,w));first=false;
+      }else cells.push('');
+    }
+    if(first&&!(cut&&cut.d===0)) cells[cells.length-1]=whole?boxWrap(mode.col)('0'):'0';
+    const box=(whole&&degs.length>1)?{c1:D-degs[0]+1,c2:D-degs[degs.length-1]+1,col:mode.col}:null;
+    return {cells,box};
+  };
+  const rows=[];
+  const push=(p,hl,cut)=>rows.push({...polyCells(p,rows.length,cut),hl});
+  push(S.p,false);
+  for(let i=0;i<st.full;i++){
+    const x=S.steps[i];
+    push(x.prod,true);
+    push(x.after,false,{d:x.n,tex:termTex(x.lead,x.n,true)});
+  }
+  if(st.partial) push(S.steps[st.k-1].prod,true);
+  let gr=1;
+  const place=(node,row,col)=>{node.style.gridRow=row;node.style.gridColumn=col;el.appendChild(node);return node};
+  rows.forEach(r=>{
+    r.cells.forEach((t,i)=>{const d=document.createElement('div');d.className='cell';if(t)tex(d,t);place(d,gr,i+1)});
+    if(r.box){const h=document.createElement('div');h.className='hl';h.style.borderColor=r.box.col;place(h,gr,`${r.box.c1} / ${r.box.c2+1}`)}
+    gr++;
+    if(r.hl){const ru=document.createElement('div');ru.className='rule';place(ru,gr,'1 / -1');gr++}
+  });
+  if(final){
+    const start=S.rem.length?D-(S.rem.length-1)+1:D+1;
+    const w=document.createElement('div');w.className='brace-wrap';
+    w.innerHTML='<div class="brace"></div><div class="blab">remainder</div>';
+    place(w,gr,`${start} / ${D+2}`);
+  }
+}
+
+function measureCols(){
+  const probe=document.createElement('div');
+  probe.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0';
+  document.body.appendChild(probe);
+  let max=0;
+  const add=p=>{for(let d=0;d<p.length;d++){
+    if(p[d].isZero())continue;
+    const sp=document.createElement('span');sp.style.display='inline-block';
+    tex(sp,termTex(p[d],d,false));probe.appendChild(sp);
+    max=Math.max(max,sp.getBoundingClientRect().width);
+  }};
+  add(S.p);S.steps.forEach(x=>{add(x.prod);add(x.after)});
+  probe.remove();
+  S.colW=Math.max(60,Math.ceil(max)+28);
+}
+
+function captionTex(st){
+  const x=S.steps[st.k-1],k=st.k,m=S.q.length-1;
+  const T=termTex(x.c,x.e,true);
+  if(st.ph===0)
+    return `t_{${k}}=\\dfrac{${termTex(x.lead,x.n,true,colorWrap(RED))}}{${termTex(S.q[m],m,true,colorWrap(BLUE))}}=${colorWrap(GREEN)(T)}`;
+  if(st.ph===1){
+    const t=(x.c.n<0n||x.c.d!==1n)?`\\left(${T}\\right)`:T;
+    return `${colorWrap(BLUE)(t)}\\cdot\\left(${colorWrap(RED)(polyTex(S.q))}\\right)=${colorWrap(GREEN)(polyTex(x.prod))}`;
+  }
+  return `\\left(${colorWrap(RED)(polyTex(x.before))}\\right)-\\left(${colorWrap(BLUE)(polyTex(x.prod))}\\right)=${colorWrap(GREEN)(polyTex(x.after))}`;
+}
+
+function render(){
+  const {p,q,steps,step,rem}=S,N=steps.length,T=3*N,final=step===T;
+  const st=stateOf(step);
+  $('count').textContent=step===0?'Start':`Step ${st.k} / ${N} · ${PH[st.ph].slice(0,2)}`;
+  $('prev').disabled=step===0;$('next').disabled=final;
+  const m=q.length-1;
+  let divTex=polyTex(q);
+  if(st.k&&st.ph===0) divTex=polyTex(q,d=>d===m?boxWrap(BLUE):null);
+  if(st.k&&st.ph===1) divTex=boxWrap(RED)(polyTex(q));
+  buildScheme(st,final);
+  tex($('divisor'),divTex,true);
+  tex($('quotx'),N===0?'0':st.k?quotTex(st.k,st.ph===0?boxWrap(GREEN):st.ph===1?boxWrap(BLUE):null):'',true);
+  $('quot').classList.toggle('nobrace',!final);
+  $('stop').hidden=!final;
+  if(final)tex($('stopx'),'\\deg r<\\deg q');
+  const lab=$('lab'),cx=$('capx');
+  cx.innerHTML='';
+  if(N===0){
+    lab.textContent='';
+    tex(cx,'\\deg p<\\deg q\;\\Rightarrow\; s(x)=0,\;\; r(x)=p(x)',true);
+  }else if(step===0){
+    lab.textContent='Press “Next” to start.';
+  }else{
+    lab.textContent=PH[st.ph];
+    tex(cx,captionTex(st),true);
+  }
+  const res=$('result');
+  if(final){
+    res.style.display='';
+    const P=polyTex(p),Q=polyTex(q),R=polyTex(rem),Sq=N?quotTex(N):'';
+    const prod=N?`\\left(${Q}\\right)\\left(${Sq}\\right)`:'';
+    const rp=rem.length?(N?'+':'')+`\\left(${R}\\right)`:'';
+    const fq=N?Sq:'',fr2=rem.length?(N?'+':'')+`\\dfrac{${R}}{${Q}}`:'';
+    tex($('resx'),`\\begin{aligned}${P}&=${prod+rp||'0'}\\\\[4pt]\\dfrac{${P}}{${Q}}&=${fq+fr2||'0'}\\end{aligned}`,true);
+  }else res.style.display='none';
+}
+
+function apply(){
+  $('err').textContent='';
+  try{
+    const p=parsePoly($('p').value),q=parsePoly($('q').value);
+    if(!q.length) throw new Error('q(x) must not be zero');
+    const {steps,rem}=divide(p,q);
+    S={p,q,steps,rem,step:0};measureCols();
+    render();
+  }catch(e){$('err').textContent=e.message}
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.key==='ArrowRight')$('next').click();
+  if(e.key==='ArrowLeft')$('prev').click();
+});
+
+/* ---------- controls ---------- */
+$('f').addEventListener('submit',e=>{e.preventDefault();apply()});
+$('next').addEventListener('click',()=>{if(S&&S.step<3*S.steps.length){S.step++;render()}});
+$('prev').addEventListener('click',()=>{if(S&&S.step>0){S.step--;render()}});
+
+window.addEventListener('load',()=>{
+  if(typeof katex==='undefined'){$('err').textContent='KaTeX failed to load (check your internet connection).';return}
+  document.querySelectorAll('.tex').forEach(el=>tex(el,el.dataset.tex));
+  apply();
+});
+</script>
+</body>
+</html>
