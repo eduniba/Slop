@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zero Theorem – Bisection</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/nerdamer.core.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathlive@0.100.0/dist/mathlive.min.js"></script>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#6b7280;--bd:#d1d5db;--pt:#2563eb;--ok:#2e9e5b;--hi:#eef6ff;--or:#f97316}
+@media(prefers-color-scheme:dark){:root{--bg:#16181d;--fg:#e8e8e8;--mut:#9aa0aa;--bd:#3a3f4a;--pt:#6ea0ff;--ok:#43c47a;--hi:#1f2a3d;--or:#fb923c}}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;max-width:820px;margin-inline:auto}
+.inputs{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:center}
+.fld{display:flex;align-items:center;gap:8px}
+.fld label{color:var(--mut);font-size:17px}
+.fld math-field{flex:1;min-width:0}
+@media(max-width:600px){.inputs{grid-template-columns:1fr}}
+math-field{width:100%;font-size:20px;padding:4px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
+math-field::part(virtual-keyboard-toggle),math-field::part(menu-toggle){display:none}
+.btns{display:flex;gap:8px;margin:12px 0}
+button{font-size:16px;padding:8px 16px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);cursor:pointer}
+button.primary{background:var(--pt);border-color:var(--pt);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+#msg{min-height:24px;color:#c2410c;font-size:15px}
+#chart{width:100%;height:auto;display:block;border:1px solid var(--bd);border-radius:8px;touch-action:none;cursor:grab}
+#res{display:none}
+#chart foreignObject{overflow:visible}
+#chart foreignObject div{display:flex;justify-content:center;white-space:nowrap;color:var(--fg);font-size:17px;line-height:28px}
+.res{margin-top:12px;border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.row{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--bd)}
+.row:first-child{border-top:0}
+.row.cur{background:var(--hi)}
+.row>div{padding:8px 10px;overflow-x:auto}
+.row>div:first-child{border-right:1px solid var(--bd)}
+.row .katex{font-size:1.05em}
+.row>div>div{margin:2px 0}
+</style>
+</head>
+<body>
+<div class="inputs">
+  <div class="fld"><label id="lf"></label><math-field id="fx">x^2-2</math-field></div>
+  <div class="fld"><label id="la"></label><math-field id="fa">1</math-field></div>
+  <div class="fld"><label id="lb"></label><math-field id="fb">2</math-field></div>
+</div>
+<div class="btns">
+  <button id="bConfirm" class="primary">Confirm</button>
+  <button id="bPrev" disabled>Prev</button>
+  <button id="bNext" disabled>Next</button>
+</div>
+<div id="msg"></div>
+<svg id="chart" viewBox="0 0 700 240"></svg>
+<div class="res" id="res"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const T=(s,d)=>katex.renderToString(s,{throwOnError:false,displayMode:!!d});
+
+// MathLive setup: no sounds, no virtual keyboard, no menu
+MathfieldElement.soundsDirectory=null;
+try{MathfieldElement.keypressSound=null;MathfieldElement.plonkSound=null}catch(e){}
+['fx','fa','fb'].forEach(id=>{
+  const mf=$(id);
+  mf.mathVirtualKeyboardPolicy='manual';
+  mf.menuItems=[];
+  // Italian layout: force the characters that the layout detection can miss
+  mf.addEventListener('keydown',e=>{
+    if(e.ctrlKey||e.metaKey)return;
+    if(e.key==='Enter'){e.preventDefault();confirmAll();return}
+    let act=null;
+    if(e.key==='<')act=()=>mf.insert('<');
+    else if(e.key==='>')act=()=>mf.insert('>');
+    else if(e.key==='\\')act=()=>mf.executeCommand(['switchMode','latex']);
+    else if(e.key===' ')act=()=>mf.insert('\\ ');
+    if(act){e.preventDefault();e.stopPropagation();act()}
+  },true);
+});
+$('lf').innerHTML=T('f(x)=');$('la').innerHTML=T('a=');$('lb').innerHTML=T('b=');
+
+// exact values via nerdamer: V = {s: nerdamer string, n: float, t: LaTeX}
+const toNum=r=>{const n=Number(r.evaluate().text('decimals'));if(!isFinite(n))throw 0;return n};
+function mkV(str){
+  const r=nerdamer('expand('+str+')');
+  const t=r.toTeX().replace(/\\mathrm\{(log|ln)\}/g,'\\ln ').replace(/\\mathrm\{(\w+)\}/g,'\\$1 ');
+  return{s:r.toString(),n:toNum(r),t};
+}
+const sg=n=>n>0?1:n<0?-1:0;
+const W=v=>(v.n<0||/[+\-]/.test(v.t.replace(/^-/,'')))?'\\left('+v.t+'\\right)':v.t;
+const half=(a,b)=>mkV(`((${a.s})+(${b.s}))/2`);
+const hdiff=(a,b)=>mkV(`((${b.s})-(${a.s}))/2`);
+
+let fStr='',steps=[],cur=0;
+const asc=id=>$(id).getValue('ascii-math').replace(/\bln\b/g,'log');
+const inV=id=>mkV(asc(id));
+const evalF=v=>mkV(fStr.replace(/\bx\b/g,'('+v.s+')'));
+function mk(a,b,fa,fb,dots){
+  return{a,b,fa,fb,c:half(a,b),eps:hdiff(a,b),ok:sg(fa.n)*sg(fb.n)<0,
+    zero:fa.n===0||fb.n===0,
+    dots:dots||[{x:a,s:sg(fa.n),y:fa.t,z:fa.n===0},{x:b,s:sg(fb.n),y:fb.t,z:fb.n===0}]};
+}
+function confirmAll(){
+  $('msg').innerHTML='';$('msg').style.color='';
+  try{
+    fStr=asc('fx');
+    const a=inV('fa'),b=inV('fb');
+    if(!(a.n<b.n)){$('msg').innerHTML=T('a<b')+' required.';return}
+    steps=[mk(a,b,evalF(a),evalF(b))];cur=0;vmin=a.n;vmax=b.n;
+    render();
+  }catch(e){$('msg').textContent='Invalid function or interval (check that f is defined at a and b).'}
+}
+function next(){
+  $('msg').innerHTML='';$('msg').style.color='';
+  const s=steps[cur];
+  if(!s.ok||s.root)return;
+  try{
+    const fc=evalF(s.c);
+    if(fc.n===0){s.root=true;render();return}
+    const d=sg(fc.n);
+    const dots=s.dots.concat({x:s.c,s:d,y:fc.t});
+    const n=d===sg(s.fa.n)?mk(s.c,s.b,fc,s.fb,dots):mk(s.a,s.c,s.fa,fc,dots);
+    steps.length=cur+1;steps.push(n);cur++;render();
+  }catch(e){$('msg').textContent='Cannot evaluate f at c.'}
+}
+function prev(){if(cur>0){cur--;steps[cur].root=false;render()}}
+
+function setMsg(){
+  const s=steps[cur],m=$('msg');
+  if(s.root||s.zero){
+    const r=s.root?s.c:s.fa.n===0?s.a:s.b;
+    m.style.color='var(--ok)';m.style.fontWeight='600';m.innerHTML='Root found: '+T('x='+r.t);
+  }else if(!s.ok){
+    m.style.color='';m.style.fontWeight='';
+    m.innerHTML='Theorem not applicable: '+T('f(a)')+' and '+T('f(b)')+' do not have opposite signs.';
+  }else{m.style.color='';m.style.fontWeight='';m.innerHTML=''}
+}
+function render(){drawChart();drawRows()}
+let vmin=0,vmax=1;
+function drawChart(){
+  const s=steps[cur];
+  const X=v=>50+(v-vmin)/(vmax-vmin)*600,Y=120,H=55;
+  let g=`<line x1="20" y1="${Y}" x2="680" y2="${Y}" stroke="currentColor" stroke-width="1.5" style="color:var(--fg)"/>`;
+  const lab=(x,y,t)=>x<-40||x>740?'':`<foreignObject x="${x-40}" y="${y}" width="80" height="30"><div xmlns="http://www.w3.org/1999/xhtml">${T(t)}</div></foreignObject>`;
+  g+=lab(668,Y+4,'x');
+  if(s.ok)g+=`<line x1="${X(s.a.n)}" y1="${Y}" x2="${X(s.b.n)}" y2="${Y}" stroke="var(--ok)" stroke-width="7" stroke-linecap="round"/>`;
+  const dot=d=>{
+    const x=X(d.x.n);if(x<-10||x>710)return'';
+    const y=Y-d.s*H,col=d.z?'var(--ok)':d.s>0?'var(--pt)':d.s<0?'var(--or)':'var(--fg)';
+    let o=d.s?`<line x1="${x}" y1="${Y}" x2="${x}" y2="${y}" stroke="var(--mut)" stroke-dasharray="4 3"/>`:'';
+    o+=`<circle cx="${x}" cy="${y}" r="6" fill="${col}"/>`;
+    if(d.s)o+=lab(x,d.s>0?y-34:y+6,d.y);
+    return o+lab(x,d.s<0?Y-36:Y+8,d.x.t);
+  };
+  s.dots.forEach(d=>{g+=dot(d)});
+  if(s.ok||s.root){
+    const x=X(s.c.n);
+    g+=`<circle cx="${x}" cy="${Y}" r="6" fill="${s.root?'var(--ok)':'var(--fg)'}"/>`+lab(x,Y+8,s.c.t);
+  }
+  $('chart').innerHTML=g;
+}
+function drawRows(){
+  const s=steps[cur];
+  $('bPrev').disabled=cur===0;
+  $('bNext').disabled=!s.ok||!!s.root||s.eps.n<1e-6;
+  setMsg();
+  if(!steps[0].ok){$('res').innerHTML='';$('res').style.display='none';return}
+  $('res').style.display='block';
+
+  const R=(nm,fm,v)=>`${nm}=${fm}=${v.t}`;
+  let rows='';
+  for(let i=0;i<=cur;i++){
+    const r=steps[i];
+    const side=(x,f)=>`<div>${T(`f(${x.t})=${f.t}${f.n>0?'>0':f.n<0?'<0':''}`)}</div>`;
+    const right=`<div>${T(R('c',`\\frac{${r.a.t}+${W(r.b)}}{2}`,r.c))}</div><div>${T(R('\\varepsilon',`\\frac{${r.b.t}-${W(r.a)}}{2}`,r.eps))}</div>`;
+    const done=r.root?`<div>${T(`f(${r.c.t})=0`)}</div>`:'';
+    rows+=`<div class="row${i===cur?' cur':''}"><div>${side(r.a,r.fa)}${side(r.b,r.fb)}</div><div>${right}${done}</div></div>`;
+  }
+  $('res').innerHTML=rows;
+  $('res').lastElementChild.scrollIntoView({block:'nearest'});
+  $('bPrev').disabled=cur===0;
+  $('bNext').disabled=!s.ok||!!s.root||s.eps.n<1e-6;
+}
+const C=$('chart'),ptrs=new Map();let lastDist=0;
+function zoomAt(cx,k){
+  const r=C.getBoundingClientRect();
+  const xv=vmin+((cx-r.left)/r.width*700-50)/600*(vmax-vmin);
+  if((vmax-vmin)*k<1e-9)return;
+  vmin=xv-(xv-vmin)*k;vmax=xv+(vmax-xv)*k;drawChart();
+}
+C.addEventListener('wheel',e=>{if(!steps.length)return;e.preventDefault();zoomAt(e.clientX,Math.exp(e.deltaY*0.0015))},{passive:false});
+C.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);C.setPointerCapture(e.pointerId);lastDist=0;C.style.cursor='grabbing'});
+C.addEventListener('pointermove',e=>{
+  if(!steps.length||!ptrs.has(e.pointerId))return;
+  const old=ptrs.get(e.pointerId);ptrs.set(e.pointerId,e);
+  if(ptrs.size===1){
+    const r=C.getBoundingClientRect(),dx=(e.clientX-old.clientX)/r.width*700/600*(vmax-vmin);
+    vmin-=dx;vmax-=dx;drawChart();
+  }else if(ptrs.size===2){
+    const[p,q]=[...ptrs.values()],d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY)||1;
+    if(lastDist)zoomAt((p.clientX+q.clientX)/2,lastDist/d);
+    lastDist=d;
+  }
+});
+const up=e=>{ptrs.delete(e.pointerId);lastDist=0;if(!ptrs.size)C.style.cursor='grab'};
+C.addEventListener('pointerup',up);C.addEventListener('pointercancel',up);
+$('chart').addEventListener('dblclick',()=>{if(steps.length){vmin=steps[0].a.n;vmax=steps[0].b.n;drawChart()}});
+$('bConfirm').onclick=confirmAll;$('bNext').onclick=next;$('bPrev').onclick=prev;
+</script>
+</body>
+</html>
