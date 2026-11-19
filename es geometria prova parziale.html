@@ -184,15 +184,23 @@
         <!-- Collapsible Legend Body -->
         <div id="legend-body" class="flex flex-col">
             <!-- Quick Action Bar -->
-            <div class="px-3 py-2 bg-slate-950/50 border-b border-slate-800/80 flex items-center justify-between gap-1.5">
-                <button id="btn-show-all" class="flex-1 py-1 px-1.5 text-[11px] font-medium rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition cursor-pointer">
-                    Mostra tutto
-                </button>
-                <button id="btn-default-vis" class="flex-1 py-1 px-1.5 text-[11px] font-medium rounded-md bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700/80 transition cursor-pointer">
-                    Default
-                </button>
-                <button id="btn-reset-cam" title="Ripristina vista iniziale" class="py-1 px-2 text-[11px] font-medium rounded-md bg-indigo-600/80 hover:bg-indigo-500 text-white border border-indigo-400/30 transition cursor-pointer">
-                    Reset Vista
+            <div class="px-3 py-2 bg-slate-950/50 border-b border-slate-800/80 space-y-1.5">
+                <div class="flex items-center justify-between gap-1.5">
+                    <button id="btn-show-all" class="flex-1 py-1 px-1.5 text-[11px] font-medium rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition cursor-pointer">
+                        Mostra tutto
+                    </button>
+                    <button id="btn-default-vis" class="flex-1 py-1 px-1.5 text-[11px] font-medium rounded-md bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700/80 transition cursor-pointer">
+                        Default
+                    </button>
+                    <button id="btn-reset-cam" title="Ripristina vista iniziale" class="py-1 px-2 text-[11px] font-medium rounded-md bg-indigo-600/80 hover:bg-indigo-500 text-white border border-indigo-400/30 transition cursor-pointer">
+                        Reset Vista
+                    </button>
+                </div>
+                <button id="btn-toggle-labels" title="Alterna tra etichette complete e solo lettere" class="w-full py-1 px-2 text-[11px] font-medium rounded-md bg-slate-800/90 hover:bg-slate-700 text-emerald-300 border border-slate-700/80 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
+                    <span id="label-mode-text">Etichette: Complete (solo lettere)</span>
                 </button>
             </div>
 
@@ -270,18 +278,33 @@
         // Registry for legend items and 3D floating HTML labels
         const sceneObjects = [];
         const floatingLabels = [];
+        let shortLabelsMode = false;
 
-        function registerFloatingLabel(text, positionVec, colorHex, parentGroup) {
+        function registerFloatingLabel(fullText, shortText, positionVec, colorHex, parentGroup) {
             const el = document.createElement('div');
             el.className = 'math-label';
             el.style.color = colorHex;
             el.style.borderColor = colorHex + '55';
-            el.textContent = text;
+            el.textContent = shortLabelsMode ? shortText : fullText;
             labelsLayer.appendChild(el);
 
-            const entry = { el, position: positionVec.clone(), parentGroup };
+            const entry = { el, fullText, shortText, position: positionVec.clone(), parentGroup };
             floatingLabels.push(entry);
             return entry;
+        }
+
+        function applyLabelMode() {
+            floatingLabels.forEach((item) => {
+                if (item.fullText !== undefined && item.shortText !== undefined) {
+                    item.el.textContent = shortLabelsMode ? item.shortText : item.fullText;
+                }
+            });
+            const labelModeText = document.getElementById('label-mode-text');
+            if (labelModeText) {
+                labelModeText.textContent = shortLabelsMode
+                    ? 'Etichette: Solo lettere (mostra numeri)'
+                    : 'Etichette: Complete (solo lettere)';
+            }
         }
 
         // Helper to create a glowing 3D point sphere + subtle halo
@@ -504,7 +527,7 @@
         // Label for Plane π on one corner
         const planeCornerLocal = new THREE.Vector3(planeSize * 0.44, -planeSize * 0.44, 0);
         planeCornerLocal.applyQuaternion(planeMesh.quaternion).add(planeMesh.position);
-        registerFloatingLabel('Piano π: 2x + y + 3z - 5 = 0', planeCornerLocal, '#38bdf8', planeGroup);
+        registerFloatingLabel('π: 2x+y+3z-5=0', 'π', planeCornerLocal, '#38bdf8', planeGroup);
 
         planeGroup.visible = false;
         scene.add(planeGroup);
@@ -552,7 +575,7 @@
         // --- V1. Vector AB = (1, 1, -1) starting at A(1,0,1) -> B(2,1,0) ---
         const vecABGroup = createVectorArrow(ptA, ptB, 0xfb7185, 0.032, 0.25, 0.09);
         const midAB = new THREE.Vector3().addVectors(ptA, ptB).multiplyScalar(0.5);
-        registerFloatingLabel('AB = (1, 1, -1)', midAB, '#fda4af', vecABGroup);
+        registerFloatingLabel('AB = (1, 1, -1)', 'AB', midAB, '#fda4af', vecABGroup);
         vecABGroup.visible = false;
         scene.add(vecABGroup);
         sceneObjects.push({
@@ -569,7 +592,7 @@
         // --- V2. Vector AC = (-1, 2, 0) starting at A(1,0,1) -> C(0,2,1) ---
         const vecACGroup = createVectorArrow(ptA, ptC, 0x34d399, 0.032, 0.25, 0.09);
         const midAC = new THREE.Vector3().addVectors(ptA, ptC).multiplyScalar(0.5);
-        registerFloatingLabel('AC = (-1, 2, 0)', midAC, '#6ee7b7', vecACGroup);
+        registerFloatingLabel('AC = (-1, 2, 0)', 'AC', midAC, '#6ee7b7', vecACGroup);
         vecACGroup.visible = false;
         scene.add(vecACGroup);
         sceneObjects.push({
@@ -586,7 +609,7 @@
         // --- V3. Normal Vector n = AB × AC = (2, 1, 3) starting at A(1,0,1) -> (3,1,4) ---
         const ptNormalEnd = new THREE.Vector3().addVectors(ptA, normalVec); // (3, 1, 4)
         const vecNGroup = createVectorArrow(ptA, ptNormalEnd, 0x22d3ee, 0.036, 0.28, 0.105);
-        registerFloatingLabel('n = AB × AC = (2, 1, 3)', ptNormalEnd, '#67e8f9', vecNGroup);
+        registerFloatingLabel('n = (2, 1, 3)', 'n', ptNormalEnd, '#67e8f9', vecNGroup);
         vecNGroup.visible = false;
         scene.add(vecNGroup);
         sceneObjects.push({
@@ -602,7 +625,7 @@
 
         // --- D. Point A (1, 0, 1) ---
         const groupA = createPointMesh(ptA, 0xf43f5e);
-        registerFloatingLabel('A (1, 0, 1)', ptA, '#fda4af', groupA);
+        registerFloatingLabel('A(1, 0, 1)', 'A', ptA, '#fda4af', groupA);
         scene.add(groupA);
         sceneObjects.push({
             id: 'pointA',
@@ -617,7 +640,7 @@
 
         // --- E. Point B (2, 1, 0) ---
         const groupB = createPointMesh(ptB, 0xf59e0b);
-        registerFloatingLabel('B (2, 1, 0)', ptB, '#fcd34d', groupB);
+        registerFloatingLabel('B(2, 1, 0)', 'B', ptB, '#fcd34d', groupB);
         scene.add(groupB);
         sceneObjects.push({
             id: 'pointB',
@@ -632,7 +655,7 @@
 
         // --- F. Point C (0, 2, 1) ---
         const groupC = createPointMesh(ptC, 0x10b981);
-        registerFloatingLabel('C (0, 2, 1)', ptC, '#6ee7b7', groupC);
+        registerFloatingLabel('C(0, 2, 1)', 'C', ptC, '#6ee7b7', groupC);
         scene.add(groupC);
         sceneObjects.push({
             id: 'pointC',
@@ -647,7 +670,7 @@
 
         // --- G. Point P (1, 1, 3) ---
         const groupP = createPointMesh(ptP, 0xd946ef, 0.12);
-        registerFloatingLabel('P (1, 1, 3)', ptP, '#f0abfc', groupP);
+        registerFloatingLabel('P(1, 1, 3)', 'P', ptP, '#f0abfc', groupP);
         scene.add(groupP);
         sceneObjects.push({
             id: 'pointP',
@@ -678,7 +701,7 @@
         coneR.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), arrowDir);
         lineGroup.add(coneR);
 
-        registerFloatingLabel('Retta r ⊥ π (n = (2,1,3))', rEnd.clone().add(new THREE.Vector3(0, 0, 0.2)), '#fdba74', lineGroup);
+        registerFloatingLabel('r', 'r', rEnd.clone().add(new THREE.Vector3(0, 0, 0.2)), '#fdba74', lineGroup);
         lineGroup.visible = false;
         scene.add(lineGroup);
         sceneObjects.push({
@@ -694,7 +717,7 @@
 
         // --- I. Point Q (0, 0.5, 1.5) = r ∩ π ---
         const groupQ = createPointMesh(ptQ, 0x14b8a6, 0.11);
-        registerFloatingLabel('Q (0, 0.5, 1.5)', ptQ, '#5eead4', groupQ);
+        registerFloatingLabel('Q(0, 1/2, 3/2)', 'Q', ptQ, '#5eead4', groupQ);
         groupQ.visible = false;
         scene.add(groupQ);
         sceneObjects.push({
@@ -730,7 +753,7 @@
 
         // Midpoint label for distance d(P, π)
         const midPQ = new THREE.Vector3().addVectors(ptP, ptQ).multiplyScalar(0.5);
-        registerFloatingLabel('d(P, π) = √14/2 ≈ 1.87', midPQ, '#fef08a', distGroup);
+        registerFloatingLabel('d(P,π) = √14/2', 'd', midPQ, '#fef08a', distGroup);
 
         distGroup.visible = false;
         scene.add(distGroup);
@@ -824,6 +847,11 @@
             camera.position.copy(defaultCamPos);
             controls.target.copy(defaultTarget);
             controls.update();
+        });
+
+        document.getElementById('btn-toggle-labels').addEventListener('click', () => {
+            shortLabelsMode = !shortLabelsMode;
+            applyLabelMode();
         });
 
         // Collapsible Legend Toggle
