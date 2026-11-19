@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esercizio 3 — Geometria Analitica nello Spazio 3D</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Three.js & OrbitControls (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #0b1120;
+            color: #f8fafc;
+            user-select: none;
+        }
+        .font-mono-math {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        /* Floating 3D HTML labels */
+        #labels-layer {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+            overflow: hidden;
+        }
+        .math-label {
+            position: absolute;
+            transform: translate(-50%, -135%);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            backdrop-filter: blur(6px);
+            background: rgba(15, 23, 42, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+            transition: opacity 0.15s ease;
+        }
+        .axis-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.65);
+        }
+        /* Custom subtle scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.35);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.55);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- 3D WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Projected HTML 3D Labels Layer -->
+    <div id="labels-layer"></div>
+
+    <!-- Top-Left Compact Header & Exercise Solution Drawer -->
+    <div class="fixed top-3 left-3 z-20 flex flex-col gap-2 max-w-[calc(100vw-1.5rem)] sm:max-w-md">
+        <div class="bg-slate-900/85 backdrop-blur-md border border-slate-700/70 rounded-xl shadow-2xl overflow-hidden">
+            <div class="px-3.5 py-2.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 font-bold text-sm shrink-0">
+                        3D
+                    </div>
+                    <div class="truncate">
+                        <h1 class="text-sm font-semibold text-white tracking-tight truncate">Esercizio 3 — Piano, Retta e Distanza</h1>
+                        <p class="text-[11px] text-slate-400 truncate">Trascina per ruotare • Scorri per zoomare</p>
+                    </div>
+                </div>
+                <button id="toggle-solution-btn" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                    <span id="solution-btn-text">Soluzione</span>
+                    <svg id="solution-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Collapsible Step-by-Step Solution Content -->
+            <div id="solution-panel" class="hidden border-t border-slate-800 px-3.5 py-3 text-xs text-slate-300 space-y-2.5 max-h-[60vh] overflow-y-auto select-text">
+                <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 leading-relaxed">
+                    <span class="font-semibold text-white">Testo:</span> Dati
+                    <span class="font-mono-math text-rose-300">A=(1,0,1)</span>,
+                    <span class="font-mono-math text-amber-300">B=(2,1,0)</span>,
+                    <span class="font-mono-math text-emerald-300">C=(0,2,1)</span> e
+                    <span class="font-mono-math text-fuchsia-300">P=(1,1,3)</span>.
+                </div>
+
+                <!-- Step (a) -->
+                <div class="space-y-1">
+                    <div class="font-semibold text-sky-300 flex items-center gap-1.5">
+                        <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-[10px]">(a)</span>
+                        Equazione cartesiana del piano π per A, B, C
+                    </div>
+                    <p class="text-slate-400 pl-1">
+                        Vettori direttori: <span class="font-mono-math text-slate-200">AB = (1, 1, -1)</span>,
+                        <span class="font-mono-math text-slate-200">AC = (-1, 2, 0)</span>.<br>
+                        Vettore normale: <span class="font-mono-math text-cyan-300">n = AB × AC = (2, 1, 3)</span>.<br>
+                        Piano <span class="font-mono-math text-white">π: 2(x - 1) + 1(y - 0) + 3(z - 1) = 0</span><br>
+                        <span class="inline-block mt-0.5 px-2 py-0.5 rounded bg-sky-950/90 border border-sky-700/50 font-mono-math text-sky-200 font-semibold">π : 2x + y + 3z - 5 = 0</span>
+                    </p>
+                </div>
+
+                <!-- Step (b) -->
+                <div class="space-y-1">
+                    <div class="font-semibold text-orange-300 flex items-center gap-1.5">
+                        <span class="px-1.5 py-0.5 rounded bg-orange-500/20 text-[10px]">(b)</span>
+                        Appartenenza di P e retta r ⊥ π per P
+                    </div>
+                    <p class="text-slate-400 pl-1">
+                        Sostituendo P(1,1,3) in π: <span class="font-mono-math text-slate-200">2(1) + 1 + 3(3) - 5 = 7 ≠ 0 ⇒ P ∉ π</span>.<br>
+                        La retta <span class="font-mono-math text-orange-300">r</span> ha direzione <span class="font-mono-math text-cyan-300">n = (2, 1, 3)</span>:<br>
+                        <span class="inline-block mt-0.5 px-2 py-0.5 rounded bg-orange-950/80 border border-orange-700/50 font-mono-math text-orange-200">r : { x = 1 + 2t, y = 1 + t, z = 3 + 3t }</span>
+                    </p>
+                </div>
+
+                <!-- Step (c) -->
+                <div class="space-y-1">
+                    <div class="font-semibold text-yellow-300 flex items-center gap-1.5">
+                        <span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-[10px]">(c)</span>
+                        Intersezione Q = r ∩ π e distanza d(P, π)
+                    </div>
+                    <p class="text-slate-400 pl-1">
+                        <span class="font-mono-math text-slate-200">2(1+2t) + (1+t) + 3(3+3t) - 5 = 0 ⇒ 14t + 7 = 0 ⇒ t = -1/2</span>.<br>
+                        Proiezione ortogonale: <span class="font-mono-math text-teal-300 font-semibold">Q = (0, 1/2, 3/2) = (0, 0.5, 1.5)</span>.<br>
+                        Distanza: <span class="font-mono-math text-yellow-200 font-semibold">d(P, π) = ||PQ|| = √(1 + 0.25 + 2.25) = √14 / 2 ≈ 1.87</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Small Collapsible Legend Side Menu -->
+    <aside id="legend-sidebar" class="fixed top-3 right-3 z-20 w-64 sm:w-72 bg-slate-900/88 backdrop-blur-md border border-slate-700/75 rounded-xl shadow-2xl overflow-hidden transition-all duration-200">
+        <!-- Legend Header -->
+        <div class="px-3.5 py-2.5 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                </svg>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-200">Legenda Oggetti</span>
+            </div>
+            <button id="toggle-legend-btn" title="Comprimi / Espandi legenda" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer">
+                <svg id="legend-chevron" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Collapsible Legend Body -->
+        <div id="legend-body" class="flex flex-col">
+            <!-- Quick Action Bar -->
+            <div class="px-3 py-2 bg-slate-950/50 border-b border-slate-800/80 flex items-center justify-between gap-1.5">
+                <button id="btn-show-all" class="flex-1 py-1 px-1.5 text-[11px] font-medium rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition cursor-pointer">
+                    Mostra tutto
+                </button>
+                <button id="btn-default-vis" class="flex-1 py-1 px-1.5 text-[11px] font-medium rounded-md bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700/80 transition cursor-pointer">
+                    Default
+                </button>
+                <button id="btn-reset-cam" title="Ripristina vista iniziale" class="py-1 px-2 text-[11px] font-medium rounded-md bg-indigo-600/80 hover:bg-indigo-500 text-white border border-indigo-400/30 transition cursor-pointer">
+                    Reset Vista
+                </button>
+            </div>
+
+            <!-- Interactive Toggle Items List -->
+            <div id="legend-items" class="p-2 space-y-2.5 max-h-[65vh] overflow-y-auto">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </div>
+    </aside>
+
+    <!-- Bottom-Left Subtle Coordinate Convention Badge -->
+    <div class="fixed bottom-3 left-3 z-10 hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/75 backdrop-blur-md border border-slate-800 text-[11px] text-slate-400">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Asse X</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> Asse Y</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Asse Z (Alto)</span>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. SCENE SETUP (Standard Mathematical Z-Up Right-Handed Coordinate System)
+        // =========================================================================
+        const container = document.getElementById('canvas-container');
+        const labelsLayer = document.getElementById('labels-layer');
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b1120);
+        scene.fog = new THREE.FogExp2(0x0b1120, 0.028);
+
+        // Set global Z-up so standard math (x, y, z) maps directly without confusion
+        THREE.Object3D.DefaultUp.set(0, 0, 1);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.up.set(0, 0, 1);
+
+        const defaultCamPos = new THREE.Vector3(6.8, 5.8, 5.2);
+        const defaultTarget = new THREE.Vector3(0.8, 0.8, 1.3);
+        camera.position.copy(defaultCamPos);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.copy(defaultTarget);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.07;
+        controls.minDistance = 2;
+        controls.maxDistance = 30;
+        controls.update();
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+        scene.add(ambientLight);
+
+        const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.75);
+        dirLight1.position.set(8, 10, 12);
+        scene.add(dirLight1);
+
+        const dirLight2 = new THREE.DirectionalLight(0x93c5fd, 0.35);
+        dirLight2.position.set(-8, -6, -4);
+        scene.add(dirLight2);
+
+        // =========================================================================
+        // 2. MATHEMATICAL DATA FOR ESERCIZIO 3
+        // =========================================================================
+        const ptA = new THREE.Vector3(1, 0, 1);
+        const ptB = new THREE.Vector3(2, 1, 0);
+        const ptC = new THREE.Vector3(0, 2, 1);
+        const ptP = new THREE.Vector3(1, 1, 3);
+        const ptQ = new THREE.Vector3(0, 0.5, 1.5); // Orthogonal projection of P onto pi
+        const normalVec = new THREE.Vector3(2, 1, 3);
+        const unitNormal = normalVec.clone().normalize();
+
+        // Registry for legend items and 3D floating HTML labels
+        const sceneObjects = [];
+        const floatingLabels = [];
+
+        function registerFloatingLabel(text, positionVec, colorHex, parentGroup) {
+            const el = document.createElement('div');
+            el.className = 'math-label';
+            el.style.color = colorHex;
+            el.style.borderColor = colorHex + '55';
+            el.textContent = text;
+            labelsLayer.appendChild(el);
+
+            const entry = { el, position: positionVec.clone(), parentGroup };
+            floatingLabels.push(entry);
+            return entry;
+        }
+
+        // Helper to create a glowing 3D point sphere + subtle halo
+        function createPointMesh(pos, colorHex, radius = 0.11) {
+            const group = new THREE.Group();
+            const geom = new THREE.SphereGeometry(radius, 28, 28);
+            const mat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 0.35,
+                roughness: 0.25,
+                metalness: 0.1
+            });
+            const sphere = new THREE.Mesh(geom, mat);
+            sphere.position.copy(pos);
+            group.add(sphere);
+
+            // Outer translucent halo
+            const haloGeom = new THREE.SphereGeometry(radius * 1.65, 20, 20);
+            const haloMat = new THREE.MeshBasicMaterial({
+                color: colorHex,
+                transparent: true,
+                opacity: 0.22,
+                depthWrite: false
+            });
+            const halo = new THREE.Mesh(haloGeom, haloMat);
+            halo.position.copy(pos);
+            group.add(halo);
+
+            return group;
+        }
+
+        // Helper to create a solid cylinder between two 3D points
+        function createCylinderBetween(p1, p2, radius, colorHex, opacity = 1.0) {
+            const dir = new THREE.Vector3().subVectors(p2, p1);
+            const len = dir.length();
+            const geom = new THREE.CylinderGeometry(radius, radius, len, 16);
+            const mat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 0.2,
+                transparent: opacity < 1.0,
+                opacity: opacity,
+                roughness: 0.3
+            });
+            const mesh = new THREE.Mesh(geom, mat);
+            const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+            mesh.position.copy(mid);
+            // Cylinder default axis is Y (0,1,0)
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+            return mesh;
+        }
+
+        // Helper to create a crisp 3D vector arrow (shaft + cone arrowhead) from start to end
+        function createVectorArrow(startPos, endPos, colorHex, shaftRadius = 0.032, headLength = 0.26, headRadius = 0.095) {
+            const group = new THREE.Group();
+            const dir = new THREE.Vector3().subVectors(endPos, startPos);
+            const totalLen = dir.length();
+            const unitDir = dir.clone().normalize();
+
+            const effectiveHeadLen = Math.min(headLength, totalLen * 0.45);
+            const shaftEnd = endPos.clone().addScaledVector(unitDir, -effectiveHeadLen);
+
+            // Cylinder shaft from startPos to base of cone
+            const shaft = createCylinderBetween(startPos, shaftEnd, shaftRadius, colorHex, 0.96);
+            group.add(shaft);
+
+            // Cone arrowhead positioned cleanly at tip
+            const coneGeom = new THREE.ConeGeometry(headRadius, effectiveHeadLen, 20);
+            const coneMat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 0.28,
+                roughness: 0.25
+            });
+            const cone = new THREE.Mesh(coneGeom, coneMat);
+            const coneCenter = endPos.clone().addScaledVector(unitDir, -effectiveHeadLen * 0.5);
+            cone.position.copy(coneCenter);
+            cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), unitDir);
+            group.add(cone);
+
+            return group;
+        }
+
+        // =========================================================================
+        // 3. BUILD GEOMETRIC OBJECTS
+        // =========================================================================
+
+        // --- A1. Coordinate Axes & Unit Ticks ---
+        const axesGroup = new THREE.Group();
+        const axisLen = 4.6;
+        const negLen = -2.0;
+
+        function buildAxis(dirVec, colorHex, labelText) {
+            const g = new THREE.Group();
+            const start = dirVec.clone().multiplyScalar(negLen);
+            const end = dirVec.clone().multiplyScalar(axisLen);
+
+            // Main shaft
+            const shaft = createCylinderBetween(start, end, 0.022, colorHex, 0.85);
+            g.add(shaft);
+
+            // Arrowhead cone
+            const coneGeom = new THREE.ConeGeometry(0.08, 0.24, 16);
+            const coneMat = new THREE.MeshBasicMaterial({ color: colorHex });
+            const cone = new THREE.Mesh(coneGeom, coneMat);
+            cone.position.copy(end);
+            cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVec);
+            g.add(cone);
+
+            // Unit tick marks (-1 to 4)
+            for (let t = -1; t <= 4; t++) {
+                if (t === 0) continue;
+                const tickPos = dirVec.clone().multiplyScalar(t);
+                const tickGeom = new THREE.SphereGeometry(0.038, 10, 10);
+                const tickMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const tick = new THREE.Mesh(tickGeom, tickMat);
+                tick.position.copy(tickPos);
+                g.add(tick);
+            }
+
+            // Axis end label
+            const labelEl = document.createElement('div');
+            labelEl.className = 'axis-label';
+            labelEl.style.color = '#' + colorHex.toString(16).padStart(6, '0');
+            labelEl.textContent = labelText;
+            labelsLayer.appendChild(labelEl);
+            floatingLabels.push({
+                el: labelEl,
+                position: dirVec.clone().multiplyScalar(axisLen + 0.35),
+                parentGroup: axesGroup
+            });
+
+            return g;
+        }
+
+        axesGroup.add(buildAxis(new THREE.Vector3(1, 0, 0), 0xef4444, 'X'));
+        axesGroup.add(buildAxis(new THREE.Vector3(0, 1, 0), 0x22c55e, 'Y'));
+        axesGroup.add(buildAxis(new THREE.Vector3(0, 0, 1), 0x3b82f6, 'Z'));
+
+        // Origin marker O(0,0,0)
+        const originDot = new THREE.Mesh(
+            new THREE.SphereGeometry(0.055, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x94a3b8 })
+        );
+        axesGroup.add(originDot);
+
+        scene.add(axesGroup);
+        sceneObjects.push({
+            id: 'axes',
+            category: 'Riferimento',
+            name: 'Assi Cartesiani (X, Y, Z)',
+            subtitle: 'O(0,0,0) e tacche unitarie',
+            color: '#94a3b8',
+            group: axesGroup,
+            defaultVisible: true,
+            visible: true
+        });
+
+        // --- A2. XY Reference Grid ---
+        const gridGroup = new THREE.Group();
+        const xyGrid = new THREE.GridHelper(10, 10, 0x334155, 0x1e293b);
+        xyGrid.rotation.x = Math.PI / 2;
+        xyGrid.position.set(1, 1, 0);
+        gridGroup.add(xyGrid);
+
+        scene.add(gridGroup);
+        sceneObjects.push({
+            id: 'xyGrid',
+            category: 'Riferimento',
+            name: 'Griglia Piano XY',
+            subtitle: 'z = 0 (passo 1)',
+            color: '#475569',
+            group: gridGroup,
+            defaultVisible: true,
+            visible: true
+        });
+
+        // --- B. Plane π: 2x + y + 3z - 5 = 0 ---
+        const planeGroup = new THREE.Group();
+        const planeSize = 5.4;
+        const planeGeom = new THREE.PlaneGeometry(planeSize, planeSize, 8, 8);
+        const planeMat = new THREE.MeshPhysicalMaterial({
+            color: 0x0ea5e9,
+            emissive: 0x0369a1,
+            emissiveIntensity: 0.18,
+            transparent: true,
+            opacity: 0.28,
+            roughness: 0.2,
+            metalness: 0.05,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const planeMesh = new THREE.Mesh(planeGeom, planeMat);
+
+        // PlaneGeometry normal is +Z (0,0,1); rotate to match unitNormal
+        planeMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), unitNormal);
+        // Center the plane nicely around the centroid of A, B, C and Q
+        const planeCenter = new THREE.Vector3(0.8, 0.8, (5 - 2 * 0.8 - 0.8) / 3);
+        planeMesh.position.copy(planeCenter);
+        planeGroup.add(planeMesh);
+
+        // Subtle wireframe grid & border on Plane π
+        const planeWire = new THREE.LineSegments(
+            new THREE.WireframeGeometry(planeGeom),
+            new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22 })
+        );
+        planeWire.quaternion.copy(planeMesh.quaternion);
+        planeWire.position.copy(planeMesh.position);
+        planeGroup.add(planeWire);
+
+        const planeEdges = new THREE.LineSegments(
+            new THREE.EdgesGeometry(planeGeom),
+            new THREE.LineBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.65 })
+        );
+        planeEdges.quaternion.copy(planeMesh.quaternion);
+        planeEdges.position.copy(planeMesh.position);
+        planeGroup.add(planeEdges);
+
+        // Label for Plane π on one corner
+        const planeCornerLocal = new THREE.Vector3(planeSize * 0.44, -planeSize * 0.44, 0);
+        planeCornerLocal.applyQuaternion(planeMesh.quaternion).add(planeMesh.position);
+        registerFloatingLabel('Piano π: 2x + y + 3z - 5 = 0', planeCornerLocal, '#38bdf8', planeGroup);
+
+        planeGroup.visible = false;
+        scene.add(planeGroup);
+        sceneObjects.push({
+            id: 'planePi',
+            category: 'Triangolo & Piano',
+            name: 'Piano π',
+            subtitle: '2x + y + 3z - 5 = 0',
+            color: '#0ea5e9',
+            group: planeGroup,
+            defaultVisible: false,
+            visible: false
+        });
+
+        // --- C. Triangle ABC on Plane π ---
+        const triangleGroup = new THREE.Group();
+        const triGeom = new THREE.BufferGeometry().setFromPoints([ptA, ptB, ptC]);
+        triGeom.computeVertexNormals();
+        const triMat = new THREE.MeshBasicMaterial({
+            color: 0x818cf8,
+            transparent: true,
+            opacity: 0.28,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        triangleGroup.add(new THREE.Mesh(triGeom, triMat));
+
+        // Edges AB, BC, CA
+        triangleGroup.add(createCylinderBetween(ptA, ptB, 0.018, 0xa5b4fc, 0.85));
+        triangleGroup.add(createCylinderBetween(ptB, ptC, 0.018, 0xa5b4fc, 0.85));
+        triangleGroup.add(createCylinderBetween(ptC, ptA, 0.018, 0xa5b4fc, 0.85));
+
+        scene.add(triangleGroup);
+        sceneObjects.push({
+            id: 'triangleABC',
+            category: 'Triangolo & Piano',
+            name: 'Triangolo ABC',
+            subtitle: 'Superficie generata da A, B, C',
+            color: '#818cf8',
+            group: triangleGroup,
+            defaultVisible: true,
+            visible: true
+        });
+
+        // --- V1. Vector AB = (1, 1, -1) starting at A(1,0,1) -> B(2,1,0) ---
+        const vecABGroup = createVectorArrow(ptA, ptB, 0xfb7185, 0.032, 0.25, 0.09);
+        const midAB = new THREE.Vector3().addVectors(ptA, ptB).multiplyScalar(0.5);
+        registerFloatingLabel('AB = (1, 1, -1)', midAB, '#fda4af', vecABGroup);
+        vecABGroup.visible = false;
+        scene.add(vecABGroup);
+        sceneObjects.push({
+            id: 'vecAB',
+            category: 'Vettori da A',
+            name: 'Vettore AB',
+            subtitle: 'B - A = (1, 1, -1)',
+            color: '#fb7185',
+            group: vecABGroup,
+            defaultVisible: false,
+            visible: false
+        });
+
+        // --- V2. Vector AC = (-1, 2, 0) starting at A(1,0,1) -> C(0,2,1) ---
+        const vecACGroup = createVectorArrow(ptA, ptC, 0x34d399, 0.032, 0.25, 0.09);
+        const midAC = new THREE.Vector3().addVectors(ptA, ptC).multiplyScalar(0.5);
+        registerFloatingLabel('AC = (-1, 2, 0)', midAC, '#6ee7b7', vecACGroup);
+        vecACGroup.visible = false;
+        scene.add(vecACGroup);
+        sceneObjects.push({
+            id: 'vecAC',
+            category: 'Vettori da A',
+            name: 'Vettore AC',
+            subtitle: 'C - A = (-1, 2, 0)',
+            color: '#34d399',
+            group: vecACGroup,
+            defaultVisible: false,
+            visible: false
+        });
+
+        // --- V3. Normal Vector n = AB × AC = (2, 1, 3) starting at A(1,0,1) -> (3,1,4) ---
+        const ptNormalEnd = new THREE.Vector3().addVectors(ptA, normalVec); // (3, 1, 4)
+        const vecNGroup = createVectorArrow(ptA, ptNormalEnd, 0x22d3ee, 0.036, 0.28, 0.105);
+        registerFloatingLabel('n = AB × AC = (2, 1, 3)', ptNormalEnd, '#67e8f9', vecNGroup);
+        vecNGroup.visible = false;
+        scene.add(vecNGroup);
+        sceneObjects.push({
+            id: 'vecN',
+            category: 'Vettori da A',
+            name: 'Vettore normale n',
+            subtitle: 'AB × AC = (2, 1, 3) da A',
+            color: '#22d3ee',
+            group: vecNGroup,
+            defaultVisible: false,
+            visible: false
+        });
+
+        // --- D. Point A (1, 0, 1) ---
+        const groupA = createPointMesh(ptA, 0xf43f5e);
+        registerFloatingLabel('A (1, 0, 1)', ptA, '#fda4af', groupA);
+        scene.add(groupA);
+        sceneObjects.push({
+            id: 'pointA',
+            category: 'Punti',
+            name: 'Punto A',
+            subtitle: '(1, 0, 1) ∈ π',
+            color: '#f43f5e',
+            group: groupA,
+            defaultVisible: true,
+            visible: true
+        });
+
+        // --- E. Point B (2, 1, 0) ---
+        const groupB = createPointMesh(ptB, 0xf59e0b);
+        registerFloatingLabel('B (2, 1, 0)', ptB, '#fcd34d', groupB);
+        scene.add(groupB);
+        sceneObjects.push({
+            id: 'pointB',
+            category: 'Punti',
+            name: 'Punto B',
+            subtitle: '(2, 1, 0) ∈ π',
+            color: '#f59e0b',
+            group: groupB,
+            defaultVisible: true,
+            visible: true
+        });
+
+        // --- F. Point C (0, 2, 1) ---
+        const groupC = createPointMesh(ptC, 0x10b981);
+        registerFloatingLabel('C (0, 2, 1)', ptC, '#6ee7b7', groupC);
+        scene.add(groupC);
+        sceneObjects.push({
+            id: 'pointC',
+            category: 'Punti',
+            name: 'Punto C',
+            subtitle: '(0, 2, 1) ∈ π',
+            color: '#10b981',
+            group: groupC,
+            defaultVisible: true,
+            visible: true
+        });
+
+        // --- G. Point P (1, 1, 3) ---
+        const groupP = createPointMesh(ptP, 0xd946ef, 0.12);
+        registerFloatingLabel('P (1, 1, 3)', ptP, '#f0abfc', groupP);
+        scene.add(groupP);
+        sceneObjects.push({
+            id: 'pointP',
+            category: 'Punti',
+            name: 'Punto P',
+            subtitle: '(1, 1, 3) ∉ π',
+            color: '#d946ef',
+            group: groupP,
+            defaultVisible: true,
+            visible: true
+        });
+
+        // --- H. Line r orthogonal to π passing through P ---
+        // r(t) = (1 + 2t, 1 + t, 3 + 3t). At t=0 -> P; at t=-0.5 -> Q.
+        // Extend from t = -1.25 to t = 0.45
+        const lineGroup = new THREE.Group();
+        const rStart = new THREE.Vector3(1 + 2 * (-1.25), 1 + (-1.25), 3 + 3 * (-1.25));
+        const rEnd = new THREE.Vector3(1 + 2 * 0.45, 1 + 0.45, 3 + 3 * 0.45);
+        lineGroup.add(createCylinderBetween(rStart, rEnd, 0.022, 0xf97316, 0.9));
+
+        // Normal direction arrow indicator near top of line r
+        const arrowDir = unitNormal.clone();
+        const coneR = new THREE.Mesh(
+            new THREE.ConeGeometry(0.075, 0.22, 16),
+            new THREE.MeshBasicMaterial({ color: 0xf97316 })
+        );
+        coneR.position.copy(rEnd);
+        coneR.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), arrowDir);
+        lineGroup.add(coneR);
+
+        registerFloatingLabel('Retta r ⊥ π (n = (2,1,3))', rEnd.clone().add(new THREE.Vector3(0, 0, 0.2)), '#fdba74', lineGroup);
+        lineGroup.visible = false;
+        scene.add(lineGroup);
+        sceneObjects.push({
+            id: 'lineR',
+            category: 'Retta & Distanza',
+            name: 'Retta r (ortogonale a π)',
+            subtitle: 'P + t(2, 1, 3)',
+            color: '#f97316',
+            group: lineGroup,
+            defaultVisible: false,
+            visible: false
+        });
+
+        // --- I. Point Q (0, 0.5, 1.5) = r ∩ π ---
+        const groupQ = createPointMesh(ptQ, 0x14b8a6, 0.11);
+        registerFloatingLabel('Q (0, 0.5, 1.5)', ptQ, '#5eead4', groupQ);
+        groupQ.visible = false;
+        scene.add(groupQ);
+        sceneObjects.push({
+            id: 'pointQ',
+            category: 'Retta & Distanza',
+            name: 'Punto Q (Proiezione)',
+            subtitle: 'r ∩ π = (0, 1/2, 3/2)',
+            color: '#14b8a6',
+            group: groupQ,
+            defaultVisible: false,
+            visible: false
+        });
+
+        // --- J. Distance Segment d(P, π) = ||PQ|| + Right Angle Symbol at Q ---
+        const distGroup = new THREE.Group();
+        // Highlighted thick segment between P and Q
+        distGroup.add(createCylinderBetween(ptQ, ptP, 0.036, 0xfacc15, 0.95));
+
+        // Construct a clean 3D right-angle symbol at Q between normal vector (Q->P) and a tangent vector in plane π
+        const tangentDir = new THREE.Vector3().subVectors(ptA, ptQ).normalize();
+        const legLen = 0.28;
+        const corner1 = ptQ.clone().addScaledVector(unitNormal, legLen);
+        const corner2 = corner1.clone().addScaledVector(tangentDir, legLen);
+        const corner3 = ptQ.clone().addScaledVector(tangentDir, legLen);
+
+        const rightAnglePoints = [corner1, corner2, corner3];
+        const rightAngleGeom = new THREE.BufferGeometry().setFromPoints(rightAnglePoints);
+        const rightAngleLine = new THREE.Line(
+            rightAngleGeom,
+            new THREE.LineBasicMaterial({ color: 0xfef08a, linewidth: 2 })
+        );
+        distGroup.add(rightAngleLine);
+
+        // Midpoint label for distance d(P, π)
+        const midPQ = new THREE.Vector3().addVectors(ptP, ptQ).multiplyScalar(0.5);
+        registerFloatingLabel('d(P, π) = √14/2 ≈ 1.87', midPQ, '#fef08a', distGroup);
+
+        distGroup.visible = false;
+        scene.add(distGroup);
+        sceneObjects.push({
+            id: 'distancePQ',
+            category: 'Retta & Distanza',
+            name: 'Distanza d(P, π)',
+            subtitle: '||PQ|| = √3.5 ≈ 1.87',
+            color: '#facc15',
+            group: distGroup,
+            defaultVisible: false,
+            visible: false
+        });
+
+        // =========================================================================
+        // 4. LEGEND SIDE MENU GENERATION & INTERACTIVITY
+        // =========================================================================
+        const legendItemsContainer = document.getElementById('legend-items');
+
+        function renderLegendItems() {
+            legendItemsContainer.innerHTML = '';
+
+            // Preserve clean logical grouping order
+            const categories = ['Punti', 'Triangolo & Piano', 'Vettori da A', 'Retta & Distanza', 'Riferimento'];
+
+            categories.forEach((cat) => {
+                const items = sceneObjects.filter(o => o.category === cat);
+                if (items.length === 0) return;
+
+                const section = document.createElement('div');
+                section.className = 'space-y-1';
+
+                const header = document.createElement('div');
+                header.className = 'px-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400';
+                header.textContent = cat;
+                section.appendChild(header);
+
+                items.forEach((obj) => {
+                    const row = document.createElement('label');
+                    row.className = `flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-lg border transition cursor-pointer ${
+                        obj.visible
+                            ? 'bg-slate-800/75 border-slate-700/80 hover:bg-slate-800'
+                            : 'bg-slate-900/40 border-slate-800/60 opacity-55 hover:opacity-80'
+                    }`;
+
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-3 h-3 rounded-full shrink-0 shadow-sm ring-2 ring-white/10" style="background-color: ${obj.color};"></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-medium text-slate-100 truncate">${obj.name}</div>
+                                <div class="text-[10px] font-mono-math text-slate-400 truncate">${obj.subtitle}</div>
+                            </div>
+                        </div>
+                        <input type="checkbox" ${obj.visible ? 'checked' : ''} class="w-4 h-4 rounded accent-indigo-500 cursor-pointer shrink-0">
+                    `;
+
+                    const checkbox = row.querySelector('input');
+                    checkbox.addEventListener('change', (e) => {
+                        obj.visible = e.target.checked;
+                        obj.group.visible = obj.visible;
+                        renderLegendItems();
+                    });
+
+                    section.appendChild(row);
+                });
+
+                legendItemsContainer.appendChild(section);
+            });
+        }
+
+        renderLegendItems();
+
+        // Show All / Default Visibility / Reset Camera buttons
+        document.getElementById('btn-show-all').addEventListener('click', () => {
+            sceneObjects.forEach(obj => {
+                obj.visible = true;
+                obj.group.visible = true;
+            });
+            renderLegendItems();
+        });
+
+        document.getElementById('btn-default-vis').addEventListener('click', () => {
+            sceneObjects.forEach(obj => {
+                obj.visible = obj.defaultVisible;
+                obj.group.visible = obj.defaultVisible;
+            });
+            renderLegendItems();
+        });
+
+        document.getElementById('btn-reset-cam').addEventListener('click', () => {
+            camera.position.copy(defaultCamPos);
+            controls.target.copy(defaultTarget);
+            controls.update();
+        });
+
+        // Collapsible Legend Toggle
+        const legendBody = document.getElementById('legend-body');
+        const legendChevron = document.getElementById('legend-chevron');
+        let legendOpen = true;
+
+        document.getElementById('toggle-legend-btn').addEventListener('click', () => {
+            legendOpen = !legendOpen;
+            legendBody.classList.toggle('hidden', !legendOpen);
+            legendChevron.style.transform = legendOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+        });
+
+        // Collapsible Solution Panel Toggle
+        const solutionPanel = document.getElementById('solution-panel');
+        const solutionChevron = document.getElementById('solution-chevron');
+        let solutionOpen = false;
+
+        document.getElementById('toggle-solution-btn').addEventListener('click', () => {
+            solutionOpen = !solutionOpen;
+            solutionPanel.classList.toggle('hidden', !solutionOpen);
+            solutionChevron.style.transform = solutionOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+
+        // =========================================================================
+        // 5. PROJECT 3D COORDINATES TO 2D SCREEN FOR HTML LABELS & ANIMATION LOOP
+        // =========================================================================
+        const tempVec = new THREE.Vector3();
+
+        function updateFloatingLabels() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            for (let i = 0; i < floatingLabels.length; i++) {
+                const item = floatingLabels[i];
+
+                // Hide label if its parent 3D group is toggled off
+                if (item.parentGroup && !item.parentGroup.visible) {
+                    item.el.style.display = 'none';
+                    continue;
+                }
+
+                tempVec.copy(item.position).project(camera);
+
+                // Hide if behind camera
+                if (tempVec.z > 1) {
+                    item.el.style.display = 'none';
+                    continue;
+                }
+
+                const x = (tempVec.x * 0.5 + 0.5) * width;
+                const y = (-(tempVec.y * 0.5) + 0.5) * height;
+
+                item.el.style.display = 'block';
+                item.el.style.left = `${x.toFixed(1)}px`;
+                item.el.style.top = `${y.toFixed(1)}px`;
+            }
+        }
+
+        // Responsive Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Main Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            updateFloatingLabels();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function () {
+            animate();
+        };
+    </script>
+</body>
+</html>
